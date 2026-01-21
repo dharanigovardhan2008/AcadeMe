@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, Calendar, Users, BookOpen, TrendingUp, CheckCircle, MessageCircle } from 'lucide-react';
+import { Calculator, Calendar, Users, BookOpen, TrendingUp } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
@@ -10,13 +10,12 @@ import { useData } from '../context/DataContext';
 import { db } from '../firebase';
 import { collection, query, limit, getDocs, where } from 'firebase/firestore';
 
-// ============ CACHING UTILITY ============
-const CACHE_DURATION = 300000; // 5 minutes
+// ================= CACHE =================
+const CACHE_DURATION = 300000;
 
 const getFromCache = (key) => {
   const cached = sessionStorage.getItem(key);
   const timestamp = sessionStorage.getItem(`${key}_time`);
-
   if (!cached || !timestamp) return null;
 
   const age = Date.now() - parseInt(timestamp, 10);
@@ -25,7 +24,6 @@ const getFromCache = (key) => {
     sessionStorage.removeItem(`${key}_time`);
     return null;
   }
-
   return JSON.parse(cached);
 };
 
@@ -33,7 +31,7 @@ const saveToCache = (key, data) => {
   sessionStorage.setItem(key, JSON.stringify(data));
   sessionStorage.setItem(`${key}_time`, Date.now().toString());
 };
-// ============ END CACHING UTILITY ============
+// =========================================
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -41,81 +39,32 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [updates, setUpdates] = useState([]);
-  const [myReviews, setMyReviews] = useState([]);
 
   useEffect(() => {
     const fetchUpdates = async () => {
       try {
-        // ===== CACHE CHECK =====
         const cached = getFromCache('dashboard_updates');
         if (cached) {
           setUpdates(cached);
           return;
         }
 
-        const q = query(collection(db, "updates"), limit(10));
-        const querySnapshot = await getDocs(q);
+        const q = query(collection(db, "updates"), limit(5));
+        const snapshot = await getDocs(q);
         const list = [];
+        snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
 
-        querySnapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-
-        list.sort((a, b) => {
-          const dateA = a.date ? new Date(a.date) : new Date(0);
-          const dateB = b.date ? new Date(b.date) : new Date(0);
-          return dateB - dateA;
-        });
-
-        const finalList = list.slice(0, 5);
-        setUpdates(finalList);
-        saveToCache('dashboard_updates', finalList);
-      } catch (error) {
-        console.error("Error fetching updates:", error);
-      }
-    };
-
-    const fetchMyReviews = async () => {
-      if (!user?.uid) return;
-
-      try {
-        const cacheKey = `dashboard_reviews_${user.uid}`;
-        const cached = getFromCache(cacheKey);
-        if (cached) {
-          setMyReviews(cached);
-          return;
-        }
-
-        const q = query(
-          collection(db, "reviews"),
-          where("userId", "==", user.uid)
-        );
-
-        const querySnapshot = await getDocs(q);
-        const list = [];
-
-        querySnapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
-
-        list.sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-          return dateB - dateA;
-        });
-
-        setMyReviews(list);
-        saveToCache(cacheKey, list);
-      } catch (error) {
-        console.error("Error fetching my reviews:", error);
+        saveToCache('dashboard_updates', list);
+        setUpdates(list);
+      } catch (err) {
+        console.error(err);
       }
     };
 
     fetchUpdates();
-    fetchMyReviews();
-  }, [user]);
+  }, []);
 
-  // ===== Stats Calculations =====
+  // ===== Calculations =====
   const calculateCGPA = () => {
     if (!cgpaSubjects.length) return 0;
     const gradePoints = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
@@ -130,29 +79,13 @@ const Dashboard = () => {
 
   const calculateAttendance = () => {
     if (!attendanceSubjects.length) return 0;
-    const totalClasses = attendanceSubjects.reduce(
-      (sum, s) => sum + parseInt(s.total || 0),
-      0
-    );
-    const attendedClasses = attendanceSubjects.reduce(
-      (sum, s) => sum + parseInt(s.attended || 0),
-      0
-    );
-    return totalClasses
-      ? ((attendedClasses / totalClasses) * 100).toFixed(0)
-      : 0;
+    const total = attendanceSubjects.reduce((s, x) => s + Number(x.total || 0), 0);
+    const attended = attendanceSubjects.reduce((s, x) => s + Number(x.attended || 0), 0);
+    return total ? ((attended / total) * 100).toFixed(0) : 0;
   };
 
   const currentAttendance = calculateAttendance();
   const attendanceStatus = currentAttendance >= 80 ? 'Safe' : 'Low';
-
-  const quotes = [
-    "The only way to do great work is to love what you do.",
-    "Education is the most powerful weapon which you can use to change the world.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts."
-  ];
-
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   const quickActions = [
     { label: 'My Courses', icon: BookOpen, path: '/courses' },
@@ -164,100 +97,183 @@ const Dashboard = () => {
   return (
     <DashboardLayout>
 
-      {/* Welcome Section */}
-      <GlassCard className="mb-6 relative overflow-hidden" style={{ marginBottom: '2rem' }}>
-        <div style={{ position: 'relative', zIndex: 10 }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            Good Morning, {user?.name?.split(' ')[0] || 'Student'}! 👋
-          </h1>
+      {/* ================= WELCOME CARD ================= */}
+      <GlassCard
+        style={{
+          padding: '2rem',
+          background: 'linear-gradient(135deg, rgba(88,101,242,0.15), rgba(0,0,0,0.4))',
+          position: 'relative',
+          overflow: 'hidden',
+          marginBottom: '2rem'
+        }}
+      >
+        <h1 style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+          Good Morning, {user?.name?.split(' ')[0] || 'Student'} 👋
+        </h1>
 
-          <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
+        <p style={{ opacity: 0.7, marginTop: 6 }}>
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+          })}
+        </p>
 
-          <div style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
-            "{randomQuote}"
-          </div>
+        <div
+          style={{
+            marginTop: '1rem',
+            paddingLeft: '1rem',
+            borderLeft: '3px solid #6366f1',
+            fontStyle: 'italic',
+            opacity: 0.8
+          }}
+        >
+          "Success is not final, failure is not fatal: it is the courage to continue that counts."
         </div>
 
-        <div style={{ position: 'absolute', right: '-20px', top: '-20px', opacity: 0.1 }}>
-          <TrendingUp size={150} color="white" />
-        </div>
+        <TrendingUp
+          size={160}
+          style={{
+            position: 'absolute',
+            right: -20,
+            top: -20,
+            opacity: 0.08
+          }}
+        />
       </GlassCard>
 
-      {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        <GlassCard>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>{currentCGPA}</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Current CGPA</p>
-        </GlassCard>
+      {/* ================= STATS ================= */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.5rem',
+          marginBottom: '2.5rem'
+        }}
+      >
 
-        <GlassCard>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>
-            {currentAttendance}%
-          </h2>
-          <Badge variant={attendanceStatus === 'Safe' ? 'success' : 'danger'}>
-            {attendanceStatus}
-          </Badge>
-        </GlassCard>
+        {/* CGPA */}
+        <StatCard
+          icon={<TrendingUp size={26} />}
+          value={currentCGPA}
+          label="Current CGPA"
+          badge="Top 15%"
+          color="#60A5FA"
+        />
 
-        <GlassCard>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>
-            {cgpaSubjects.length}
-          </h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Active Subjects</p>
-        </GlassCard>
+        {/* Attendance */}
+        <StatCard
+          icon={<Calendar size={26} />}
+          value={`${currentAttendance}%`}
+          label="Overall Attendance"
+          badge={attendanceStatus}
+          color={attendanceStatus === 'Safe' ? '#34D399' : '#F87171'}
+        />
 
-        <GlassCard>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>
-            {faculty.length}+
-          </h2>
-          <button onClick={() => navigate('/faculty')}>
-            View Faculty
-          </button>
-        </GlassCard>
+        {/* Subjects */}
+        <StatCard
+          icon={<BookOpen size={26} />}
+          value={cgpaSubjects.length}
+          label="Active Subjects"
+          color="#A78BFA"
+        />
+
+        {/* Faculty */}
+        <StatCard
+          icon={<Users size={26} />}
+          value={`${faculty.length}+`}
+          label="Faculty Members"
+          badge="View All"
+          color="#F472B6"
+          onClick={() => navigate('/faculty')}
+        />
       </div>
 
-      {/* Quick Actions */}
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+      {/* ================= QUICK ACTIONS ================= */}
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>
         Quick Actions
       </h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        {quickActions.map((action, idx) => (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '1.5rem'
+        }}
+      >
+        {quickActions.map((item, idx) => (
           <GlassCard
             key={idx}
-            style={{ cursor: 'pointer', textAlign: 'center' }}
-            onClick={() => navigate(action.path)}
+            onClick={() => navigate(item.path)}
+            style={{
+              cursor: 'pointer',
+              textAlign: 'center',
+              padding: '2rem',
+              transition: '0.3s',
+            }}
           >
-            <action.icon size={30} />
-            <h3>{action.label}</h3>
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                margin: '0 auto 1rem',
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <item.icon size={28} />
+            </div>
+
+            <h3 style={{ fontWeight: 600 }}>{item.label}</h3>
           </GlassCard>
         ))}
       </div>
 
-      {/* Notifications */}
-      <GlassCard>
-        <h2>Notifications</h2>
-        {updates.length === 0 ? (
-          <p>No new updates.</p>
-        ) : (
-          updates.map(update => (
-            <div key={update.id}>
-              <strong>{update.title}</strong>
-              <p>{update.message}</p>
-            </div>
-          ))
-        )}
-      </GlassCard>
-
     </DashboardLayout>
   );
 };
+
+// ================= STAT CARD =================
+const StatCard = ({ icon, value, label, badge, color, onClick }) => (
+  <GlassCard
+    onClick={onClick}
+    style={{
+      padding: '1.8rem',
+      cursor: onClick ? 'pointer' : 'default',
+      position: 'relative'
+    }}
+  >
+    <div
+      style={{
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        background: `${color}25`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color
+      }}
+    >
+      {icon}
+    </div>
+
+    {badge && (
+      <div style={{ position: 'absolute', right: 20, top: 20 }}>
+        <Badge variant="neutral">{badge}</Badge>
+      </div>
+    )}
+
+    <h2 style={{ fontSize: '2.4rem', fontWeight: 700, marginTop: '1rem' }}>
+      {value}
+    </h2>
+
+    <p style={{ opacity: 0.7 }}>{label}</p>
+  </GlassCard>
+);
 
 export default Dashboard;
