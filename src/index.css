@@ -174,8 +174,21 @@ h1, h2, h3, h4, h5, h6 {
   50% { opacity: 0.5; }
 }
 
+/* =========================================
+   Skeleton Loading Animation (Added for ResourcesHub)
+   ========================================= */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .skeleton-pulse {
-  background: rgba(255, 255, 255, 0.1) !important;
-  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Optional: Smooth transition for cards */
+.glass-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
