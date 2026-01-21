@@ -166,3 +166,16 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* --- Add this to the bottom of src/index.css --- */
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton-pulse {
+  background: rgba(255, 255, 255, 0.1) !important;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
