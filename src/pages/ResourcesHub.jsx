@@ -10,17 +10,18 @@ import { db } from '../firebase';
 
 const ResourcesHub = () => {
     const { user } = useAuth();
+    // Default active tab set to concept-maps (formerly roadmaps)
     const [activeTab, setActiveTab] = useState('concept-maps');
     const [resources, setResources] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const TABS = [
-        { id: 'concept-maps', label: 'Concept Maps', icon: Map },
+        { id: 'concept-maps', label: 'Concept Maps', icon: Map }, // Renamed from Roadmaps
         { id: 'papers', label: 'Question Papers', icon: FileText },
         { id: 'syllabus', label: 'Syllabus', icon: BookOpen },
-        { id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical },
-        { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle },
-        { id: 'mcqs', label: 'MCQs', icon: CheckSquare },
+        { id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical }, // Added
+        { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle }, // Added
+        { id: 'mcqs', label: 'MCQs', icon: CheckSquare }, // Added
         { id: 'lectures', label: 'Video Lectures', icon: PlayCircle },
     ];
 
@@ -49,6 +50,7 @@ const ResourcesHub = () => {
     }, [user]);
 
     const filteredResources = resources.filter(res => {
+        // Matching the types saved in Admin Panel
         if (activeTab === 'concept-maps') return res.type === 'concept-map';
         if (activeTab === 'papers') return res.type === 'paper';
         if (activeTab === 'syllabus') return res.type === 'syllabus';
@@ -93,13 +95,14 @@ const ResourcesHub = () => {
 
             {loading ? <p style={{ color: 'white', textAlign: 'center' }}>Loading resources for {user?.branch}...</p> : (
                 <>
+                    {/* Concept Maps Block */}
                     {activeTab === 'concept-maps' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
                                 <GlassCard key={idx} className="hover:transform hover:-translate-y-1">
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>{res.title}</h3>
                                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                                        <Badge variant="primary">{res.type}</Badge>
+                                        <Badge variant="primary">Concept Map</Badge>
                                     </div>
                                     <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                                         <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center' }}>
@@ -111,6 +114,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
+                    {/* Question Papers Block */}
                     {activeTab === 'papers' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -121,7 +125,7 @@ const ResourcesHub = () => {
                                         </div>
                                     </div>
                                     <h3 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{res.title}</h3>
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{user.branch} • {res.type}</p>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{user.branch} • PYQ</p>
                                     <div style={{ display: 'flex', gap: '1rem' }}>
                                         <a href={res.url} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
                                             <GlassButton style={{ width: '100%', justifyContent: 'center' }} variant="gradient">Download/View</GlassButton>
@@ -132,6 +136,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
+                    {/* Syllabus Block */}
                     {activeTab === 'syllabus' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -145,6 +150,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
+                    {/* Lab Manuals Block - NEW */}
                     {activeTab === 'lab-manuals' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -163,6 +169,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
+                    {/* Important Questions Block - NEW */}
                     {activeTab === 'imp-questions' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -181,6 +188,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
+                    {/* MCQs Block - NEW */}
                     {activeTab === 'mcqs' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
