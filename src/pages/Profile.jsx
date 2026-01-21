@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Book, Calendar, Edit2, Shield, Settings as SettingsIcon, LogOut, Hash, Camera, X } from 'lucide-react'; // Added Camera, X
+import { User, Mail, Phone, Book, Calendar, Edit2, Shield, Settings as SettingsIcon, LogOut, Hash, Camera, X } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import GlassInput from '../components/GlassInput';
@@ -15,11 +15,40 @@ const Profile = () => {
     const { cgpaSubjects, attendanceSubjects } = useData();
     const [isEditing, setIsEditing] = useState(false);
     
-    // NEW: State for Avatar Modal
+    // Avatar Modal State
     const [isEditingAvatar, setIsEditingAvatar] = useState(false);
     const [loadingAvatar, setLoadingAvatar] = useState(false);
 
-    // Stats Logic (Preserved)
+    // ==========================================
+    // 20 CLASSIC & PROFESSIONAL AVATAR OPTIONS
+    // ==========================================
+    const AVATAR_OPTIONS = [
+        // Male / Neutral Styles
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Felix",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Oliver",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Robert",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Alexander",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=George",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Caleb",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Ryan",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Brian",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Bear",
+        
+        // Female / Neutral Styles
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Aneka",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jade",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Amara",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Mila",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Sophia",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Avery",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Annie",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Nora",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Maria",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Cookie"
+    ];
+
+    // Stats Logic
     const calculateCGPA = () => {
         if (!cgpaSubjects.length) return 0;
         const gradePoints = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
@@ -60,7 +89,6 @@ const Profile = () => {
         }
     }, [user]);
 
-    // Existing Profile Save Logic (Preserved)
     const handleSave = async () => {
         try {
             const userRef = doc(db, "users", user.uid);
@@ -77,22 +105,6 @@ const Profile = () => {
         }
     };
 
-    // NEW: Avatar Selection Logic
-    const AVATAR_OPTIONS = [
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Felix",
-        "https://api.dicebear.com/9.x/adventurer/svg?seed=Abby",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Mila",
-        "https://api.dicebear.com/9.x/adventurer/svg?seed=Brian",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Robert",
-        "https://api.dicebear.com/9.x/adventurer/svg?seed=Midnight",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Jocelyn",
-        "https://api.dicebear.com/9.x/adventurer/svg?seed=Cookie",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka",
-        "https://api.dicebear.com/9.x/bottts/svg?seed=Robot1",
-        "https://api.dicebear.com/9.x/fun-emoji/svg?seed=Happy"
-    ];
-
     const handleAvatarSelect = async (url) => {
         setLoadingAvatar(true);
         try {
@@ -100,7 +112,7 @@ const Profile = () => {
             await updateDoc(userRef, {
                 avatar: url
             });
-            window.location.reload(); // Simple reload to show new avatar everywhere
+            window.location.reload(); 
         } catch (error) {
             console.error("Error updating avatar:", error);
             alert("Failed to update avatar.");
@@ -109,7 +121,6 @@ const Profile = () => {
         setIsEditingAvatar(false);
     };
 
-    // Determine current avatar or fallback
     const currentAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
 
     return (
@@ -118,7 +129,7 @@ const Profile = () => {
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, var(--primary), var(--secondary))', opacity: 0.2 }}></div>
                 <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
                     
-                    {/* UPDATED AVATAR SECTION WITH CAMERA BUTTON */}
+                    {/* AVATAR DISPLAY */}
                     <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 1rem' }}>
                         <img 
                             src={currentAvatar}
@@ -232,48 +243,68 @@ const Profile = () => {
                 </div>
             </div>
 
-            {/* NEW: AVATAR SELECTION MODAL */}
+            {/* AVATAR SELECTION MODAL - IMPROVED GRID AND STYLES */}
             {isEditingAvatar && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
-                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '20px'
                 }}>
-                    <GlassCard style={{ width: '90%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Choose Your Avatar</h3>
-                            <button onClick={() => setIsEditingAvatar(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
-                                <X size={24} />
+                    <GlassCard style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', position: 'sticky', top: 0, zIndex: 10 }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Choose Avatar</h3>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Select a style that fits you best</p>
+                            </div>
+                            <button onClick={() => setIsEditingAvatar(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '8px', borderRadius: '50%' }}>
+                                <X size={20} />
                             </button>
                         </div>
 
                         {loadingAvatar ? (
-                            <p style={{ textAlign: 'center', padding: '2rem' }}>Updating profile...</p>
+                            <div style={{ textAlign: 'center', padding: '3rem' }}>
+                                <div className="skeleton-pulse" style={{ width: '60px', height: '60px', borderRadius: '50%', margin: '0 auto 1rem' }}></div>
+                                <p>Updating your profile...</p>
+                            </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                            // Grid updated to 4 columns for desktop to fit 20 items nicely
+                            <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', 
+                                gap: '1rem',
+                                paddingBottom: '1rem'
+                            }}>
                                 {AVATAR_OPTIONS.map((avatarUrl, index) => (
                                     <div 
                                         key={index} 
                                         onClick={() => handleAvatarSelect(avatarUrl)}
                                         style={{ 
                                             cursor: 'pointer', 
-                                            borderRadius: '12px', 
+                                            borderRadius: '16px', 
                                             padding: '8px', 
-                                            background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255,255,255,0.05)',
-                                            border: currentAvatar === avatarUrl ? '2px solid #3B82F6' : '2px solid transparent',
-                                            transition: 'all 0.2s',
-                                            textAlign: 'center'
+                                            background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
+                                            border: currentAvatar === avatarUrl ? '2px solid #3B82F6' : '1px solid rgba(255,255,255,0.05)',
+                                            transition: 'transform 0.2s, background 0.2s',
+                                            textAlign: 'center',
+                                            aspectRatio: '1/1',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
                                         }}
-                                        className="hover:bg-white/10"
+                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                     >
-                                        <img src={avatarUrl} alt={`Avatar ${index}`} style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
+                                        <img 
+                                            src={avatarUrl} 
+                                            alt={`Avatar ${index}`} 
+                                            style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'contain' }} 
+                                            loading="lazy"
+                                        />
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            Click an avatar to select it.
-                        </p>
                     </GlassCard>
                 </div>
             )}
