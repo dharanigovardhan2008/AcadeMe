@@ -7,13 +7,12 @@ import GlassButton from '../components/GlassButton';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext'; // Added for Security
-import { useNavigate } from 'react-router-dom';   // Added for Redirection
+import { useAuth } from '../context/AuthContext'; // Security
+import { useNavigate } from 'react-router-dom';   // Redirect
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showUserModal, setShowUserModal] = useState(false);
     const [showMessageModal, setShowMessageModal] = useState(false);
     const [selectedUserForMessage, setSelectedUserForMessage] = useState(null);
     const [messageText, setMessageText] = useState('');
@@ -43,7 +42,6 @@ const UserManagement = () => {
             await updateDoc(userRef, {
                 isBlocked: !isBlocked
             });
-            // Update local state
             setUsers(users.map(user =>
                 user.id === userId ? { ...user, isBlocked: !isBlocked } : user
             ));
@@ -87,7 +85,7 @@ const UserManagement = () => {
         }
     };
 
-    if (loading) return <div style={{ color: 'white' }}>Loading users...</div>;
+    if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '2rem' }}>Loading users...</div>;
 
     return (
         <GlassCard>
@@ -100,9 +98,8 @@ const UserManagement = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>User</th>
                             <th style={{ textAlign: 'left', padding: '1rem' }}>Reg No</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Name</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Email</th>
                             <th style={{ textAlign: 'left', padding: '1rem' }}>Branch</th>
                             <th style={{ textAlign: 'left', padding: '1rem' }}>Status</th>
                             <th style={{ textAlign: 'right', padding: '1rem' }}>Actions</th>
@@ -112,10 +109,22 @@ const UserManagement = () => {
                         {users.map(user => (
                             <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                        {/* AVATAR ADDED HERE */}
+                                        <img 
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=32`} 
+                                            alt={user.name} 
+                                            style={{ borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }}
+                                        />
+                                        <div>
+                                            <div style={{ fontWeight: 'bold' }}>{user.name}</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.email}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
                                     {user.regNo || <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>N/A</span>}
                                 </td>
-                                <td style={{ padding: '1rem' }}>{user.name}</td>
-                                <td style={{ padding: '1rem' }}>{user.email}</td>
                                 <td style={{ padding: '1rem' }}>{user.branch}</td>
                                 <td style={{ padding: '1rem' }}>
                                     <Badge variant={user.isBlocked ? "destructive" : "success"}>
@@ -179,8 +188,6 @@ const UserManagement = () => {
     );
 };
 
-
-
 const FacultyManagement = () => {
     const { faculty } = useData();
     const [newFaculty, setNewFaculty] = useState({ name: '', designation: '', mobile: '', branch: 'CSE' });
@@ -191,7 +198,7 @@ const FacultyManagement = () => {
         setLoading(true);
         try {
             await addDoc(collection(db, "faculty"), newFaculty);
-            setNewFaculty({ name: '', designation: '', mobile: '', branch: 'CSE' }); // Reset form
+            setNewFaculty({ name: '', designation: '', mobile: '', branch: 'CSE' }); 
             alert("Faculty added successfully!");
         } catch (error) {
             console.error("Error adding faculty: ", error);
@@ -216,7 +223,6 @@ const FacultyManagement = () => {
                 <h3 style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>Faculty Management</h3>
             </div>
 
-            {/* Add Faculty Form */}
             <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>Add New Faculty</h4>
                 <form onSubmit={handleAddFaculty} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'end' }}>
@@ -308,7 +314,6 @@ const FacultyManagement = () => {
 
 const ResourcesManagement = () => {
     const [resources, setResources] = useState([]);
-    // Set default type to concept-map
     const [newResource, setNewResource] = useState({ title: '', type: 'concept-map', url: '', branches: [] });
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(true);
@@ -357,7 +362,6 @@ const ResourcesManagement = () => {
                 ...newResource,
                 createdAt: new Date().toISOString()
             });
-            // Reset to concept-map
             setNewResource({ title: '', type: 'concept-map', url: '', branches: [] });
             alert("Resource added successfully!");
             fetchResources();
@@ -386,7 +390,6 @@ const ResourcesManagement = () => {
                 <GlassButton onClick={fetchResources}><Layers size={16} /> Refresh</GlassButton>
             </div>
 
-            {/* Add Resource Form */}
             <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>Upload Resource</h4>
                 <form onSubmit={handleAddResource} style={{ display: 'grid', gap: '1rem' }}>
@@ -520,7 +523,6 @@ const UpdatesManagement = () => {
             querySnapshot.forEach((doc) => {
                 list.push({ id: doc.id, ...doc.data() });
             });
-            // Sort by date desc
             list.sort((a, b) => new Date(b.date) - new Date(a.date));
             setUpdates(list);
         } catch (error) {
@@ -568,7 +570,6 @@ const UpdatesManagement = () => {
                 <GlassButton onClick={fetchUpdates}><Layers size={16} /> Refresh</GlassButton>
             </div>
 
-            {/* Post Update Form */}
             <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>Post New Update</h4>
                 <form onSubmit={handlePostUpdate} style={{ display: 'grid', gap: '1rem' }}>
@@ -598,7 +599,6 @@ const UpdatesManagement = () => {
                 </form>
             </div>
 
-            {/* List Updates */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {updates.map(update => (
                     <div key={update.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
@@ -624,8 +624,6 @@ const UpdatesManagement = () => {
     );
 };
 
-
-
 const ReviewsManagement = () => {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -633,13 +631,11 @@ const ReviewsManagement = () => {
     const fetchReviews = async () => {
         setLoading(true);
         try {
-            // In a real app index, orderBy timestamp. Simple getDocs for now.
             const querySnapshot = await getDocs(collection(db, "reviews"));
             const list = [];
             querySnapshot.forEach((doc) => {
                 list.push({ id: doc.id, ...doc.data() });
             });
-            // Manual sort desc
             list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setReviews(list);
         } catch (error) {
@@ -674,7 +670,6 @@ const ReviewsManagement = () => {
                     repliedAt: new Date().toISOString()
                 });
 
-                // Update local state
                 setReviews(reviews.map(r =>
                     r.id === id ? { ...r, reply, status: 'replied', repliedAt: new Date().toISOString() } : r
                 ));
@@ -700,11 +695,18 @@ const ReviewsManagement = () => {
                     reviews.map(review => (
                         <div key={review.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                <div>
-                                    <h4 style={{ fontWeight: 'bold' }}>{review.userName || 'Anonymous'}</h4>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                        {review.userBranch} • {new Date(review.createdAt).toLocaleDateString()}
-                                    </p>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                    <img 
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(review.userName || 'User')}&background=random&color=fff&size=32`} 
+                                        alt={review.userName} 
+                                        style={{ borderRadius: '50%' }}
+                                    />
+                                    <div>
+                                        <h4 style={{ fontWeight: 'bold' }}>{review.userName || 'Anonymous'}</h4>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                            {review.userBranch} • {new Date(review.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <a
@@ -762,19 +764,17 @@ const ReviewsManagement = () => {
 
 const AdminPanel = () => {
     const { faculty } = useData();
-    const { user, loading: authLoading } = useAuth(); // GET USER INFO FOR SECURITY
-    const navigate = useNavigate(); // FOR REDIRECTION
+    const { user, loading: authLoading } = useAuth(); 
+    const navigate = useNavigate(); 
     const [activeTab, setActiveTab] = useState('overview');
     const [recentUsers, setRecentUsers] = useState([]);
     const [allMessages, setAllMessages] = useState([]);
     const [loadingMessages, setLoadingMessages] = useState(true);
 
-    // SECURITY CHECK: Redirect if not admin
     useEffect(() => {
-        // Wait for auth to finish loading
         if (!authLoading) {
             if (!user || user.role !== 'admin') {
-                navigate('/dashboard'); // Send them back to dashboard if not admin
+                navigate('/dashboard'); 
             }
         }
     }, [user, authLoading, navigate]);
@@ -840,11 +840,18 @@ const AdminPanel = () => {
                     allMessages.map(msg => (
                         <div key={msg.id} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                <div>
-                                    <h4 style={{ fontWeight: 'bold' }}>To: {msg.userName || 'Unknown User'}</h4>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                        {new Date(msg.createdAt).toLocaleString()}
-                                    </span>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                    <img 
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(msg.userName || 'User')}&background=random&color=fff&size=32`} 
+                                        alt={msg.userName} 
+                                        style={{ borderRadius: '50%' }}
+                                    />
+                                    <div>
+                                        <h4 style={{ fontWeight: 'bold' }}>To: {msg.userName || 'Unknown User'}</h4>
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                            {new Date(msg.createdAt).toLocaleString()}
+                                        </span>
+                                    </div>
                                 </div>
                                 <Badge variant="primary">Admin Message</Badge>
                             </div>
@@ -888,10 +895,8 @@ const AdminPanel = () => {
         { id: 'updates', label: 'Updates', icon: Bell },
     ];
 
-    // If still loading auth or checking role, prevent flashing content
     if (authLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Checking permissions...</div>;
     
-    // If not admin, return null (the useEffect will redirect, but this stops rendering)
     if (!user || user.role !== 'admin') return null;
 
     return (
@@ -984,9 +989,12 @@ const AdminPanel = () => {
                                     recentUsers.map(user => (
                                         <div key={user.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <Users size={20} color="var(--text-secondary)" />
-                                                </div>
+                                                {/* UPDATED AVATAR */}
+                                                <img 
+                                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=40`} 
+                                                    alt={user.name} 
+                                                    style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+                                                />
                                                 <div>
                                                     <p style={{ fontWeight: '500' }}>{user.name}</p>
                                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.branch} • {user.year || 'Student'}</p>
