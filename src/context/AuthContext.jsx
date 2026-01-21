@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../firebase';
 import {
@@ -22,10 +21,25 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         let unsubscribeSnapshot = () => { };
 
+        // 1. Initial Local Storage Check (For instant load)
+        const cachedUser = localStorage.getItem('edutrackr_user');
+        if (cachedUser) {
+            const parsed = JSON.parse(cachedUser);
+            setUser(parsed);
+            // Check Admin Status from cache
+            const storedAdminUid = localStorage.getItem('edutrackr_admin_uid');
+            const isAuthorizedAdmin = 
+                (parsed.email === 'palerugopi2008@gmail.com') || 
+                (parsed.role === 'admin') || 
+                (storedAdminUid === parsed.uid);
+            setIsAdmin(isAuthorizedAdmin);
+        }
+
         const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
             unsubscribeSnapshot(); // Cleanup previous listener
 
             if (currentUser) {
+                // Determine source: cache or fresh
                 const userRef = doc(db, "users", currentUser.uid);
 
                 unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
@@ -38,39 +52,41 @@ export const AuthProvider = ({ children }) => {
                             setUser(null);
                             setIsAdmin(false);
                             localStorage.removeItem('edutrackr_admin_uid');
+                            localStorage.removeItem('edutrackr_user');
                         } else {
-                            setUser({ ...currentUser, ...userData });
+                            const fullUserData = { ...currentUser, ...userData };
+                            setUser(fullUserData);
+                            
+                            // Save to LocalStorage for persistence
+                            localStorage.setItem('edutrackr_user', JSON.stringify(fullUserData));
 
-                            // STRICT ADMIN CHECK:
-                            // 1. Hardcoded Email
-                            // 2. Verified PIN (stored in local storage LINKED to UID)
+                            // ADMIN CHECK LOGIC (Preserved from your code)
                             const storedAdminUid = localStorage.getItem('edutrackr_admin_uid');
                             const isAuthorizedAdmin =
                                 (currentUser.email === 'palerugopi2008@gmail.com') ||
+                                (userData.role === 'admin') ||
                                 (storedAdminUid === currentUser.uid);
 
                             setIsAdmin(isAuthorizedAdmin);
                         }
                     } else {
-                        // User created but doc not ready yet (or manually deleted)
+                        // Doc doesn't exist yet (very fresh signup)
                         setUser(currentUser);
                         if (currentUser.email === 'palerugopi2008@gmail.com') {
                             setIsAdmin(true);
                             localStorage.setItem('edutrackr_admin_uid', currentUser.uid);
-                        } else {
-                            setIsAdmin(false);
                         }
                     }
-                    // CRITICAL FIX: Only set loading to false AFTER we have the user data from Firestore
                     setLoading(false);
                 }, (error) => {
                     console.error("Auth Snapshot Error:", error);
                     setLoading(false);
                 });
             } else {
-                // No user logged in
+                // Logout
                 setUser(null);
                 setIsAdmin(false);
+                localStorage.removeItem('edutrackr_user');
                 setLoading(false);
             }
         });
@@ -90,22 +106,25 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const signup = async (userData) => {
+    // Modified Signup to match your structure but cleaner
+    const signup = async (email, password, name, branch, year) => {
         try {
-            const { email, password, name, branch, year, regNo } = userData;
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            await setDoc(doc(db, "users", user.uid), {
+            const userData = {
                 uid: user.uid,
                 name,
                 email,
                 branch,
                 year,
-                regNo: regNo || '',
-                createdAt: new Date().toISOString()
-            });
+                role: 'student',
+                createdAt: new Date().toISOString(),
+                avatar: ''
+            };
 
+            await setDoc(doc(db, "users", user.uid), userData);
+            localStorage.setItem('edutrackr_user', JSON.stringify(userData));
             return user;
         } catch (error) {
             console.error(error);
@@ -118,6 +137,7 @@ export const AuthProvider = ({ children }) => {
             await signOut(auth);
             setIsAdmin(false);
             localStorage.removeItem('edutrackr_admin_uid');
+            localStorage.removeItem('edutrackr_user');
         } catch (error) {
             console.error(error);
         }
@@ -127,15 +147,31 @@ export const AuthProvider = ({ children }) => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
-
             const userDoc = await getDoc(doc(db, "users", user.uid));
 
             let isProfileComplete = false;
             if (userDoc.exists()) {
                 const data = userDoc.data();
+                // Merge Google Data with Firestore Data
+                const fullData = { ...user, ...data };
+                setUser(fullData);
+                localStorage.setItem('edutrackr_user', JSON.stringify(fullData));
+
                 if (data.branch && data.branch !== 'N/A') {
                     isProfileComplete = true;
                 }
+            } else {
+                // New Google User - create basic doc
+                const newUserData = {
+                    uid: user.uid,
+                    name: user.displayName,
+                    email: user.email,
+                    role: 'student',
+                    createdAt: new Date().toISOString(),
+                    avatar: user.photoURL
+                };
+                await setDoc(doc(db, "users", user.uid), newUserData);
+                localStorage.setItem('edutrackr_user', JSON.stringify(newUserData));
             }
 
             return { user, isProfileComplete };
@@ -150,6 +186,10 @@ export const AuthProvider = ({ children }) => {
             setIsAdmin(true);
             if (user) {
                 localStorage.setItem('edutrackr_admin_uid', user.uid);
+                // Also update local user object so UI reflects admin status immediately
+                const updatedUser = { ...user, role: 'admin' };
+                setUser(updatedUser);
+                localStorage.setItem('edutrackr_user', JSON.stringify(updatedUser));
             }
             return true;
         }
