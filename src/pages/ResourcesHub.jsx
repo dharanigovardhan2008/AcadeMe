@@ -8,26 +8,58 @@ import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// ============ ADDED CACHING UTILITY ============
+const CACHE_DURATION = 300000; // 5 minutes
+
+const getFromCache = (key) => {
+    const cached = sessionStorage.getItem(key);
+    const timestamp = sessionStorage.getItem(`${key}_time`);
+    if (!cached || !timestamp) return null;
+    const age = Date.now() - parseInt(timestamp);
+    if (age > CACHE_DURATION) {
+        sessionStorage.removeItem(key);
+        sessionStorage.removeItem(`${key}_time`);
+        return null;
+    }
+    return JSON.parse(cached);
+};
+
+const saveToCache = (key, data) => {
+    sessionStorage.setItem(key, JSON.stringify(data));
+    sessionStorage.setItem(`${key}_time`, Date.now().toString());
+};
+// ============ END CACHING UTILITY ============
+
 const ResourcesHub = () => {
     const { user } = useAuth();
-    // Default active tab set to concept-maps (formerly roadmaps)
     const [activeTab, setActiveTab] = useState('concept-maps');
     const [resources, setResources] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const TABS = [
-        { id: 'concept-maps', label: 'Concept Maps', icon: Map }, // Renamed from Roadmaps
+        { id: 'concept-maps', label: 'Concept Maps', icon: Map },
         { id: 'papers', label: 'Question Papers', icon: FileText },
         { id: 'syllabus', label: 'Syllabus', icon: BookOpen },
-        { id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical }, // Added
-        { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle }, // Added
-        { id: 'mcqs', label: 'MCQs', icon: CheckSquare }, // Added
+        { id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical },
+        { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle },
+        { id: 'mcqs', label: 'MCQs', icon: CheckSquare },
         { id: 'lectures', label: 'Video Lectures', icon: PlayCircle },
     ];
 
     useEffect(() => {
         const fetchResources = async () => {
             if (!user?.branch) return;
+            
+            // ============ CHECK CACHE FIRST ============
+            const cacheKey = `resources_${user.branch}`;
+            const cached = getFromCache(cacheKey);
+            if (cached) {
+                setResources(cached);
+                setLoading(false);
+                return;
+            }
+            // ============ END CACHE CHECK ============
+            
             setLoading(true);
             try {
                 const q = query(
@@ -40,6 +72,10 @@ const ResourcesHub = () => {
                     resList.push({ id: doc.id, ...doc.data() });
                 });
                 setResources(resList);
+                
+                // ============ SAVE TO CACHE ============
+                saveToCache(cacheKey, resList);
+                // ============ END SAVE TO CACHE ============
             } catch (error) {
                 console.error("Error fetching resources:", error);
             }
@@ -47,10 +83,9 @@ const ResourcesHub = () => {
         };
 
         fetchResources();
-    }, [user]);
+    }, [user?.branch]); // Only refetch if branch changes
 
     const filteredResources = resources.filter(res => {
-        // Matching the types saved in Admin Panel
         if (activeTab === 'concept-maps') return res.type === 'concept-map';
         if (activeTab === 'papers') return res.type === 'paper';
         if (activeTab === 'syllabus') return res.type === 'syllabus';
@@ -150,7 +185,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
-                    {/* Lab Manuals Block - NEW */}
+                    {/* Lab Manuals Block */}
                     {activeTab === 'lab-manuals' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -169,7 +204,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
-                    {/* Important Questions Block - NEW */}
+                    {/* Important Questions Block */}
                     {activeTab === 'imp-questions' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
@@ -188,7 +223,7 @@ const ResourcesHub = () => {
                         </div>
                     )}
 
-                    {/* MCQs Block - NEW */}
+                    {/* MCQs Block */}
                     {activeTab === 'mcqs' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
