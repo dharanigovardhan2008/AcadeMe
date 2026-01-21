@@ -20,32 +20,37 @@ const Profile = () => {
     const [loadingAvatar, setLoadingAvatar] = useState(false);
 
     // ==========================================
-    // 20 CLASSIC & PROFESSIONAL AVATAR OPTIONS
+    // 20 FLAT & ATTRACTIVE AVATAR OPTIONS
+    // (Matched to the style of the image you provided)
     // ==========================================
     const AVATAR_OPTIONS = [
-        // Male / Neutral Styles
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Felix",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Oliver",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Robert",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Alexander",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=George",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Caleb",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Ryan",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Brian",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Bear",
+        // Row 1: Flat "Personas" Style (Matches your image perfectly)
+        "https://api.dicebear.com/9.x/personas/svg?seed=Leo&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Mila&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Ryker&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Nora&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Jack&backgroundColor=b6e3f4",
         
-        // Female / Neutral Styles
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Aneka",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jade",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Amara",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Mila",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Sophia",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Avery",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Annie",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Nora",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Maria",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Cookie"
+        // Row 2: More Flat Styles
+        "https://api.dicebear.com/9.x/personas/svg?seed=Sofia&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Mason&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Avery&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Oliver&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Maya&backgroundColor=ffdfbf",
+
+        // Row 3: "Avataaars" Style (Classic Tech Look)
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=James&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Maria&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Brian&backgroundColor=c0aede",
+
+        // Row 4: Professional & Clean
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Amara&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Christopher&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jessica&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Ryan&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Samantha&backgroundColor=d1d4f9"
     ];
 
     // Stats Logic
@@ -243,7 +248,7 @@ const Profile = () => {
                 </div>
             </div>
 
-            {/* AVATAR SELECTION MODAL - IMPROVED GRID AND STYLES */}
+            {/* AVATAR SELECTION MODAL */}
             {isEditingAvatar && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -251,7 +256,7 @@ const Profile = () => {
                     zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '20px'
                 }}>
-                    <GlassCard style={{ width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <GlassCard style={{ width: '100%', maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', position: 'sticky', top: 0, zIndex: 10 }}>
                             <div>
                                 <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Choose Avatar</h3>
@@ -268,7 +273,6 @@ const Profile = () => {
                                 <p>Updating your profile...</p>
                             </div>
                         ) : (
-                            // Grid updated to 4 columns for desktop to fit 20 items nicely
                             <div style={{ 
                                 display: 'grid', 
                                 gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', 
@@ -281,24 +285,24 @@ const Profile = () => {
                                         onClick={() => handleAvatarSelect(avatarUrl)}
                                         style={{ 
                                             cursor: 'pointer', 
-                                            borderRadius: '16px', 
-                                            padding: '8px', 
-                                            background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)',
-                                            border: currentAvatar === avatarUrl ? '2px solid #3B82F6' : '1px solid rgba(255,255,255,0.05)',
-                                            transition: 'transform 0.2s, background 0.2s',
-                                            textAlign: 'center',
+                                            borderRadius: '50%', // Circle shape like the image
+                                            padding: '4px', 
+                                            background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
+                                            border: currentAvatar === avatarUrl ? '3px solid #3B82F6' : '3px solid transparent',
+                                            transition: 'transform 0.2s',
                                             aspectRatio: '1/1',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            justifyContent: 'center'
+                                            justifyContent: 'center',
+                                            overflow: 'hidden'
                                         }}
-                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
                                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                     >
                                         <img 
                                             src={avatarUrl} 
                                             alt={`Avatar ${index}`} 
-                                            style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'contain' }} 
+                                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
                                             loading="lazy"
                                         />
                                     </div>
