@@ -7,7 +7,8 @@ import FeedbackModal from './FeedbackModal';
 import logo from '../assets/logo.jpg';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
-    const { isAdmin, logout } = useAuth();
+    // Added 'user' to get the avatar and name
+    const { user, isAdmin, logout } = useAuth();
     const navigate = useNavigate();
     const [showFeedback, setShowFeedback] = useState(false);
 
@@ -16,9 +17,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         navigate('/login');
     };
 
+    // Calculate Avatar URL (Custom selected or Initials fallback)
+    const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
+
     const navItems = [
         { path: '/dashboard', label: 'Dashboard', icon: Home },
-        { path: '/courses', label: 'My Courses', icon: BookOpen }, // Added Mandatory Courses
+        { path: '/courses', label: 'My Courses', icon: BookOpen },
         { path: '/calc', label: 'CGPA Calculator', icon: Calculator },
         { path: '/attendance', label: 'Attendance', icon: Calendar },
         { path: '/faculty', label: 'Faculty Directory', icon: Users },
@@ -27,8 +31,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         { path: '/settings', label: 'Settings', icon: Settings },
     ];
 
-    // Only show Admin Panel if explicitly authorized via PIN logic
-    if (isAdmin) {
+    // UPDATED CHECK: Show Admin Panel if isAdmin is true OR if database role is 'admin'
+    if (isAdmin || user?.role === 'admin') {
         navItems.push({ path: '/admin', label: 'Admin Panel', icon: Shield });
     }
 
@@ -46,9 +50,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             zIndex: 50,
             transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s ease-in-out',
-            // Responsive inline style hack for desktop (usually handled by media queries, assuming desktop first here with mobile toggle override)
         }} className="sidebar-desktop">
 
+            {/* App Logo Section */}
             <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{
                     width: '40px', height: '40px',
@@ -60,6 +64,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <h2 className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>AcadeMe</h2>
             </div>
 
+            {/* Navigation Items */}
             <nav style={{ flex: 1, padding: '0 1rem', overflowY: 'auto' }}>
                 <ul style={{ listStyle: 'none' }}>
                     {navItems.map((item) => (
@@ -75,7 +80,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                     background: isActive ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                                     border: isActive ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
                                     textDecoration: 'none', transition: 'all 0.3s ease',
-                                    borderLeft: isActive ? '4px solid var(--primary)' : '1px solid transparent' // override border
+                                    borderLeft: isActive ? '4px solid var(--primary)' : '1px solid transparent'
                                 })}
                             >
                                 <item.icon size={20} />
@@ -86,7 +91,32 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </ul>
             </nav>
 
+            {/* Bottom Section */}
             <div style={{ padding: '0 1rem 1rem 1rem' }}>
+                
+                {/* NEW: User Profile Snippet (Shows selected Avatar) */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px', marginBottom: '1rem',
+                    background: 'rgba(255,255,255,0.05)', borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.05)'
+                }}>
+                    <img 
+                        src={userAvatar} 
+                        alt="Profile" 
+                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', background: '#1a1a1a' }} 
+                    />
+                    <div style={{ overflow: 'hidden' }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {user?.name || 'User'}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                            {user?.branch || 'Student'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Social Links */}
                 <div style={{
                     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
                     marginBottom: '1rem', padding: '10px',
@@ -106,6 +136,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </button>
                 </div>
 
+                {/* Logout Button */}
                 <button
                     onClick={handleLogout}
                     style={{
