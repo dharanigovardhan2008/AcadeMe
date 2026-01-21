@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Book, Calendar, Edit2, Shield, Settings as SettingsIcon, LogOut, Hash, Camera, X } from 'lucide-react';
+import { User, Mail, Phone, Edit2, Shield, Settings as SettingsIcon, LogOut, Hash, Camera, X, Upload, Image as ImageIcon } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import GlassInput from '../components/GlassInput';
@@ -20,37 +20,29 @@ const Profile = () => {
     const [loadingAvatar, setLoadingAvatar] = useState(false);
 
     // ==========================================
-    // 20 FLAT & ATTRACTIVE AVATAR OPTIONS
-    // (Matched to the style of the image you provided)
+    // 20 PROFESSIONAL FLAT AVATARS (Like your reference)
     // ==========================================
     const AVATAR_OPTIONS = [
-        // Row 1: Flat "Personas" Style (Matches your image perfectly)
-        "https://api.dicebear.com/9.x/personas/svg?seed=Leo&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Mila&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Ryker&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Nora&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Jack&backgroundColor=b6e3f4",
-        
-        // Row 2: More Flat Styles
-        "https://api.dicebear.com/9.x/personas/svg?seed=Sofia&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Mason&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Avery&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Oliver&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/personas/svg?seed=Maya&backgroundColor=ffdfbf",
-
-        // Row 3: "Avataaars" Style (Classic Tech Look)
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=James&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Maria&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Brian&backgroundColor=c0aede",
-
-        // Row 4: Professional & Clean
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Amara&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Christopher&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jessica&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Ryan&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/avataaars/svg?seed=Samantha&backgroundColor=d1d4f9"
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Felix&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Aneka&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Robert&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Mila&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Jack&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Sophia&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Alexander&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Nora&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=George&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/lorelei/svg?seed=Amara&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Oliver&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Jade&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Ryan&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Avery&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Caleb&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Maria&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Leo&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/micah/svg?seed=Annie&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Bear&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/notionists/svg?seed=Cookie&backgroundColor=d1d4f9"
     ];
 
     // Stats Logic
@@ -110,7 +102,8 @@ const Profile = () => {
         }
     };
 
-    const handleAvatarSelect = async (url) => {
+    // UPDATE AVATAR IN FIREBASE
+    const updateAvatarInDb = async (url) => {
         setLoadingAvatar(true);
         try {
             const userRef = doc(db, "users", user.uid);
@@ -124,6 +117,25 @@ const Profile = () => {
         }
         setLoadingAvatar(false);
         setIsEditingAvatar(false);
+    };
+
+    // HANDLE FILE UPLOAD FROM GALLERY
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Limit size to 500KB to prevent database bloating
+        if (file.size > 500000) {
+            alert("File is too large! Please select an image under 500KB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result;
+            updateAvatarInDb(base64String);
+        };
+        reader.readAsDataURL(file);
     };
 
     const currentAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
@@ -260,7 +272,7 @@ const Profile = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', position: 'sticky', top: 0, zIndex: 10 }}>
                             <div>
                                 <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Choose Avatar</h3>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Select a style that fits you best</p>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Select a style or upload your own</p>
                             </div>
                             <button onClick={() => setIsEditingAvatar(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '8px', borderRadius: '50%' }}>
                                 <X size={20} />
@@ -269,44 +281,82 @@ const Profile = () => {
 
                         {loadingAvatar ? (
                             <div style={{ textAlign: 'center', padding: '3rem' }}>
-                                <div className="skeleton-pulse" style={{ width: '60px', height: '60px', borderRadius: '50%', margin: '0 auto 1rem' }}></div>
+                                <div className="skeleton-pulse" style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem' }}></div>
                                 <p>Updating your profile...</p>
                             </div>
                         ) : (
-                            <div style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', 
-                                gap: '1rem',
-                                paddingBottom: '1rem'
-                            }}>
-                                {AVATAR_OPTIONS.map((avatarUrl, index) => (
-                                    <div 
-                                        key={index} 
-                                        onClick={() => handleAvatarSelect(avatarUrl)}
-                                        style={{ 
-                                            cursor: 'pointer', 
-                                            borderRadius: '50%', // Circle shape like the image
-                                            padding: '4px', 
-                                            background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
-                                            border: currentAvatar === avatarUrl ? '3px solid #3B82F6' : '3px solid transparent',
-                                            transition: 'transform 0.2s',
-                                            aspectRatio: '1/1',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            overflow: 'hidden'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                    >
-                                        <img 
-                                            src={avatarUrl} 
-                                            alt={`Avatar ${index}`} 
-                                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
-                                            loading="lazy"
+                            <div>
+                                {/* UPLOAD FROM GALLERY OPTION */}
+                                <div style={{ marginBottom: '2rem', padding: '15px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.2)' }}>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Upload size={18} /> Upload from Device
+                                    </h4>
+                                    <label style={{ 
+                                        display: 'block', 
+                                        width: '100%', 
+                                        padding: '12px', 
+                                        textAlign: 'center', 
+                                        background: 'rgba(59, 130, 246, 0.1)', 
+                                        color: '#60A5FA', 
+                                        borderRadius: '8px', 
+                                        cursor: 'pointer',
+                                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            onChange={handleFileUpload} 
+                                            style={{ display: 'none' }} 
                                         />
-                                    </div>
-                                ))}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                            <ImageIcon size={18} /> Choose from Gallery
+                                        </div>
+                                    </label>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', textAlign: 'center' }}>
+                                        Max size: 500KB. Formats: JPG, PNG.
+                                    </p>
+                                </div>
+
+                                <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', marginBottom: '1.5rem' }}></div>
+
+                                {/* PRESET AVATARS */}
+                                <h4 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem' }}>Or choose a classic avatar</h4>
+                                <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', 
+                                    gap: '1rem',
+                                    paddingBottom: '1rem'
+                                }}>
+                                    {AVATAR_OPTIONS.map((avatarUrl, index) => (
+                                        <div 
+                                            key={index} 
+                                            onClick={() => updateAvatarInDb(avatarUrl)}
+                                            style={{ 
+                                                cursor: 'pointer', 
+                                                borderRadius: '50%', 
+                                                padding: '4px', 
+                                                background: currentAvatar === avatarUrl ? 'rgba(59, 130, 246, 0.5)' : 'rgba(255,255,255,0.05)',
+                                                border: currentAvatar === avatarUrl ? '3px solid #3B82F6' : '3px solid transparent',
+                                                transition: 'transform 0.2s',
+                                                aspectRatio: '1/1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                overflow: 'hidden'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                        >
+                                            <img 
+                                                src={avatarUrl} 
+                                                alt={`Avatar ${index}`} 
+                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </GlassCard>
