@@ -10,6 +10,28 @@ import { db } from '../firebase';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import React, { useState, useEffect } from 'react';
 
+// ============ ADDED CACHING UTILITY ============
+const CACHE_DURATION = 300000; // 5 minutes
+
+const getFromCache = (key) => {
+    const cached = sessionStorage.getItem(key);
+    const timestamp = sessionStorage.getItem(`${key}_time`);
+    if (!cached || !timestamp) return null;
+    const age = Date.now() - parseInt(timestamp);
+    if (age > CACHE_DURATION) {
+        sessionStorage.removeItem(key);
+        sessionStorage.removeItem(`${key}_time`);
+        return null;
+    }
+    return JSON.parse(cached);
+};
+
+const saveToCache = (key, data) => {
+    sessionStorage.setItem(key, JSON.stringify(data));
+    sessionStorage.setItem(`${key}_time`, Date.now().toString());
+};
+// ============ END CACHING UTILITY ============
+
 const Dashboard = () => {
     const { user } = useAuth();
     const { cgpaSubjects, attendanceSubjects, faculty } = useData();
@@ -20,9 +42,14 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchUpdates = async () => {
             try {
-                // updates query: orderBy can sometimes fail if index issues or empty. 
-                // fetching all (limit 5 without order might imply insertion order or random).
-                // Safest: fetch all (or limit 10) then sort client side.
+                // ============ CHECK CACHE FIRST ============
+                const cached = getFromCache('dashboard_updates');
+                if (cached) {
+                    setUpdates(cached);
+                    return;
+                }
+                // ============ END CACHE CHECK ============
+
                 const q = query(collection(db, "updates"), limit(10));
                 const querySnapshot = await getDocs(q);
                 const list = [];
@@ -34,7 +61,12 @@ const Dashboard = () => {
                     const dateB = b.date ? new Date(b.date) : new Date(0);
                     return dateB - dateA;
                 });
-                setUpdates(list.slice(0, 5));
+                const finalList = list.slice(0, 5);
+                setUpdates(finalList);
+                
+                // ============ SAVE TO CACHE ============
+                saveToCache('dashboard_updates', finalList);
+                // ============ END SAVE TO CACHE ============
             } catch (error) {
                 console.error("Error fetching updates:", error);
             }
@@ -43,21 +75,31 @@ const Dashboard = () => {
         const fetchMyReviews = async () => {
             if (!user?.uid) return;
             try {
-                // Note: Ideally create a composite index for userId + createdAt. 
-                // For now, client-side sort or simple query.
+                // ============ CHECK CACHE FIRST ============
+                const cacheKey = `dashboard_reviews_${user.uid}`;
+                const cached = getFromCache(cacheKey);
+                if (cached) {
+                    setMyReviews(cached);
+                    return;
+                }
+                // ============ END CACHE CHECK ============
+
                 const q = query(collection(db, "reviews"), where("userId", "==", user.uid));
                 const querySnapshot = await getDocs(q);
                 const list = [];
                 querySnapshot.forEach((doc) => {
                     list.push({ id: doc.id, ...doc.data() });
                 });
-                // Client-side sort desc by createdAt safe
                 list.sort((a, b) => {
                     const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
                     const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
                     return dateB - dateA;
                 });
                 setMyReviews(list);
+                
+                // ============ SAVE TO CACHE ============
+                saveToCache(cacheKey, list);
+                // ============ END SAVE TO CACHE ============
             } catch (error) {
                 console.error("Error fetching my reviews:", error);
             }
@@ -96,7 +138,7 @@ const Dashboard = () => {
         { label: 'My Courses', icon: BookOpen, path: '/courses', color: 'text-purple-400' },
         { label: 'CGPA Calculator', icon: Calculator, path: '/calc', color: 'text-blue-400' },
         { label: 'Attendance Tracker', icon: Calendar, path: '/attendance', color: 'text-green-400' },
-        { label: 'Faculty Directory', icon: Users, path: '/faculty', color: 'text-pink-400' }, // Changed color for variety
+        { label: 'Faculty Directory', icon: Users, path: '/faculty', color: 'text-pink-400' },
     ];
 
     return (
