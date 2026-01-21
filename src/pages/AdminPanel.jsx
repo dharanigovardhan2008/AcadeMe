@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, Layers, BarChart2, Settings as SettingsIcon, Shield, Plus, MoreVertical, Trash2, Ban, CheckCircle, MessageCircle, Mail, Send, Bell } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
@@ -307,7 +306,8 @@ const FacultyManagement = () => {
 
 const ResourcesManagement = () => {
     const [resources, setResources] = useState([]);
-    const [newResource, setNewResource] = useState({ title: '', type: 'roadmap', url: '', branches: [] });
+    // Set default type to concept-map
+    const [newResource, setNewResource] = useState({ title: '', type: 'concept-map', url: '', branches: [] });
     const [loading, setLoading] = useState(false);
     const [fetchLoading, setFetchLoading] = useState(true);
 
@@ -355,7 +355,8 @@ const ResourcesManagement = () => {
                 ...newResource,
                 createdAt: new Date().toISOString()
             });
-            setNewResource({ title: '', type: 'roadmap', url: '', branches: [] });
+            // Reset to concept-map
+            setNewResource({ title: '', type: 'concept-map', url: '', branches: [] });
             alert("Resource added successfully!");
             fetchResources();
         } catch (error) {
@@ -393,7 +394,7 @@ const ResourcesManagement = () => {
                             <input
                                 required
                                 type="text"
-                                placeholder="e.g., Data Structures Roadmap"
+                                placeholder="e.g., Data Structures Concept Map"
                                 value={newResource.title}
                                 onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
                                 style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
@@ -406,9 +407,12 @@ const ResourcesManagement = () => {
                                 onChange={(e) => setNewResource({ ...newResource, type: e.target.value })}
                                 style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
                             >
-                                <option value="roadmap" style={{ background: '#333' }}>Roadmap</option>
+                                <option value="concept-map" style={{ background: '#333' }}>Concept Map</option>
                                 <option value="paper" style={{ background: '#333' }}>Question Paper (PYQ)</option>
                                 <option value="syllabus" style={{ background: '#333' }}>Syllabus</option>
+                                <option value="lab-manual" style={{ background: '#333' }}>Lab Manual</option>
+                                <option value="imp-question" style={{ background: '#333' }}>Imp Questions</option>
+                                <option value="mcq" style={{ background: '#333' }}>MCQs</option>
                             </select>
                         </div>
                     </div>
@@ -1023,4 +1027,6 @@ const AdminPanel = () => {
             )}
         </DashboardLayout>
     );
-}; export default AdminPanel;
+}; 
+
+export default AdminPanel;
