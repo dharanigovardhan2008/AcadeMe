@@ -7,6 +7,8 @@ import GlassButton from '../components/GlassButton';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext'; // Added for Security
+import { useNavigate } from 'react-router-dom';   // Added for Redirection
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -69,7 +71,7 @@ const UserManagement = () => {
             await addDoc(collection(db, "notifications"), {
                 userId: selectedUserForMessage.uid,
                 userName: selectedUserForMessage.name,
-                adminId: 'admin', // or real admin UID
+                adminId: 'admin', 
                 message: messageText,
                 type: 'admin_message',
                 read: false,
@@ -760,10 +762,22 @@ const ReviewsManagement = () => {
 
 const AdminPanel = () => {
     const { faculty } = useData();
+    const { user, loading: authLoading } = useAuth(); // GET USER INFO FOR SECURITY
+    const navigate = useNavigate(); // FOR REDIRECTION
     const [activeTab, setActiveTab] = useState('overview');
     const [recentUsers, setRecentUsers] = useState([]);
     const [allMessages, setAllMessages] = useState([]);
     const [loadingMessages, setLoadingMessages] = useState(true);
+
+    // SECURITY CHECK: Redirect if not admin
+    useEffect(() => {
+        // Wait for auth to finish loading
+        if (!authLoading) {
+            if (!user || user.role !== 'admin') {
+                navigate('/dashboard'); // Send them back to dashboard if not admin
+            }
+        }
+    }, [user, authLoading, navigate]);
 
 
     const fetchRecentUsers = async () => {
@@ -783,8 +797,6 @@ const AdminPanel = () => {
     const fetchAllMessages = async () => {
         setLoadingMessages(true);
         try {
-            // Fetch all notifications to show conversations
-            // Ideally detailed query, for now fetch all and sort
             const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
             const snapshot = await getDocs(q);
             setAllMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -799,12 +811,6 @@ const AdminPanel = () => {
     }, []);
 
     useEffect(() => {
-        if (activeTab === 'users') {
-            // UserManagement component handles its own fetchUsers
-        }
-        if (activeTab === 'reviews') {
-            // ReviewsManagement component handles its own fetchReviews
-        }
         if (activeTab === 'messages') {
             fetchAllMessages();
         }
@@ -877,10 +883,16 @@ const AdminPanel = () => {
         { id: 'user management', label: 'User Management', icon: Users },
         { id: 'faculty', label: 'Faculty', icon: Users },
         { id: 'resources', label: 'Resources', icon: BookOpen },
-        { id: 'reviews', label: 'Reviews', icon: MessageCircle }, // Changed icon to MessageCircle
-        { id: 'messages', label: 'Messages', icon: Send }, // Added Messages tab
+        { id: 'reviews', label: 'Reviews', icon: MessageCircle }, 
+        { id: 'messages', label: 'Messages', icon: Send },
         { id: 'updates', label: 'Updates', icon: Bell },
     ];
+
+    // If still loading auth or checking role, prevent flashing content
+    if (authLoading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Checking permissions...</div>;
+    
+    // If not admin, return null (the useEffect will redirect, but this stops rendering)
+    if (!user || user.role !== 'admin') return null;
 
     return (
         <DashboardLayout>
