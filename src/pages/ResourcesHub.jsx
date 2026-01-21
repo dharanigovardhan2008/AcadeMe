@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, FileText, Download, PlayCircle, Map, Layers } from 'lucide-react';
+import { BookOpen, FileText, Download, PlayCircle, Map, Layers, FlaskConical, HelpCircle, CheckSquare } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import Badge from '../components/Badge';
@@ -10,14 +10,17 @@ import { db } from '../firebase';
 
 const ResourcesHub = () => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('roadmaps');
+    const [activeTab, setActiveTab] = useState('concept-maps');
     const [resources, setResources] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const TABS = [
-        { id: 'roadmaps', label: 'Roadmaps', icon: Map },
+        { id: 'concept-maps', label: 'Concept Maps', icon: Map },
         { id: 'papers', label: 'Question Papers', icon: FileText },
         { id: 'syllabus', label: 'Syllabus', icon: BookOpen },
+        { id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical },
+        { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle },
+        { id: 'mcqs', label: 'MCQs', icon: CheckSquare },
         { id: 'lectures', label: 'Video Lectures', icon: PlayCircle },
     ];
 
@@ -26,8 +29,6 @@ const ResourcesHub = () => {
             if (!user?.branch) return;
             setLoading(true);
             try {
-                // Fetch all resources and filter client-side for "array-contains" logic if complex, 
-                // or use simple query. Firestore "array-contains" is good.
                 const q = query(
                     collection(db, "resources"),
                     where("branches", "array-contains", user.branch)
@@ -48,9 +49,12 @@ const ResourcesHub = () => {
     }, [user]);
 
     const filteredResources = resources.filter(res => {
-        if (activeTab === 'roadmaps') return res.type === 'roadmap';
+        if (activeTab === 'concept-maps') return res.type === 'concept-map';
         if (activeTab === 'papers') return res.type === 'paper';
         if (activeTab === 'syllabus') return res.type === 'syllabus';
+        if (activeTab === 'lab-manuals') return res.type === 'lab-manual';
+        if (activeTab === 'imp-questions') return res.type === 'imp-question';
+        if (activeTab === 'mcqs') return res.type === 'mcq';
         return false;
     });
 
@@ -89,15 +93,13 @@ const ResourcesHub = () => {
 
             {loading ? <p style={{ color: 'white', textAlign: 'center' }}>Loading resources for {user?.branch}...</p> : (
                 <>
-                    {activeTab === 'roadmaps' && (
+                    {activeTab === 'concept-maps' && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
                                 <GlassCard key={idx} className="hover:transform hover:-translate-y-1">
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>{res.title}</h3>
                                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                                         <Badge variant="primary">{res.type}</Badge>
-                                        {/* <Badge variant="neutral">{res.branches.join(', ')}</Badge> */}
-                                        {/* Optional: Show branches if relevant, but we filtered by user branch already */}
                                     </div>
                                     <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                                         <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center' }}>
@@ -105,7 +107,7 @@ const ResourcesHub = () => {
                                         </GlassButton>
                                     </a>
                                 </GlassCard>
-                            )) : <p style={{ color: 'var(--text-secondary)' }}>No roadmaps found for your branch.</p>}
+                            )) : <p style={{ color: 'var(--text-secondary)' }}>No concept maps found for your branch.</p>}
                         </div>
                     )}
 
@@ -117,7 +119,6 @@ const ResourcesHub = () => {
                                         <div style={{ padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
                                             <FileText size={24} color="var(--accent)" />
                                         </div>
-                                        {/* <Badge variant="neutral">2024</Badge> */}
                                     </div>
                                     <h3 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{res.title}</h3>
                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{user.branch} • {res.type}</p>
@@ -141,6 +142,60 @@ const ResourcesHub = () => {
                                     </a>
                                 </GlassCard>
                             )) : <p style={{ color: 'var(--text-secondary)' }}>No syllabus found for your branch.</p>}
+                        </div>
+                    )}
+
+                    {activeTab === 'lab-manuals' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                            {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
+                                <GlassCard key={idx}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <div style={{ padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                            <FlaskConical size={24} color="var(--accent)" />
+                                        </div>
+                                    </div>
+                                    <h3 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>{res.title}</h3>
+                                    <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                                        <GlassButton style={{ width: '100%', justifyContent: 'center' }} variant="gradient"><Download size={20} /> Download</GlassButton>
+                                    </a>
+                                </GlassCard>
+                            )) : <p style={{ color: 'var(--text-secondary)' }}>No lab manuals found for your branch.</p>}
+                        </div>
+                    )}
+
+                    {activeTab === 'imp-questions' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                            {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
+                                <GlassCard key={idx}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <div style={{ padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                            <HelpCircle size={24} color="var(--accent)" />
+                                        </div>
+                                    </div>
+                                    <h3 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>{res.title}</h3>
+                                    <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                                        <GlassButton style={{ width: '100%', justifyContent: 'center' }} variant="gradient"><Download size={20} /> Download</GlassButton>
+                                    </a>
+                                </GlassCard>
+                            )) : <p style={{ color: 'var(--text-secondary)' }}>No important questions found for your branch.</p>}
+                        </div>
+                    )}
+
+                    {activeTab === 'mcqs' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                            {filteredResources.length > 0 ? filteredResources.map((res, idx) => (
+                                <GlassCard key={idx}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <div style={{ padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                            <CheckSquare size={24} color="var(--accent)" />
+                                        </div>
+                                    </div>
+                                    <h3 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>{res.title}</h3>
+                                    <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                                        <GlassButton style={{ width: '100%', justifyContent: 'center' }} variant="gradient"><Download size={20} /> Download</GlassButton>
+                                    </a>
+                                </GlassCard>
+                            )) : <p style={{ color: 'var(--text-secondary)' }}>No MCQs found for your branch.</p>}
                         </div>
                     )}
 
