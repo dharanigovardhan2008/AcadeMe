@@ -285,3 +285,66 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* =========================================
+   HIGH-END ANIMATIONS (Login/Signup)
+   ========================================= */
+
+/* 1. Moving Tech Grid Background */
+.bg-tech-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  animation: scrollGrid 20s linear infinite;
+}
+
+@keyframes scrollGrid {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+
+/* 2. Shimmer Effect (For Google Button) */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg, 
+    rgba(255,255,255,0.05) 25%, 
+    rgba(255,255,255,0.2) 50%, 
+    rgba(255,255,255,0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
+}
+
+/* 3. Neon Glow Input Focus */
+.input-group:focus-within svg {
+  color: #60A5FA !important;
+  filter: drop-shadow(0 0 5px #60A5FA);
+  transform: scale(1.1) translateY(-50%) !important;
+}
+
+.input-group:focus-within input {
+  border-color: #60A5FA !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.input-group svg {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 4. Floating Elements (Icons in background) */
+@keyframes float-random {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(10px, -15px) rotate(5deg); }
+  50% { transform: translate(-5px, 10px) rotate(-5deg); }
+  75% { transform: translate(-15px, -5px) rotate(2deg); }
+}
+
+.floating-icon {
+  animation: float-random 6s ease-in-out infinite;
+}
