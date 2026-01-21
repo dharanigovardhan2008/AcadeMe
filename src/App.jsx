@@ -1,3 +1,11 @@
+// Add imports
+import useAnimationSystem from './hooks/useAnimationSystem';
+
+// Inside your main App or Layout component:
+const App = () => {
+    useAnimationSystem(); // <--- This activates the system globally
+
+    // ... rest of your code
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -90,6 +98,7 @@ function App() {
       </ErrorBoundary>
     </Router>
   );
+}
 }
 
 export default App;
