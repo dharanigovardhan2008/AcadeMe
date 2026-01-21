@@ -1,21 +1,15 @@
-// Add imports
-import useAnimationSystem from './hooks/useAnimationSystem';
-
-// Inside your main App or Layout component:
-const App = () => {
-    useAnimationSystem(); // <--- This activates the system globally
-
-    // ... rest of your code
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
-import ErrorBoundary from './components/ErrorBoundary'; // Import ErrorBoundary
+import ErrorBoundary from './components/ErrorBoundary'; 
+import useAnimationSystem from './hooks/useAnimationSystem'; 
+
+// Page Imports
 import SplashScreen from './pages/SplashScreen';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminModal from './components/AdminModal';
-import GlassCard from './components/GlassCard'; // Fallback / placeholder for Dashboard
 import Dashboard from './pages/Dashboard';
 import CGPACalculator from './pages/CGPACalculator';
 import MandatoryCourses from './pages/MandatoryCourses';
@@ -27,24 +21,24 @@ import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
 
-// Placeholder Dashboard removed
-
+// Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  console.log("ProtectedRoute - Loading:", loading, "User:", user ? user.uid : "null");
   if (loading) return <div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Loading application...</div>;
   if (!user) {
-    console.log("ProtectedRoute - Redirecting to login");
     return <Navigate to="/login" />;
   }
-  console.log("ProtectedRoute - Rendering children");
   return children;
 };
 
-// Wrapper for global keys and modal
+// Main App Content Wrapper
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
+  // 1. ACTIVATE ANIMATION SYSTEM GLOBALLY
+  useAnimationSystem(); 
+
+  // 2. ADMIN MODAL HOTKEY LISTENER
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
@@ -56,18 +50,14 @@ const AppContent = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Also listen for a custom event if we want to trigger from login button easily
-  // Or we just pass the setter to children via context or props? 
-  // For now, let's keep it simple. The Login page has a button, we can't easily click it to trigger this state without Context.
-  // I can expose openAdminModal in AuthContext ideally, or just rely on Ctrl+Shift+A for now, 
-  // OR create a Layout component.
-
   return (
     <>
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        
+        {/* Protected Routes */}
         <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/calc" element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>} />
@@ -77,8 +67,14 @@ const AppContent = () => {
         <Route path="/resources" element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        
+        {/* Admin Route */}
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+        
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
     </>
   );
@@ -90,7 +86,7 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <DataProvider>
-            <div className="app-container" style={{ minHeight: '100vh' }}>
+            <div className="app-container" style={{ minHeight: '100vh', background: '#0F0F1A' }}>
               <AppContent />
             </div>
           </DataProvider>
@@ -98,7 +94,6 @@ function App() {
       </ErrorBoundary>
     </Router>
   );
-}
 }
 
 export default App;
