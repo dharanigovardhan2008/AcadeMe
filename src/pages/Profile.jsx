@@ -20,29 +20,36 @@ const Profile = () => {
     const [loadingAvatar, setLoadingAvatar] = useState(false);
 
     // ==========================================
-    // 20 PROFESSIONAL FLAT AVATARS (Like your reference)
+    // 20 PROFESSIONAL FLAT AVATARS (Matches your reference image)
     // ==========================================
     const AVATAR_OPTIONS = [
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Felix&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Aneka&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Robert&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Mila&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Jack&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Sophia&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Alexander&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Nora&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=George&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/lorelei/svg?seed=Amara&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Oliver&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Jade&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Ryan&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Avery&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Caleb&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Maria&backgroundColor=d1d4f9",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Leo&backgroundColor=b6e3f4",
-        "https://api.dicebear.com/9.x/micah/svg?seed=Annie&backgroundColor=ffdfbf",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Bear&backgroundColor=c0aede",
-        "https://api.dicebear.com/9.x/notionists/svg?seed=Cookie&backgroundColor=d1d4f9"
+        // Row 1: Flat "Personas" Style
+        "https://api.dicebear.com/9.x/personas/svg?seed=Leo&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Mila&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Ryker&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Nora&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Jack&backgroundColor=b6e3f4",
+        
+        // Row 2: More Flat Styles
+        "https://api.dicebear.com/9.x/personas/svg?seed=Sofia&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Mason&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Avery&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Oliver&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/personas/svg?seed=Maya&backgroundColor=ffdfbf",
+
+        // Row 3: "Avataaars" Style (Classic Tech Look)
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=James&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Maria&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Brian&backgroundColor=c0aede",
+
+        // Row 4: Professional & Clean
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Amara&backgroundColor=d1d4f9",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Christopher&backgroundColor=b6e3f4",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Jessica&backgroundColor=ffdfbf",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Ryan&backgroundColor=c0aede",
+        "https://api.dicebear.com/9.x/avataaars/svg?seed=Samantha&backgroundColor=d1d4f9"
     ];
 
     // Stats Logic
