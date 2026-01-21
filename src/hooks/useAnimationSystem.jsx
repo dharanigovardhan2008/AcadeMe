@@ -1,99 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { DataProvider } from './context/DataContext';
-import ErrorBoundary from './components/ErrorBoundary'; 
-import useAnimationSystem from './hooks/useAnimationSystem'; // <--- NEW IMPORT
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
-// Pages
-import SplashScreen from './pages/SplashScreen';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import AdminModal from './components/AdminModal';
-import Dashboard from './pages/Dashboard';
-import CGPACalculator from './pages/CGPACalculator';
-import MandatoryCourses from './pages/MandatoryCourses';
-import AttendanceTracker from './pages/AttendanceTracker';
-import FacultyDirectory from './pages/FacultyDirectory';
-import ResourcesHub from './pages/ResourcesHub';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import AdminPanel from './pages/AdminPanel';
-import CompleteProfile from './pages/CompleteProfile';
+const useAnimationSystem = () => {
+    const location = useLocation();
 
-// Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Loading application...</div>;
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-  return children;
+    useEffect(() => {
+        // 1. SCROLL REVEAL OBSERVER
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px 0px -50px 0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        const scrollElements = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right, .reveal-scale');
+        scrollElements.forEach(el => observer.observe(el));
+
+        // 2. 3D CARD TILT LOGIC
+        const cards = document.querySelectorAll('.card-3d');
+        const handleMouseMove = (e) => {
+            const card = e.currentTarget;
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const rotateX = ((y - centerY) / centerY) * -10; 
+            const rotateY = ((x - centerX) / centerX) * 10;
+
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+        };
+
+        const handleMouseLeave = (e) => {
+            e.currentTarget.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+        };
+
+        cards.forEach(card => {
+            card.addEventListener('mousemove', handleMouseMove);
+            card.addEventListener('mouseleave', handleMouseLeave);
+        });
+
+        // CLEANUP
+        return () => {
+            observer.disconnect();
+            cards.forEach(card => {
+                card.removeEventListener('mousemove', handleMouseMove);
+                card.removeEventListener('mouseleave', handleMouseLeave);
+            });
+        };
+
+    }, [location.pathname]);
 };
 
-// Wrapper for global keys, modal, and animations
-const AppContent = () => {
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
-
-  // 1. ACTIVATE ANIMATION SYSTEM
-  useAnimationSystem(); 
-
-  // 2. ADMIN MODAL HOTKEY
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        setAdminModalOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  return (
-    <>
-      <Routes>
-        <Route path="/" element={<SplashScreen />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        
-        {/* Protected Student Routes */}
-        <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/calc" element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>} />
-        <Route path="/attendance" element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>} />
-        <Route path="/courses" element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>} />
-        <Route path="/faculty" element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
-        <Route path="/resources" element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        
-        {/* Protected Admin Route */}
-        <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
-        
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
-    </>
-  );
-};
-
-function App() {
-  return (
-    <Router>
-      <ErrorBoundary>
-        <AuthProvider>
-          <DataProvider>
-            <div className="app-container" style={{ minHeight: '100vh', background: '#0F0F1A' }}>
-              <AppContent />
-            </div>
-          </DataProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    </Router>
-  );
-}
-
-export default App;
+export default useAnimationSystem;
