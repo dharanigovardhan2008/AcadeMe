@@ -61,7 +61,8 @@ const Login = () => {
             justifyContent: 'center', 
             background: '#05050A', 
             position: 'relative', 
-            overflow: 'hidden' 
+            overflow: 'hidden',
+            fontFamily: "'Josefin Sans', sans-serif" // <--- FONT APPLIED HERE
         }}>
             
             {/* BACKGROUND ANIMATIONS */}
@@ -99,7 +100,7 @@ const Login = () => {
                             <LogIn size={30} color="white" />
                         </div>
                         
-                        <h2 className="gradient-text" style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                        <h2 className="gradient-text" style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: "'Josefin Sans', sans-serif" }}>
                             <AnimatedText text="Welcome Back" />
                         </h2>
                         
@@ -123,7 +124,8 @@ const Login = () => {
                                     width: '100%', padding: '16px 16px 16px 50px',
                                     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '14px', color: 'white', fontSize: '1rem', outline: 'none',
-                                    transition: 'all 0.3s ease'
+                                    transition: 'all 0.3s ease',
+                                    fontFamily: "'Josefin Sans', sans-serif"
                                 }}
                                 required
                             />
@@ -140,7 +142,8 @@ const Login = () => {
                                     width: '100%', padding: '16px 16px 16px 50px',
                                     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '14px', color: 'white', fontSize: '1rem', outline: 'none',
-                                    transition: 'all 0.3s ease'
+                                    transition: 'all 0.3s ease',
+                                    fontFamily: "'Josefin Sans', sans-serif"
                                 }}
                                 required
                             />
@@ -160,7 +163,8 @@ const Login = () => {
                             className="reveal-up stagger-4 magnetic-btn"
                             style={{ 
                                 width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem',
-                                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
+                                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)',
+                                fontFamily: "'Josefin Sans', sans-serif"
                             }}
                         >
                             {loading ? 'Signing in...' : 'Sign In'}
@@ -184,7 +188,8 @@ const Login = () => {
                             color: 'white', fontSize: '0.95rem', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
                             transition: 'transform 0.2s ease',
-                            fontWeight: '500'
+                            fontWeight: '500',
+                            fontFamily: "'Josefin Sans', sans-serif"
                         }}
                     >
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '22px', height: '22px' }} />
@@ -192,10 +197,7 @@ const Login = () => {
                     </button>
 
                     <div className="reveal-up stagger-4" style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                        Don't have an account?{' '}
-                        <Link to="/signup" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            Create Account <ArrowRight size={16} />
-                        </Link>
+                        Don't have an account? <Link to="/signup" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Create Account <ArrowRight size={16} /></Link>
                     </div>
 
                     <div className="reveal-up stagger-4" style={{ marginTop: '1.5rem', textAlign: 'center' }}>
