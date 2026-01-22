@@ -1,201 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
-
-/* Keep the rest of your CSS exactly the same */
-:root {
-  --primary: #3B82F6;
-  --secondary: #8B5CF6;
-  --accent: #06B6D4;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --text-primary: #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  
-  --bg-gradient: linear-gradient(135deg, #0F0F1A 0%, #1A0F2E 50%, #0A1628 100%);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --backdrop-blur: blur(20px);
-  
-  --font-heading: 'Poppins', sans-serif;
-  --font-body: 'Inter', sans-serif;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: var(--font-body);
-  background: var(--bg-gradient);
-  background-attachment: fixed;
-  color: var(--text-primary);
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-  color: var(--text-primary);
-}
-
-/* Glass Utilities */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: 16px;
-}
-
-.glass-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border-radius: 16px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--glass-border);
-}
-
-.glass-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.glass-button {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
-  color: white;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border-radius: 8px;
-  font-family: var(--font-heading);
-  font-weight: 500;
-}
-
-.glass-button:hover {
-  transform: scale(1.05);
-  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
-}
-
-.glass-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: white;
-  padding: 12px 16px;
-  font-family: var(--font-body);
-  transition: all 0.3s ease;
-}
-
-.glass-input:focus {
-  outline: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.gradient-text {
-  background: linear-gradient(to right, #60A5FA, #A78BFA, #2DD4BF);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.btn-gradient {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  border: none;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-}
-
-.btn-gradient:hover {
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
-}
-
-/* Animations */
-@keyframes float {
-  0% { transform: translate(0px, 0px); }
-  50% { transform: translate(10px, -20px); }
-  100% { transform: translate(0px, 0px); }
-}
-
-@keyframes pulse-glow {
-  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2); 
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2); 
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3); 
-}
-
-/* Utilities */
-.container-custom {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.text-gradient {
-  background: linear-gradient(to right, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* --- Add this to the bottom of src/index.css --- */
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* =========================================
-   Skeleton Loading Animation (Added for ResourcesHub)
-   ========================================= */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.skeleton-pulse {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Optional: Smooth transition for cards */
-.glass-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+/* IMPORT THE NEW FONT */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --primary: #3B82F6;
@@ -208,23 +12,25 @@ h1, h2, h3, h4, h5, h6 {
   --success: #10B981;
   --warning: #F59E0B;
   --danger: #EF4444;
+  --font-main: 'Plus Jakarta Sans', sans-serif; /* Define Variable */
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-main); /* Apply Globally */
 }
 
 body {
   background-color: var(--background);
   color: var(--text-primary);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased; /* Makes font look crisp */
 }
 
 /* =========================================
-   UTILITIES USED IN LOGIN / SIGNUP
+   ANIMATIONS & UTILITIES
    ========================================= */
 
 /* Gradient Text Effect */
@@ -233,34 +39,21 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 700; /* Bolder looks better with this font */
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-/* =========================================
-   ANIMATIONS (Ensure these are present)
-   ========================================= */
-
+/* Animations */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translate3d(0, 40px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-.animate-fade-in-up {
-  animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
+.animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
 @keyframes float {
   0% { transform: translate(0px, 0px) scale(1); }
@@ -288,11 +81,7 @@ body {
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* =========================================
-   HIGH-END ANIMATIONS (Login/Signup)
-   ========================================= */
-
-/* 1. Moving Tech Grid Background */
+/* High-End Animations */
 .bg-tech-grid {
   background-size: 40px 40px;
   background-image: 
@@ -300,151 +89,46 @@ body {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   animation: scrollGrid 20s linear infinite;
 }
-
 @keyframes scrollGrid {
   0% { transform: translateY(0); }
   100% { transform: translateY(40px); }
 }
 
-/* 2. Shimmer Effect (For Google Button) */
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-
 .animate-shimmer {
-  background: linear-gradient(
-    90deg, 
-    rgba(255,255,255,0.05) 25%, 
-    rgba(255,255,255,0.2) 50%, 
-    rgba(255,255,255,0.05) 75%
-  );
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.05) 75%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite linear;
 }
 
-/* 3. Neon Glow Input Focus */
 .input-group:focus-within svg {
   color: #60A5FA !important;
   filter: drop-shadow(0 0 5px #60A5FA);
   transform: scale(1.1) translateY(-50%) !important;
 }
-
-.input-group:focus-within input {
+.input-group:focus-within input, .input-group:focus-within .glass-dropdown-container > div {
   border-color: #60A5FA !important;
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 }
+.input-group svg { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
-.input-group svg {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 4. Floating Elements (Icons in background) */
 @keyframes float-random {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   25% { transform: translate(10px, -15px) rotate(5deg); }
   50% { transform: translate(-5px, 10px) rotate(-5deg); }
   75% { transform: translate(-15px, -5px) rotate(2deg); }
 }
+.floating-icon { animation: float-random 6s ease-in-out infinite; }
 
-.floating-icon {
-  animation: float-random 6s ease-in-out infinite;
-}
-
-/* ==========================================================================
-   MODERN ANIMATION SYSTEM (REFERENCE IMPLEMENTATION)
-   ========================================================================== */
-
-:root {
-  /* Animation Variables */
-  --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 0.2s;
-  --duration-normal: 0.4s;
-  --duration-slow: 0.8s;
-  --duration-hero: 1.2s;
-}
-
-/* --- SCROLL REVEAL UTILITIES --- */
-/* These classes are triggered by the useAnimationSystem hook */
-
-.reveal-up, .reveal-left, .reveal-right, .reveal-scale {
-  opacity: 0;
-  will-change: transform, opacity;
-  transition: opacity var(--duration-slow) var(--ease-smooth),
-              transform var(--duration-slow) var(--ease-smooth);
-}
-
-.reveal-up { transform: translateY(50px); }
-.reveal-left { transform: translateX(-50px); }
-.reveal-right { transform: translateX(50px); }
-.reveal-scale { transform: scale(0.8); }
-
-/* The class JS adds when element is visible */
-.is-visible {
-  opacity: 1;
-  transform: translate(0) scale(1);
-}
-
-/* Stagger Delays for lists/grids */
+/* Scroll Reveal Base Classes */
+.reveal-up { opacity: 0; transform: translateY(50px); transition: 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.reveal-scale { opacity: 0; transform: scale(0.8); transition: 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.is-visible { opacity: 1; transform: translate(0) scale(1); }
 .stagger-1 { transition-delay: 0.1s; }
 .stagger-2 { transition-delay: 0.2s; }
 .stagger-3 { transition-delay: 0.3s; }
 .stagger-4 { transition-delay: 0.4s; }
-
-/* --- 3D CARD TILT --- */
-.card-3d {
-  transition: transform 0.1s ease-out, box-shadow 0.3s ease-out;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-.card-3d:hover {
-  /* Shadow expansion on hover */
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important; 
-}
-
-/* --- HERO TEXT SPLIT ANIMATION --- */
-@keyframes charReveal {
-  0% { opacity: 0; transform: translateY(50px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-.char-split {
-  display: inline-block;
-  opacity: 0;
-  animation: charReveal 1s var(--ease-smooth) forwards;
-  /* CSS Var --char-index must be set inline for stagger */
-  animation-delay: calc(0.1s + (var(--char-index) * 0.05s));
-}
-
-/* --- MAGNETIC BUTTON --- */
-.magnetic-btn {
-  display: inline-block;
-  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-/* --- GLOWING BACKGROUND (Existing optimized) --- */
-.bg-tech-grid {
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
-    animation-duration: 0.01s !important;
-    transition-duration: 0.01s !important;
-  }
-}
-body {
-  background: radial-gradient(circle at top, #1e1b4b, #020617);
-}
-
-.glass {
-  backdrop-filter: blur(14px);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-}
+.card-3d { transition: transform 0.1s; transform-style: preserve-3d; }
