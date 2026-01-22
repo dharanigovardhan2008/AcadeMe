@@ -4,11 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Book, Calendar, ArrowRight, UserPlus, IdCard, Sparkles } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
-import GlassDropdown from '../components/GlassDropdown'; // Import the new component
+import GlassDropdown from '../components/GlassDropdown'; // <--- Using your new Glass Dropdown
 
 const Signup = () => {
     const [formData, setFormData] = useState({
-        name: '', email: '', password: '', confirmPassword: '', branch: 'CSE', year: '1st Year', regNo: ''
+        name: '', email: '', password: '', confirmPassword: '', branch: '', year: '', regNo: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ const Signup = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Handler specifically for the custom dropdown
+    // Handler specifically for the GlassDropdown
     const handleDropdownChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -31,6 +31,9 @@ const Signup = () => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
             return setError('Passwords do not match');
+        }
+        if (!formData.branch || !formData.year) {
+            return setError('Please select your Branch and Year');
         }
         try {
             setError('');
@@ -50,6 +53,7 @@ const Signup = () => {
             background: '#05050A', position: 'relative', overflow: 'hidden', padding: '20px' 
         }}>
             
+            {/* BACKGROUND ANIMATIONS */}
             <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
 
             <div className="animate-float" style={{
@@ -82,6 +86,7 @@ const Signup = () => {
 
                     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.2rem' }}>
                         
+                        {/* Name */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <User size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="text" name="name" placeholder="Full Name" required
@@ -90,6 +95,7 @@ const Signup = () => {
                             />
                         </div>
 
+                        {/* Email */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <Mail size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="email" name="email" placeholder="Email Address" required
@@ -98,6 +104,7 @@ const Signup = () => {
                             />
                         </div>
 
+                        {/* Reg No */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <IdCard size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="text" name="regNo" placeholder="Registration Number" required
@@ -107,24 +114,25 @@ const Signup = () => {
                         </div>
 
                         {/* CUSTOM GLASS DROPDOWNS */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', position: 'relative', zIndex: 50 }}>
                             <GlassDropdown 
                                 options={BRANCHES} 
                                 value={formData.branch} 
                                 placeholder="Branch"
                                 icon={Book}
-                                onChange={(e) => handleDropdownChange('branch', e.target.value)}
+                                onChange={(val) => handleDropdownChange('branch', val)}
                             />
                             <GlassDropdown 
                                 options={YEARS} 
                                 value={formData.year} 
                                 placeholder="Year"
                                 icon={Calendar}
-                                onChange={(e) => handleDropdownChange('year', e.target.value)}
+                                onChange={(val) => handleDropdownChange('year', val)}
                             />
                         </div>
 
-                        <div className="input-group" style={{ position: 'relative' }}>
+                        {/* Password */}
+                        <div className="input-group" style={{ position: 'relative', zIndex: 1 }}>
                             <Lock size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="password" name="password" placeholder="Password" required
                                 value={formData.password} onChange={handleChange}
@@ -132,7 +140,8 @@ const Signup = () => {
                             />
                         </div>
 
-                        <div className="input-group" style={{ position: 'relative' }}>
+                        {/* Confirm Password */}
+                        <div className="input-group" style={{ position: 'relative', zIndex: 1 }}>
                             <Lock size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="password" name="confirmPassword" placeholder="Confirm Password" required
                                 value={formData.confirmPassword} onChange={handleChange}
@@ -140,7 +149,7 @@ const Signup = () => {
                             />
                         </div>
 
-                        <GlassButton type="submit" disabled={loading} variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem', boxShadow: '0 10px 30px rgba(236, 72, 153, 0.3)' }}>
+                        <GlassButton type="submit" disabled={loading} variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem', boxShadow: '0 10px 30px rgba(236, 72, 153, 0.3)', zIndex: 1 }}>
                             {loading ? 'Creating Account...' : <><Sparkles size={20} /> Join Now</>}
                         </GlassButton>
                     </form>
