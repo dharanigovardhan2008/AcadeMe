@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Book, Calendar, ArrowRight, UserPlus, IdCard, Sparkles } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
-import GlassDropdown from '../components/GlassDropdown'; // <--- Using your new Glass Dropdown
+import GlassDropdown from '../components/GlassDropdown';
 
 const Signup = () => {
     const [formData, setFormData] = useState({
@@ -22,7 +22,6 @@ const Signup = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // Handler specifically for the GlassDropdown
     const handleDropdownChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -50,10 +49,10 @@ const Signup = () => {
     return (
         <div style={{ 
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            background: '#05050A', position: 'relative', overflow: 'hidden', padding: '20px' 
+            background: '#05050A', position: 'relative', overflow: 'hidden', padding: '20px',
+            fontFamily: "'Josefin Sans', sans-serif" // <--- FONT APPLIED HERE
         }}>
             
-            {/* BACKGROUND ANIMATIONS */}
             <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
 
             <div className="animate-float" style={{
@@ -78,7 +77,7 @@ const Signup = () => {
                         }}>
                             <UserPlus size={24} color="white" />
                         </div>
-                        <h2 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Create Account</h2>
+                        <h2 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: "'Josefin Sans', sans-serif" }}>Create Account</h2>
                         <p style={{ color: 'var(--text-secondary)' }}>Start your academic journey today</p>
                     </div>
 
@@ -86,34 +85,30 @@ const Signup = () => {
 
                     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.2rem' }}>
                         
-                        {/* Name */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <User size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="text" name="name" placeholder="Full Name" required
                                 value={formData.name} onChange={handleChange}
-                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s' }}
+                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s', fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        {/* Email */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <Mail size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="email" name="email" placeholder="Email Address" required
                                 value={formData.email} onChange={handleChange}
-                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s' }}
+                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s', fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        {/* Reg No */}
                         <div className="input-group" style={{ position: 'relative' }}>
                             <IdCard size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="text" name="regNo" placeholder="Registration Number" required
                                 value={formData.regNo} onChange={handleChange}
-                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s' }}
+                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s', fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        {/* CUSTOM GLASS DROPDOWNS */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', position: 'relative', zIndex: 50 }}>
                             <GlassDropdown 
                                 options={BRANCHES} 
@@ -121,6 +116,7 @@ const Signup = () => {
                                 placeholder="Branch"
                                 icon={Book}
                                 onChange={(val) => handleDropdownChange('branch', val)}
+                                style={{ fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                             <GlassDropdown 
                                 options={YEARS} 
@@ -128,28 +124,27 @@ const Signup = () => {
                                 placeholder="Year"
                                 icon={Calendar}
                                 onChange={(val) => handleDropdownChange('year', val)}
+                                style={{ fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        {/* Password */}
                         <div className="input-group" style={{ position: 'relative', zIndex: 1 }}>
                             <Lock size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="password" name="password" placeholder="Password" required
                                 value={formData.password} onChange={handleChange}
-                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s' }}
+                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s', fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        {/* Confirm Password */}
                         <div className="input-group" style={{ position: 'relative', zIndex: 1 }}>
                             <Lock size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', zIndex: 10 }} />
                             <input type="password" name="confirmPassword" placeholder="Confirm Password" required
                                 value={formData.confirmPassword} onChange={handleChange}
-                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s' }}
+                                style={{ width: '100%', padding: '14px 14px 14px 50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: 'white', outline: 'none', transition: 'all 0.3s', fontFamily: "'Josefin Sans', sans-serif" }}
                             />
                         </div>
 
-                        <GlassButton type="submit" disabled={loading} variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem', boxShadow: '0 10px 30px rgba(236, 72, 153, 0.3)', zIndex: 1 }}>
+                        <GlassButton type="submit" disabled={loading} variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem', boxShadow: '0 10px 30px rgba(236, 72, 153, 0.3)', zIndex: 1, fontFamily: "'Josefin Sans', sans-serif" }}>
                             {loading ? 'Creating Account...' : <><Sparkles size={20} /> Join Now</>}
                         </GlassButton>
                     </form>
