@@ -45,20 +45,6 @@ const Signup = () => {
         setLoading(false);
     };
 
-    // Style object to ensure Dropdowns match Inputs exactly
-    const dropdownStyle = {
-        borderRadius: '14px',                     // Matches Input Rounded Corners
-        background: 'rgba(0,0,0,0.3)',            // Matches Input Background
-        border: '1px solid rgba(255,255,255,0.1)', // Matches Input Border
-        padding: '14px',                          // Matches Input Height/Size
-        width: '100%',
-        color: 'white',
-        outline: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between' // Ensures arrow stays to the right
-    };
-
     return (
         <div style={{ 
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', 
@@ -121,7 +107,6 @@ const Signup = () => {
                             />
                         </div>
 
-                        {/* --- DROPDOWNS: FIXED SHAPE AND SIZE --- */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', position: 'relative', zIndex: 50 }}>
                             <GlassDropdown 
                                 options={BRANCHES} 
@@ -129,7 +114,6 @@ const Signup = () => {
                                 placeholder="Branch"
                                 icon={Book}
                                 onChange={(val) => handleDropdownChange('branch', val)}
-                                style={dropdownStyle} // <--- Applying match style here
                             />
                             <GlassDropdown 
                                 options={YEARS} 
@@ -137,7 +121,6 @@ const Signup = () => {
                                 placeholder="Year"
                                 icon={Calendar}
                                 onChange={(val) => handleDropdownChange('year', val)}
-                                style={dropdownStyle} // <--- Applying match style here
                             />
                         </div>
 
@@ -157,7 +140,7 @@ const Signup = () => {
                             />
                         </div>
 
-                        {/* --- JOIN BUTTON: PILL SHAPE & CENTERED TEXT --- */}
+                        {/* --- UPDATED BUTTON: Centered Text, Pill Shape, Smaller Height --- */}
                         <button 
                             type="submit" 
                             disabled={loading} 
@@ -173,7 +156,7 @@ const Signup = () => {
                                 fontWeight: '600',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', // Centering
                                 boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
                                 zIndex: 1 
                             }}
