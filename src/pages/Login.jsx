@@ -65,7 +65,6 @@ const Login = () => {
             
             <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
 
-            {/* Background Orbs */}
             <div className="animate-float" style={{
                 position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px',
                 background: 'radial-gradient(circle, rgba(59,130,246,0.3) 0%, rgba(0,0,0,0) 70%)',
@@ -146,24 +145,27 @@ const Login = () => {
                             <span style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: '500' }}>Forgot Password?</span>
                         </div>
 
-                        {/* --- DARK BUTTON (Matches Screenshot 2) --- */}
+                        {/* --- UPDATED BUTTON: Centered Text, Pill Shape, Smaller Height --- */}
                         <button 
                             type="submit" 
                             disabled={loading} 
                             className="reveal-up stagger-4 magnetic-btn"
                             style={{ 
                                 width: '100%', 
-                                padding: '16px', 
-                                fontSize: '1.1rem', 
-                                marginTop: '0.5rem',
-                                borderRadius: '12px',
-                                background: 'rgba(255, 255, 255, 0.1)', // Dark transparent
-                                border: '1px solid rgba(255, 255, 255, 0.2)', // Thin white border
+                                padding: '14px',                    // Reduced padding
+                                borderRadius: '30px',               // Pill shape to match Google button
+                                background: 'rgba(255, 255, 255, 0.1)', 
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
                                 color: 'white',
+                                fontSize: '1rem',                   // Matched text size
                                 fontWeight: '600',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                                boxShadow: '0 5px 15px rgba(0,0,0,0.2)'
+                                boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                display: 'flex',                    // Ensures centering
+                                justifyContent: 'center',           // Centers Horizontally
+                                alignItems: 'center',               // Centers Vertically
+                                marginTop: '0.5rem'
                             }}
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
@@ -178,7 +180,6 @@ const Login = () => {
                         <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent)' }}></div>
                     </div>
 
-                    {/* --- WHITE GOOGLE BUTTON (Matches Screenshot 2) --- */}
                     <button 
                         onClick={handleGoogleLogin}
                         type="button"
@@ -187,10 +188,10 @@ const Login = () => {
                         style={{
                             width: '100%', 
                             padding: '14px', 
-                            borderRadius: '30px', // Pill shape like in picture
+                            borderRadius: '30px', 
                             border: 'none',
-                            background: 'white', // Solid White
-                            color: 'black',      // Black Text
+                            background: 'white', 
+                            color: 'black',      
                             fontSize: '0.95rem', 
                             cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
