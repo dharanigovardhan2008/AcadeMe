@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, LogIn, ArrowRight, ShieldCheck, Zap, Globe, Cpu } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import GlassButton from '../components/GlassButton';
 import AnimatedText from '../components/AnimatedText';
 
 const Login = () => {
@@ -66,6 +65,7 @@ const Login = () => {
             
             <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
 
+            {/* Background Orbs */}
             <div className="animate-float" style={{
                 position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px',
                 background: 'radial-gradient(circle, rgba(59,130,246,0.3) 0%, rgba(0,0,0,0) 70%)',
@@ -77,7 +77,6 @@ const Login = () => {
                 borderRadius: '50%', filter: 'blur(70px)', zIndex: 0
             }}></div>
 
-            {/* 3D FLOATING ICONS */}
             <Zap size={40} className="floating-icon" color="#3B82F6" style={{ position: 'absolute', top: '15%', right: '15%', opacity: 0.5 }} />
             <Globe size={40} className="floating-icon" color="#8B5CF6" style={{ position: 'absolute', bottom: '20%', left: '10%', opacity: 0.5, animationDelay: '1s' }} />
             <Cpu size={40} className="floating-icon" color="#EC4899" style={{ position: 'absolute', top: '20%', left: '10%', opacity: 0.3, animationDelay: '2s' }} />
@@ -97,12 +96,9 @@ const Login = () => {
                             <LogIn size={30} color="white" />
                         </div>
                         
-                        {/* UPDATE: Text is just "Welcome" now */}
                         <h2 className="gradient-text" style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                             <AnimatedText text="Welcome" />
                         </h2>
-                        
-                        {/* DELETED: The <p> tag with extra text is gone */}
                     </div>
 
                     {error && <div className="reveal-up" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5', padding: '12px', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</div>}
@@ -150,18 +146,30 @@ const Login = () => {
                             <span style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: '500' }}>Forgot Password?</span>
                         </div>
 
-                        <GlassButton 
+                        {/* --- DARK BUTTON (Matches Screenshot 2) --- */}
+                        <button 
                             type="submit" 
                             disabled={loading} 
-                            variant="gradient" 
                             className="reveal-up stagger-4 magnetic-btn"
                             style={{ 
-                                width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem',
-                                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
+                                width: '100%', 
+                                padding: '16px', 
+                                fontSize: '1.1rem', 
+                                marginTop: '0.5rem',
+                                borderRadius: '12px',
+                                background: 'rgba(255, 255, 255, 0.1)', // Dark transparent
+                                border: '1px solid rgba(255, 255, 255, 0.2)', // Thin white border
+                                color: 'white',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 5px 15px rgba(0,0,0,0.2)'
                             }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
                         >
                             {loading ? 'Signing in...' : 'Sign In'}
-                        </GlassButton>
+                        </button>
                     </form>
 
                     <div className="reveal-up stagger-4" style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '2rem 0' }}>
@@ -170,18 +178,25 @@ const Login = () => {
                         <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent)' }}></div>
                     </div>
 
+                    {/* --- WHITE GOOGLE BUTTON (Matches Screenshot 2) --- */}
                     <button 
                         onClick={handleGoogleLogin}
                         type="button"
                         disabled={loading}
                         className="animate-shimmer reveal-up stagger-4 magnetic-btn"
                         style={{
-                            width: '100%', padding: '14px', borderRadius: '14px',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: 'white', fontSize: '0.95rem', cursor: 'pointer',
+                            width: '100%', 
+                            padding: '14px', 
+                            borderRadius: '30px', // Pill shape like in picture
+                            border: 'none',
+                            background: 'white', // Solid White
+                            color: 'black',      // Black Text
+                            fontSize: '0.95rem', 
+                            cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+                            fontWeight: '600',
                             transition: 'transform 0.2s ease',
-                            fontWeight: '500'
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
                         }}
                     >
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '22px', height: '22px' }} />
