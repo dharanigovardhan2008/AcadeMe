@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Book, Calendar, ArrowRight, UserPlus, IdCard, Sparkles } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
 
 const Signup = () => {
@@ -141,9 +140,32 @@ const Signup = () => {
                             />
                         </div>
 
-                        <GlassButton type="submit" disabled={loading} variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem', boxShadow: '0 10px 30px rgba(236, 72, 153, 0.3)', zIndex: 1 }}>
+                        {/* --- DARK BUTTON (Matches Screenshot 1) --- */}
+                        <button 
+                            type="submit" 
+                            disabled={loading} 
+                            style={{ 
+                                width: '100%', 
+                                justifyContent: 'center', 
+                                padding: '16px', 
+                                fontSize: '1.1rem', 
+                                marginTop: '0.5rem', 
+                                borderRadius: '14px',
+                                background: 'rgba(255, 255, 255, 0.1)', // Dark transparent
+                                border: '1px solid rgba(255, 255, 255, 0.2)', // Thin white border
+                                color: 'white',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                display: 'flex', alignItems: 'center', gap: '8px',
+                                boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                zIndex: 1 
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                        >
                             {loading ? 'Creating Account...' : <><Sparkles size={20} /> Join Now</>}
-                        </GlassButton>
+                        </button>
                     </form>
 
                     <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
