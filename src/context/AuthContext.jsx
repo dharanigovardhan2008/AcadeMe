@@ -106,18 +106,42 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Modified Signup to match your structure but cleaner
-    const signup = async (email, password, name, branch, year) => {
+    // ==========================================
+    // FIXED SIGNUP FUNCTION
+    // Can now handle Object (formData) OR separate arguments
+    // ==========================================
+    const signup = async (arg1, password, name, branch, year) => {
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            let email, pass, userName, userBranch, userYear, userRegNo;
+
+            // Check if arg1 is the formData object
+            if (typeof arg1 === 'object') {
+                email = arg1.email;
+                pass = arg1.password;
+                userName = arg1.name;
+                userBranch = arg1.branch;
+                userYear = arg1.year;
+                userRegNo = arg1.regNo || '';
+            } else {
+                // Fallback for old way of calling it
+                email = arg1;
+                pass = password;
+                userName = name;
+                userBranch = branch;
+                userYear = year;
+                userRegNo = '';
+            }
+
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
             const user = userCredential.user;
 
             const userData = {
                 uid: user.uid,
-                name,
-                email,
-                branch,
-                year,
+                name: userName,
+                email: email,
+                branch: userBranch,
+                year: userYear,
+                regNo: userRegNo,
                 role: 'student',
                 createdAt: new Date().toISOString(),
                 avatar: ''
