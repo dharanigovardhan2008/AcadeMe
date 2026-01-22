@@ -61,11 +61,9 @@ const Login = () => {
             justifyContent: 'center', 
             background: '#05050A', 
             position: 'relative', 
-            overflow: 'hidden',
-            fontFamily: "'Josefin Sans', sans-serif" // <--- FONT APPLIED HERE
+            overflow: 'hidden'
         }}>
             
-            {/* BACKGROUND ANIMATIONS */}
             <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
 
             <div className="animate-float" style={{
@@ -84,7 +82,6 @@ const Login = () => {
             <Globe size={40} className="floating-icon" color="#8B5CF6" style={{ position: 'absolute', bottom: '20%', left: '10%', opacity: 0.5, animationDelay: '1s' }} />
             <Cpu size={40} className="floating-icon" color="#EC4899" style={{ position: 'absolute', top: '20%', left: '10%', opacity: 0.3, animationDelay: '2s' }} />
 
-            {/* LOGIN CARD */}
             <div className="reveal-scale card-3d" style={{ width: '100%', maxWidth: '440px', padding: '20px', zIndex: 10 }}>
                 <GlassCard className="glass-card" style={{ 
                     border: '1px solid rgba(255,255,255,0.08)',
@@ -100,13 +97,12 @@ const Login = () => {
                             <LogIn size={30} color="white" />
                         </div>
                         
-                        <h2 className="gradient-text" style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '0.5rem', fontFamily: "'Josefin Sans', sans-serif" }}>
-                            <AnimatedText text="Welcome Back" />
+                        {/* UPDATE: Text is just "Welcome" now */}
+                        <h2 className="gradient-text" style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                            <AnimatedText text="Welcome" />
                         </h2>
                         
-                        <p style={{ color: 'var(--text-secondary)' }} className="reveal-up stagger-1">
-                            Enter your details to access your dashboard
-                        </p>
+                        {/* DELETED: The <p> tag with extra text is gone */}
                     </div>
 
                     {error && <div className="reveal-up" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5', padding: '12px', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</div>}
@@ -124,8 +120,7 @@ const Login = () => {
                                     width: '100%', padding: '16px 16px 16px 50px',
                                     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '14px', color: 'white', fontSize: '1rem', outline: 'none',
-                                    transition: 'all 0.3s ease',
-                                    fontFamily: "'Josefin Sans', sans-serif"
+                                    transition: 'all 0.3s ease'
                                 }}
                                 required
                             />
@@ -142,8 +137,7 @@ const Login = () => {
                                     width: '100%', padding: '16px 16px 16px 50px',
                                     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '14px', color: 'white', fontSize: '1rem', outline: 'none',
-                                    transition: 'all 0.3s ease',
-                                    fontFamily: "'Josefin Sans', sans-serif"
+                                    transition: 'all 0.3s ease'
                                 }}
                                 required
                             />
@@ -163,8 +157,7 @@ const Login = () => {
                             className="reveal-up stagger-4 magnetic-btn"
                             style={{ 
                                 width: '100%', justifyContent: 'center', padding: '16px', fontSize: '1.1rem', marginTop: '0.5rem',
-                                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)',
-                                fontFamily: "'Josefin Sans', sans-serif"
+                                boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
                             }}
                         >
                             {loading ? 'Signing in...' : 'Sign In'}
@@ -188,8 +181,7 @@ const Login = () => {
                             color: 'white', fontSize: '0.95rem', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
                             transition: 'transform 0.2s ease',
-                            fontWeight: '500',
-                            fontFamily: "'Josefin Sans', sans-serif"
+                            fontWeight: '500'
                         }}
                     >
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '22px', height: '22px' }} />
