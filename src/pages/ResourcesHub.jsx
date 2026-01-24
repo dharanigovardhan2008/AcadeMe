@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
-// ============ ADDED CACHING UTILITY ============
+// ============ CACHING UTILITY ============
 const CACHE_DURATION = 300000; // 5 minutes
 
 const getFromCache = (key) => {
@@ -28,11 +28,11 @@ const saveToCache = (key, data) => {
     sessionStorage.setItem(key, JSON.stringify(data));
     sessionStorage.setItem(`${key}_time`, Date.now().toString());
 };
-// ============ END CACHING UTILITY ============
 
 // ============ UI HELPER COMPONENTS ============
 
-// 1. Skeleton Loading Grid (Fixed: 1 Column on Mobile, 3 on Laptop)
+// 1. Skeleton Loading Grid 
+// FIX: Removed inline styles, added Tailwind classes for responsive grid
 const SkeletonGrid = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -45,7 +45,7 @@ const SkeletonGrid = () => (
     </div>
 );
 
-// 2. Empty State (No Resources Found)
+// 2. Empty State
 const EmptyState = ({ message, subMessage }) => (
     <div style={{ textAlign: 'center', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.7 }}>
         <div style={{ padding: '20px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', marginBottom: '1.5rem' }}>
@@ -78,7 +78,6 @@ const ResourcesHub = () => {
         const fetchResources = async () => {
             if (!user?.branch) return;
             
-            // ============ CHECK CACHE FIRST ============
             const cacheKey = `resources_${user.branch}`;
             const cached = getFromCache(cacheKey);
             if (cached) {
@@ -86,7 +85,6 @@ const ResourcesHub = () => {
                 setLoading(false);
                 return;
             }
-            // ============ END CACHE CHECK ============
             
             setLoading(true);
             try {
@@ -100,10 +98,7 @@ const ResourcesHub = () => {
                     resList.push({ id: doc.id, ...doc.data() });
                 });
                 setResources(resList);
-                
-                // ============ SAVE TO CACHE ============
                 saveToCache(cacheKey, resList);
-                // ============ END SAVE TO CACHE ============
             } catch (error) {
                 console.error("Error fetching resources:", error);
             }
@@ -113,7 +108,6 @@ const ResourcesHub = () => {
         fetchResources();
     }, [user?.branch]); 
 
-    // Filter resources based on the active tab
     const filteredResources = resources.filter(res => {
         if (activeTab === 'concept-maps') return res.type === 'concept-map';
         if (activeTab === 'papers') return res.type === 'paper';
@@ -128,9 +122,12 @@ const ResourcesHub = () => {
     const renderResourceGrid = (label) => (
         <>
             {filteredResources.length > 0 ? (
-                // UPDATED GRID LAYOUT HERE
-                // grid-cols-1 = 1 column (Vertical for Mobile)
-                // lg:grid-cols-3 = 3 columns (Horizontal for Laptop)
+                // FIX APPLIED HERE:
+                // 1. Removed style={{ display: 'grid'... }} which was causing the overflow.
+                // 2. Added className="grid grid-cols-1 ..."
+                //    - grid-cols-1: Mobile (1 card per row, full width)
+                //    - md:grid-cols-2: Tablet (2 cards per row)
+                //    - lg:grid-cols-3: Laptop (3 cards per row)
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredResources.map((res, idx) => (
                         <GlassCard key={idx} className="hover:transform hover:-translate-y-1">
