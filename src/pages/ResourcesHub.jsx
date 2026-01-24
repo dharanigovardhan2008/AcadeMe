@@ -32,9 +32,9 @@ const saveToCache = (key, data) => {
 
 // ============ UI HELPER COMPONENTS ============
 
-// 1. Skeleton Loading Grid (UPDATED FOR 2 COLUMNS ON MOBILE)
+// 1. Skeleton Loading Grid
 const SkeletonGrid = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
         {[1, 2, 3, 4, 5, 6].map((i) => (
             <GlassCard key={i} className="skeleton-pulse" style={{ height: '200px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ width: '60%', height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}></div>
@@ -128,25 +128,17 @@ const ResourcesHub = () => {
     const renderResourceGrid = (label) => (
         <>
             {filteredResources.length > 0 ? (
-                // UPDATED THIS DIV: Uses Tailwind for 2 columns on mobile, 3/4 on laptop
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                     {filteredResources.map((res, idx) => (
                         <GlassCard key={idx} className="hover:transform hover:-translate-y-1">
-                            {/* Adjusted font size slightly for mobile responsiveness */}
-                            <h3 className="text-sm md:text-lg font-bold mb-2 md:mb-4 line-clamp-2">
-                                {res.title}
-                            </h3>
-                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>{res.title}</h3>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                                 <Badge variant="primary">{label}</Badge>
-                                {/* Hide branch text on tiny screens to save space */}
-                                <span className="hidden md:inline" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>
-                                    {user.branch}
-                                </span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>{user.branch}</span>
                             </div>
                             <a href={res.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                                <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center', padding: '0.5rem' }}>
-                                    <Download size={16} /> 
-                                    <span className="ml-2 text-xs md:text-sm">Open</span>
+                                <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center' }}>
+                                    <Download size={18} /> Open Resource
                                 </GlassButton>
                             </a>
                         </GlassCard>
