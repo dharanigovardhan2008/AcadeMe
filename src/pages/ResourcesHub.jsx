@@ -32,9 +32,9 @@ const saveToCache = (key, data) => {
 
 // ============ UI HELPER COMPONENTS ============
 
-// 1. Skeleton Loading Grid
+// 1. Skeleton Loading Grid (Fixed: 1 Column on Mobile, 3 on Laptop)
 const SkeletonGrid = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
             <GlassCard key={i} className="skeleton-pulse" style={{ height: '200px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ width: '60%', height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}></div>
@@ -124,11 +124,14 @@ const ResourcesHub = () => {
         return false;
     });
 
-    // Helper to render the grid of cards (Avoids repeating code for every tab)
+    // Helper to render the grid of cards
     const renderResourceGrid = (label) => (
         <>
             {filteredResources.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                // UPDATED GRID LAYOUT HERE
+                // grid-cols-1 = 1 column (Vertical for Mobile)
+                // lg:grid-cols-3 = 3 columns (Horizontal for Laptop)
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredResources.map((res, idx) => (
                         <GlassCard key={idx} className="hover:transform hover:-translate-y-1">
                             <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>{res.title}</h3>
