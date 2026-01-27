@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, ArrowRight, Lock, IdCard } from 'lucide-react';
+import { User, ArrowRight, IdCard } from 'lucide-react'; // Removed Lock
 import GlassCard from '../components/GlassCard';
 import GlassInput from '../components/GlassInput';
 import GlassButton from '../components/GlassButton';
@@ -8,18 +8,15 @@ import GlassDropdown from '../components/GlassDropdown';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { updatePassword } from 'firebase/auth';
 
 const CompleteProfile = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
-    // Determine initial name from Google Auth if available
+    // Initial state: Pre-fill name from Google, no password fields
     const [formData, setFormData] = useState({
         name: user?.displayName || '',
-        password: '',
-        confirmPassword: '',
         branch: 'CSE',
         year: '1st Year',
         regNo: ''
@@ -38,18 +35,9 @@ const CompleteProfile = () => {
         e.preventDefault();
         if (!user) return;
 
-        if (formData.password !== formData.confirmPassword) {
-            alert("Passwords do not match");
-            return;
-        }
-
         setLoading(true);
         try {
-            // Set password if provided
-            if (formData.password) {
-                await updatePassword(user, formData.password);
-            }
-
+            // Save data to Firestore (No password update needed for Google Auth)
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
                 name: formData.name,
@@ -59,15 +47,8 @@ const CompleteProfile = () => {
                 regNo: formData.regNo,
                 createdAt: new Date().toISOString()
             });
-            // Force reload or just navigate?
-            // AuthContext listens to checking doc, but we just created it.
-            // Ideally AuthContext onAuthStateChanged would pick up the doc change if we subscribed to it?
-            // Actually our AuthContext only fetches doc ONCE on mount/login.
-            // So we might need to manually update user state or just simple reload.
-            // Let's do a hard reload to ensure context picks up new claims/data, or just push to dashboard 
-            // and rely on a "silent" refresh if we implemented one. 
-            // For now, let's just navigate. If dashboard shows "N/A", user might need refresh.
-            // BETTER: window.location.href = '/dashboard' to force context re-mount and fetch.
+
+            // Navigate to dashboard
             window.location.href = '/dashboard';
         } catch (error) {
             console.error("Error creating profile:", error);
@@ -99,27 +80,10 @@ const CompleteProfile = () => {
                         />
                     </div>
 
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <GlassInput
-                            icon={Lock}
-                            type="password"
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            required
-                            style={{ marginBottom: '1rem' }}
-                        />
-                        <GlassInput
-                            icon={Lock}
-                            type="password"
-                            placeholder="Confirm Password"
-                            value={formData.confirmPassword}
-                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                            required
-                        />
-                    </div>
+                    {/* Removed Password and Confirm Password Fields */}
 
                     <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Registration Number</label>
                         <GlassInput
                             icon={IdCard}
                             type="text"
