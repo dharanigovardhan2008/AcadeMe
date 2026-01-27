@@ -5,12 +5,18 @@ import { Mail, Lock, LogIn, ArrowRight, ShieldCheck, Zap, Globe, Cpu } from 'luc
 import GlassCard from '../components/GlassCard';
 import AnimatedText from '../components/AnimatedText';
 
+// --- NEW IMPORTS START ---
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase"; // Ensure this matches your firebase config path
+// --- NEW IMPORTS END ---
+
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, googleLogin, verifyAdmin } = useAuth();
+    const { login, verifyAdmin } = useAuth(); // Removed googleLogin from here as we handle it manually below
     const navigate = useNavigate();
 
     const handleAdminLogin = () => {
@@ -37,16 +43,30 @@ const Login = () => {
         setLoading(false);
     };
 
+    // --- UPDATED GOOGLE LOGIN LOGIC ---
     const handleGoogleLogin = async () => {
         try {
             setLoading(true);
-            const { isProfileComplete } = await googleLogin();
-            if (isProfileComplete) {
+            const provider = new GoogleAuthProvider();
+            
+            // 1. Sign in with Google
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            // 2. Check if this user exists in your Firestore Database
+            const docRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                // User has data -> Go to Dashboard
                 navigate('/dashboard');
             } else {
-                navigate('/profile'); 
+                // User is NEW (no data) -> Go to Complete Profile page
+                // Note: I changed this to '/completeprofile' to match your file structure
+                navigate('/completeprofile'); 
             }
         } catch (error) {
+            console.error(error);
             setError('Google Sign-In failed.');
         }
         setLoading(false);
@@ -145,26 +165,25 @@ const Login = () => {
                             <span style={{ cursor: 'pointer', color: 'var(--primary)', fontWeight: '500' }}>Forgot Password?</span>
                         </div>
 
-                        {/* --- UPDATED BUTTON: Centered Text, Pill Shape, Smaller Height --- */}
                         <button 
                             type="submit" 
                             disabled={loading} 
                             className="reveal-up stagger-4 magnetic-btn"
                             style={{ 
                                 width: '100%', 
-                                padding: '14px',                    // Reduced padding
-                                borderRadius: '30px',               // Pill shape to match Google button
+                                padding: '14px',                    
+                                borderRadius: '30px',               
                                 background: 'rgba(255, 255, 255, 0.1)', 
                                 border: '1px solid rgba(255, 255, 255, 0.2)',
                                 color: 'white',
-                                fontSize: '1rem',                   // Matched text size
+                                fontSize: '1rem',                   
                                 fontWeight: '600',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
                                 boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
-                                display: 'flex',                    // Ensures centering
-                                justifyContent: 'center',           // Centers Horizontally
-                                alignItems: 'center',               // Centers Vertically
+                                display: 'flex',                    
+                                justifyContent: 'center',           
+                                alignItems: 'center',               
                                 marginTop: '0.5rem'
                             }}
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
