@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, ArrowRight, IdCard } from 'lucide-react'; // Removed Lock
+import { User, ArrowRight, Lock, IdCard } from 'lucide-react'; 
 import GlassCard from '../components/GlassCard';
 import GlassInput from '../components/GlassInput';
 import GlassButton from '../components/GlassButton';
@@ -8,15 +8,18 @@ import GlassDropdown from '../components/GlassDropdown';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth'; // Import this to set the password
 
 const CompleteProfile = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
-    // Initial state: Pre-fill name from Google, no password fields
+    // Initial state: Pre-fill name from Google
     const [formData, setFormData] = useState({
         name: user?.displayName || '',
+        password: '',
+        confirmPassword: '',
         branch: 'CSE',
         year: '1st Year',
         regNo: ''
@@ -35,9 +38,22 @@ const CompleteProfile = () => {
         e.preventDefault();
         if (!user) return;
 
+        // Validation
+        if (formData.password !== formData.confirmPassword) {
+            alert("Passwords do not match!");
+            return;
+        }
+        if (formData.password.length < 6) {
+            alert("Password must be at least 6 characters.");
+            return;
+        }
+
         setLoading(true);
         try {
-            // Save data to Firestore (No password update needed for Google Auth)
+            // 1. Update the password for the Google User
+            await updatePassword(user, formData.password);
+
+            // 2. Save all data to Firestore
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
                 name: formData.name,
@@ -48,11 +64,17 @@ const CompleteProfile = () => {
                 createdAt: new Date().toISOString()
             });
 
-            // Navigate to dashboard
+            // 3. Navigate to dashboard
+            // Using window.location.href ensures a full refresh so AuthContext updates correctly
             window.location.href = '/dashboard';
         } catch (error) {
             console.error("Error creating profile:", error);
-            alert("Error creating profile. Please try again.");
+            // Handle specific error where user needs to re-login to set password
+            if (error.code === 'auth/requires-recent-login') {
+                alert("For security, please log out and log in again to set a password.");
+            } else {
+                alert("Error creating profile: " + error.message);
+            }
             setLoading(false);
         }
     };
@@ -65,10 +87,11 @@ const CompleteProfile = () => {
             <GlassCard style={{ width: '100%', maxWidth: '500px', padding: '2.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h1 className="gradient-text" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Complete Profile</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>Finish setting up your account</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>Set a password and finish setup</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
+                    {/* Full Name Field */}
                     <div style={{ marginBottom: '1.5rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Full Name</label>
                         <GlassInput
@@ -80,8 +103,7 @@ const CompleteProfile = () => {
                         />
                     </div>
 
-                    {/* Removed Password and Confirm Password Fields */}
-
+                    {/* Registration Number Field */}
                     <div style={{ marginBottom: '1.5rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Registration Number</label>
                         <GlassInput
@@ -94,7 +116,8 @@ const CompleteProfile = () => {
                         />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                    {/* Branch and Year Dropdowns */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Branch</label>
                             <GlassDropdown
@@ -115,8 +138,30 @@ const CompleteProfile = () => {
                         </div>
                     </div>
 
+                    {/* Password Fields (Added Back) */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create Password</label>
+                        <GlassInput
+                            icon={Lock}
+                            type="password"
+                            placeholder="New Password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                            style={{ marginBottom: '1rem' }}
+                        />
+                        <GlassInput
+                            icon={Lock}
+                            type="password"
+                            placeholder="Confirm Password"
+                            value={formData.confirmPassword}
+                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                            required
+                        />
+                    </div>
+
                     <GlassButton type="submit" variant="gradient" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
-                        {loading ? 'Creating...' : 'Create Account'} <ArrowRight size={18} />
+                        {loading ? 'Creating Account...' : 'Finish Setup'} <ArrowRight size={18} />
                     </GlassButton>
                 </form>
             </GlassCard>
