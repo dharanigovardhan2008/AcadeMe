@@ -1,3 +1,8 @@
+Here is the updated **`src/App.jsx`**.
+
+I have added the import for `FacultyReviews` and the Protected Route for `/reviews`. I have not changed any other existing features or styles.
+
+```jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,6 +25,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
+import FacultyReviews from './pages/FacultyReviews'; // <--- NEW IMPORT
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -68,6 +74,9 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         
+        {/* NEW FEATURE ROUTE */}
+        <Route path="/reviews" element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>} />
+        
         {/* Admin Route */}
         <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
         
@@ -97,3 +106,4 @@ function App() {
 }
 
 export default App;
+```
