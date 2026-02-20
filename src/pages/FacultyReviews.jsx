@@ -7,7 +7,7 @@ import GlassCard from '../components/GlassCard';
 import { 
     Star, User, BookOpen, Code, Smartphone, Plus, X, 
     Search, Filter, Trash2, Edit2, ShieldCheck, Clock, CheckCircle, 
-    Heart, MessageCircle, Send, AlertTriangle, UserCheck 
+    ThumbsUp, ThumbsDown, MessageCircle, Send, AlertTriangle, UserCheck, Flame 
 } from 'lucide-react';
 
 const FacultyReviews = () => {
@@ -17,7 +17,7 @@ const FacultyReviews = () => {
     const [loading, setLoading] = useState(false);
     const [editingId, setEditingId] = useState(null);
     
-    // State for toggling comment section
+    // Comment Section State
     const [activeCommentBox, setActiveCommentBox] = useState(null); 
     const [commentText, setCommentText] = useState('');
 
@@ -27,6 +27,8 @@ const FacultyReviews = () => {
     const [courseFilter, setCourseFilter] = useState('All');
     const [uniqueCourses, setUniqueCourses] = useState([]);
 
+    const currentUser = auth.currentUser;
+
     // Form State
     const initialFormState = {
         facultyName: '',
@@ -34,16 +36,15 @@ const FacultyReviews = () => {
         courseCode: '',
         courseName: '',
         minInternals: '',
-        facultyType: 'Balanced', // New Field: Strict, Lenient, Balanced
+        facultyType: 'Moderate', // Options: Loose, Moderate, Strict, Rod
         mobileAllowed: true,
         rating: 0,
         feedback: '',
-        likes: [],     // Array of User UIDs
-        comments: []   // Array of objects { uid, name, text, timestamp }
+        likes: [],     
+        dislikes: [],  // New Field
+        comments: []   
     };
     const [formData, setFormData] = useState(initialFormState);
-
-    const currentUser = auth.currentUser;
 
     // --- Helpers ---
     const timeAgo = (dateString) => {
@@ -108,9 +109,9 @@ const FacultyReviews = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // --- Actions ---
+    // --- Like / Dislike Logic ---
     const handleLike = async (review) => {
-        if (!currentUser) return alert("Login to like");
+        if (!currentUser) return alert("Login to vote");
         const reviewRef = doc(db, "facultyReviews", review.id);
         const isLiked = review.likes?.includes(currentUser.uid);
 
@@ -118,14 +119,36 @@ const FacultyReviews = () => {
             if (isLiked) {
                 await updateDoc(reviewRef, { likes: arrayRemove(currentUser.uid) });
             } else {
-                await updateDoc(reviewRef, { likes: arrayUnion(currentUser.uid) });
+                // Remove dislike if exists, then add like
+                await updateDoc(reviewRef, { 
+                    likes: arrayUnion(currentUser.uid),
+                    dislikes: arrayRemove(currentUser.uid) 
+                });
             }
-            fetchReviews(); // Refresh UI
-        } catch (error) {
-            console.error("Error liking:", error);
-        }
+            fetchReviews();
+        } catch (error) { console.error(error); }
     };
 
+    const handleDislike = async (review) => {
+        if (!currentUser) return alert("Login to vote");
+        const reviewRef = doc(db, "facultyReviews", review.id);
+        const isDisliked = review.dislikes?.includes(currentUser.uid);
+
+        try {
+            if (isDisliked) {
+                await updateDoc(reviewRef, { dislikes: arrayRemove(currentUser.uid) });
+            } else {
+                // Remove like if exists, then add dislike
+                await updateDoc(reviewRef, { 
+                    dislikes: arrayUnion(currentUser.uid),
+                    likes: arrayRemove(currentUser.uid)
+                });
+            }
+            fetchReviews();
+        } catch (error) { console.error(error); }
+    };
+
+    // --- Comments ---
     const handleSubmitComment = async (reviewId) => {
         if (!currentUser) return alert("Login to comment");
         if (!commentText.trim()) return;
@@ -143,39 +166,37 @@ const FacultyReviews = () => {
             await updateDoc(reviewRef, { comments: arrayUnion(newComment) });
             setCommentText('');
             fetchReviews();
-        } catch (error) {
-            console.error("Error commenting:", error);
-        }
+        } catch (error) { console.error(error); }
     };
 
+    // --- Submit Review ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         if(!currentUser) return alert("Please login first");
         if(formData.rating === 0) return alert("Please select a star rating");
         setLoading(true);
         try {
+            const dataToSave = {
+                ...formData,
+                updatedAt: new Date().toISOString()
+            };
+
             if (editingId) {
                 const reviewRef = doc(db, "facultyReviews", editingId);
-                const updatedData = { ...formData, updatedAt: new Date().toISOString() };
-                await updateDoc(reviewRef, updatedData);
+                await updateDoc(reviewRef, dataToSave);
             } else {
-                const newReview = { 
-                    ...formData, 
-                    likes: [], 
-                    comments: [],
-                    reviewerId: currentUser.uid, 
-                    createdAt: new Date().toISOString(), 
-                    updatedAt: new Date().toISOString() 
-                };
-                await addDoc(collection(db, "facultyReviews"), newReview);
+                await addDoc(collection(db, "facultyReviews"), {
+                    ...dataToSave,
+                    likes: [], dislikes: [], comments: [],
+                    reviewerId: currentUser.uid,
+                    createdAt: new Date().toISOString()
+                });
             }
             setShowForm(false);
             setFormData(initialFormState);
             setEditingId(null);
             fetchReviews();
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) { console.error(error); }
         setLoading(false);
     };
 
@@ -193,21 +214,32 @@ const FacultyReviews = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // --- UI Components ---
+    // --- STYLES & COMPONENTS ---
+    const glassInputStyle = { width: '100%', padding: '12px 12px 12px 45px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', outline: 'none' };
+    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' };
+
     const RatingBadge = ({ rating }) => {
-        let bg = '#EF4444';
-        if (rating >= 4) bg = '#10B981';
-        else if (rating === 3) bg = '#F59E0B';
+        let bg = '#EF4444'; // Red
+        if (rating >= 4) bg = '#10B981'; // Green
+        else if (rating === 3) bg = '#F59E0B'; // Orange
         return (
-            <div style={{ background: bg, color: 'white', padding: '6px 10px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '45px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                <span style={{ fontSize: '1.2rem', fontWeight: 'bold', lineHeight: '1' }}>{rating}</span>
+            <div style={{ background: bg, color: 'white', padding: '8px 12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '50px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                <span style={{ fontSize: '1.4rem', fontWeight: 'bold', lineHeight: '1' }}>{rating}</span>
                 <div style={{ display: 'flex', marginTop: '2px' }}>{[...Array(5)].map((_, i) => (<Star key={i} size={6} fill="white" color="white" style={{ opacity: i < rating ? 1 : 0.4 }} />))}</div>
             </div>
         );
     };
 
-    const glassInputStyle = { width: '100%', padding: '12px 12px 12px 45px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', outline: 'none' };
-    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' };
+    // Helper to get Color for Faculty Type
+    const getTypeColor = (type) => {
+        switch(type) {
+            case 'Rod': return '#F43F5E'; // Rose Red (Danger)
+            case 'Strict': return '#F97316'; // Orange
+            case 'Moderate': return '#FACC15'; // Yellow
+            case 'Loose': return '#34D399'; // Green
+            default: return '#9CA3AF';
+        }
+    };
 
     return (
         <div style={{ padding: '20px', minHeight: '100vh', background: '#0F0F1A', paddingTop: '80px', color: 'white' }}>
@@ -219,7 +251,7 @@ const FacultyReviews = () => {
                         <h1 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold' }}>Faculty Reviews</h1>
                         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Honest feedback & insights</p>
                     </div>
-                    <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(initialFormState); }} style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(initialFormState); }} style={{ padding: '10px 24px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                         {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Write Review</>}
                     </button>
                 </div>
@@ -243,16 +275,25 @@ const FacultyReviews = () => {
                                 <div style={{ position: 'relative' }}><label style={labelStyle}>Co-Faculty</label><User size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="text" name="coFaculty" placeholder="Optional" value={formData.coFaculty} onChange={handleChange} style={glassInputStyle} /></div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                                <div style={{ position: 'relative' }}><label style={labelStyle}>Course Code</label><Code size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="text" name="courseCode" placeholder="CSE1001" required value={formData.courseCode} onChange={handleChange} style={glassInputStyle} /></div>
+                                <div style={{ position: 'relative' }}><label style={labelStyle}>Course Code</label><Code size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="text" name="courseCode" placeholder="e.g. CSE1001" required value={formData.courseCode} onChange={handleChange} style={glassInputStyle} /></div>
                                 <div style={{ position: 'relative' }}><label style={labelStyle}>Course Name</label><BookOpen size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="text" name="courseName" placeholder="Subject" required value={formData.courseName} onChange={handleChange} style={glassInputStyle} /></div>
                             </div>
                             
                             {/* Stats Inputs */}
                             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <label style={{ ...labelStyle, marginBottom: '15px', color: '#EC4899', fontWeight: 'bold' }}>Details</label>
+                                <label style={{ ...labelStyle, marginBottom: '15px', color: '#EC4899', fontWeight: 'bold' }}>Internals & Behavior</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
-                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Min Marks Given</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
-                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Faculty Type</label><UserCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><select name="facultyType" value={formData.facultyType} onChange={handleChange} style={{...glassInputStyle, appearance: 'none', cursor: 'pointer'}}><option style={{color:'black'}}>Strict</option><option style={{color:'black'}}>Balanced</option><option style={{color:'black'}}>Lenient</option></select></div>
+                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Internal Marks (Min)</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
+                                    <div style={{ position: 'relative' }}>
+                                        <label style={labelStyle}>Faculty Type</label>
+                                        <UserCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
+                                        <select name="facultyType" value={formData.facultyType} onChange={handleChange} style={{...glassInputStyle, appearance: 'none', cursor: 'pointer', paddingLeft: '45px'}}>
+                                            <option style={{color:'black'}}>Loose</option>
+                                            <option style={{color:'black'}}>Moderate</option>
+                                            <option style={{color:'black'}}>Strict</option>
+                                            <option style={{color:'black', fontWeight: 'bold', color: 'red'}}>Rod</option>
+                                        </select>
+                                    </div>
                                     <div><label style={labelStyle}>Mobile</label><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0 15px', borderRadius: '12px', height: '48px', border: '1px solid rgba(255,255,255,0.1)' }}><span style={{ fontSize: '0.9rem', color: '#ddd' }}>Allowed?</span><div onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} style={{ width: '44px', height: '24px', background: formData.mobileAllowed ? '#10B981' : '#EF4444', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}><div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div></div></div></div>
                                 </div>
                             </div>
@@ -264,81 +305,85 @@ const FacultyReviews = () => {
                     </GlassCard>
                 )}
 
-                {/* --- REVIEWS GRID --- */}
+                {/* --- REVIEWS GRID (Clean, Square Cards) --- */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#888' }}>No reviews found.</p> : filteredReviews.map((review) => (
-                        <GlassCard key={review.id} style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <GlassCard key={review.id} style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(30, 41, 59, 0.7)' }}>
                             
                             {/* HEADER */}
-                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)' }}>
+                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <div style={{ paddingRight: '10px' }}>
-                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{review.facultyName}</h3>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>{review.facultyName}</h3>
                                     {review.coFaculty && <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#999' }}>& {review.coFaculty}</p>}
-                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.2)', color: '#A78BFA', fontWeight: 'bold' }}>{review.courseCode}</span>
-                                        {/* Updated Course Name Color (Teal/Cyan) */}
-                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(20, 184, 166, 0.2)', color: '#2DD4BF', fontWeight: 'bold', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.courseName}</span>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.2)', color: '#A78BFA', fontWeight: 'bold', border: '1px solid rgba(167, 139, 250, 0.3)' }}>{review.courseCode}</span>
+                                        {/* New Course Name Style: Cyan/Teal */}
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(34, 211, 238, 0.15)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(34, 211, 238, 0.3)' }}>{review.courseName}</span>
                                     </div>
                                 </div>
                                 <RatingBadge rating={review.rating} />
                             </div>
 
                             {/* STATS ROW */}
-                            <div style={{ padding: '0.8rem 1.2rem', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr', gap: '8px', fontSize: '0.85rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#aaa' }}>Internal Marks (Min):</span>
-                                    <span style={{ color: 'white', fontWeight: 'bold' }}>{review.minInternals}</span>
+                            <div style={{ padding: '1rem 1.2rem', background: 'rgba(0,0,0,0.2)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' }}>
+                                    <ShieldCheck size={14} color="#aaa" /> Min: <b style={{color:'white'}}>{review.minInternals}</b>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#aaa' }}>Faculty Type:</span>
-                                    <span style={{ color: review.facultyType === 'Lenient' ? '#34D399' : review.facultyType === 'Strict' ? '#F87171' : '#FBBF24', fontWeight: 'bold' }}>{review.facultyType}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: getTypeColor(review.facultyType) }}>
+                                    {review.facultyType === 'Rod' ? <Flame size={14} /> : <UserCheck size={14} />} 
+                                    <b style={{ textTransform: 'uppercase' }}>{review.facultyType}</b>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#aaa' }}>Mobile:</span>
-                                    <span style={{ color: review.mobileAllowed ? '#34D399' : '#F87171', fontWeight: 'bold' }}>{review.mobileAllowed ? "Allowed" : "Not Allowed"}</span>
+                                <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '6px', color: review.mobileAllowed ? '#34D399' : '#F87171' }}>
+                                    <Smartphone size={14} /> <b>{review.mobileAllowed ? "Mobile Allowed" : "Mobile Not Allowed"}</b>
                                 </div>
                             </div>
 
                             {/* FEEDBACK */}
-                            <div style={{ padding: '1.2rem', flex: 1 }}>
-                                <p style={{ margin: 0, fontSize: '0.9rem', color: '#eee', lineHeight: '1.5', fontStyle: 'italic' }}>"{review.feedback}"</p>
+                            <div style={{ padding: '1rem 1.2rem', flex: 1, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                <p style={{ margin: 0, fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
                             </div>
 
-                            {/* SOCIAL BAR (Likes & Comments) */}
-                            <div style={{ padding: '0.8rem 1.2rem', background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div style={{ display: 'flex', gap: '15px' }}>
-                                    <div onClick={() => handleLike(review)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: review.likes?.includes(currentUser?.uid) ? '#F472B6' : '#888' }}>
-                                        <Heart size={16} fill={review.likes?.includes(currentUser?.uid) ? "#F472B6" : "none"} />
-                                        <span style={{ fontSize: '0.8rem' }}>{review.likes?.length || 0}</span>
+                            {/* SOCIAL BAR */}
+                            <div style={{ padding: '0.8rem 1.2rem', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div style={{ display: 'flex', gap: '16px' }}>
+                                    {/* Like */}
+                                    <div onClick={() => handleLike(review)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', transition: '0.2s', color: review.likes?.includes(currentUser?.uid) ? '#34D399' : '#94A3B8' }}>
+                                        <ThumbsUp size={16} fill={review.likes?.includes(currentUser?.uid) ? "#34D399" : "none"} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{review.likes?.length || 0}</span>
                                     </div>
-                                    <div onClick={() => setActiveCommentBox(activeCommentBox === review.id ? null : review.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#888' }}>
+                                    {/* Dislike */}
+                                    <div onClick={() => handleDislike(review)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', transition: '0.2s', color: review.dislikes?.includes(currentUser?.uid) ? '#F87171' : '#94A3B8' }}>
+                                        <ThumbsDown size={16} fill={review.dislikes?.includes(currentUser?.uid) ? "#F87171" : "none"} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{review.dislikes?.length || 0}</span>
+                                    </div>
+                                    {/* Comment */}
+                                    <div onClick={() => setActiveCommentBox(activeCommentBox === review.id ? null : review.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#94A3B8' }}>
                                         <MessageCircle size={16} />
-                                        <span style={{ fontSize: '0.8rem' }}>{review.comments?.length || 0}</span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{review.comments?.length || 0}</span>
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#666' }}>{timeAgo(review.createdAt)}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{timeAgo(review.createdAt)}</div>
                             </div>
 
-                            {/* COMMENT SECTION (Expandable) */}
+                            {/* COMMENTS & ACTIONS */}
                             {activeCommentBox === review.id && (
                                 <div style={{ padding: '10px', background: 'rgba(0,0,0,0.6)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <div style={{ maxHeight: '150px', overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         {review.comments?.length > 0 ? review.comments.map((c) => (
-                                            <div key={c.id} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px' }}>
-                                                <strong style={{ color: '#60A5FA' }}>{c.name}:</strong> <span style={{ color: '#ddd' }}>{c.text}</span>
+                                            <div key={c.id} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '6px 8px', borderRadius: '6px' }}>
+                                                <strong style={{ color: '#38BDF8' }}>{c.name}:</strong> <span style={{ color: '#ccc' }}>{c.text}</span>
                                             </div>
-                                        )) : <span style={{ fontSize: '0.8rem', color: '#666', textAlign: 'center' }}>No comments yet.</span>}
+                                        )) : <span style={{ fontSize: '0.8rem', color: '#777', textAlign: 'center' }}>No comments yet.</span>}
                                     </div>
                                     <div style={{ display: 'flex', gap: '5px' }}>
-                                        <input type="text" placeholder="Add a comment..." value={commentText} onChange={(e) => setCommentText(e.target.value)} style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.8rem', padding: '6px', borderRadius: '6px', outline: 'none' }} />
+                                        <input type="text" placeholder="Write a comment..." value={commentText} onChange={(e) => setCommentText(e.target.value)} style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.8rem', padding: '6px 10px', borderRadius: '6px', outline: 'none' }} />
                                         <button onClick={() => handleSubmitComment(review.id)} style={{ background: '#3B82F6', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer', color: 'white' }}><Send size={14} /></button>
                                     </div>
                                 </div>
                             )}
 
-                            {/* EDIT/DELETE (Owner Only) */}
                             {currentUser && currentUser.uid === review.reviewerId && (
-                                <div style={{ padding: '5px 1.2rem', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end', gap: '10px', fontSize: '0.8rem' }}>
+                                <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span onClick={() => handleEdit(review)} style={{ cursor: 'pointer', color: '#60A5FA' }}>Edit</span>
                                     <span onClick={() => handleDelete(review.id)} style={{ cursor: 'pointer', color: '#F87171' }}>Delete</span>
                                 </div>
