@@ -6,7 +6,8 @@ import {
 import GlassCard from '../components/GlassCard';
 import { 
     Star, User, BookOpen, Code, Smartphone, Plus, X, 
-    Search, Filter, Trash2, Edit2, ShieldCheck, MessageCircle, Send, UserCheck, Flame, ThumbsUp, ThumbsDown
+    Search, Filter, Trash2, Edit2, ShieldCheck, Clock, CheckCircle, 
+    Heart, ThumbsUp, ThumbsDown, MessageCircle, Send, AlertTriangle, UserCheck, Flame 
 } from 'lucide-react';
 
 const FacultyReviews = () => {
@@ -16,11 +17,9 @@ const FacultyReviews = () => {
     const [loading, setLoading] = useState(false);
     const [editingId, setEditingId] = useState(null);
     
-    // Comment Section State
     const [activeCommentBox, setActiveCommentBox] = useState(null); 
     const [commentText, setCommentText] = useState('');
 
-    // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOption, setSortOption] = useState('newest'); 
     const [courseFilter, setCourseFilter] = useState('All');
@@ -28,11 +27,13 @@ const FacultyReviews = () => {
 
     const currentUser = auth.currentUser;
 
-    // ADMIN CHECK (For Delete permissions only)
-    const ADMIN_EMAILS = ['admin@college.com', 'principal@college.com']; 
+    // ==================================================
+    // 🔐 ADMIN CONFIGURATION
+    // ==================================================
+    const ADMIN_EMAILS = ['palerugopi2008@gmail.com']; 
     const isAdmin = currentUser && ADMIN_EMAILS.includes(currentUser.email);
+    // ==================================================
 
-    // Form State
     const initialFormState = {
         facultyName: '',
         coFaculty: '',
@@ -49,7 +50,6 @@ const FacultyReviews = () => {
     };
     const [formData, setFormData] = useState(initialFormState);
 
-    // --- Helpers ---
     const timeAgo = (dateString) => {
         if(!dateString) return "Just now";
         const date = new Date(dateString);
@@ -71,15 +71,14 @@ const FacultyReviews = () => {
 
     const getTypeColor = (type) => {
         switch(type) {
-            case 'Rod': return '#F43F5E'; // Rose/Red (Danger)
-            case 'Strict': return '#EF4444'; // Red
-            case 'Moderate': return '#FACC15'; // Yellow
-            case 'Loose': return '#34D399'; // Green
+            case 'Rod': return '#F43F5E';
+            case 'Strict': return '#EF4444'; 
+            case 'Moderate': return '#FACC15'; 
+            case 'Loose': return '#34D399'; 
             default: return '#ccc';
         }
     };
 
-    // --- Fetch Data ---
     const fetchReviews = async () => {
         try {
             const q = query(collection(db, "facultyReviews"), orderBy("createdAt", "desc"));
@@ -98,7 +97,6 @@ const FacultyReviews = () => {
         fetchReviews();
     }, []);
 
-    // --- Filter Logic ---
     useEffect(() => {
         let result = [...reviews];
         if (searchTerm) {
@@ -122,7 +120,6 @@ const FacultyReviews = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // --- Actions ---
     const handleLike = async (review) => {
         if (!currentUser) return alert("Login to vote");
         const reviewRef = doc(db, "facultyReviews", review.id);
@@ -164,7 +161,7 @@ const FacultyReviews = () => {
         const newComment = {
             id: Date.now().toString(),
             uid: currentUser.uid,
-            name: currentUser.displayName || "User", // This name is visible only in comments section
+            name: currentUser.displayName || "User",
             text: commentText,
             createdAt: new Date().toISOString()
         };
@@ -175,7 +172,6 @@ const FacultyReviews = () => {
         } catch (error) { console.error(error); }
     };
 
-    // --- Submit Review (Saves Name Privately) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         if(!currentUser) return alert("Please login first");
@@ -192,10 +188,9 @@ const FacultyReviews = () => {
                     ...dataToSave,
                     likes: [], dislikes: [], comments: [],
                     reviewerId: currentUser.uid,
-                    // --- SAVE PRIVATELY (Visible to Admin, Hidden from Users) ---
+                    // SAVING STUDENT NAME & EMAIL (Hidden from public)
                     reviewerName: currentUser.displayName || "Unknown Student",
                     reviewerEmail: currentUser.email || "No Email",
-                    // ------------------------------------------------------------
                     createdAt: new Date().toISOString()
                 });
             }
@@ -221,7 +216,6 @@ const FacultyReviews = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // --- UI Components ---
     const RatingBadge = ({ rating }) => {
         let bg = '#EF4444';
         if (rating >= 4) bg = '#10B981';
@@ -245,7 +239,7 @@ const FacultyReviews = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold' }}>Faculty Reviews</h1>
-                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Honest & Anonymous Feedback</p>
+                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Honest feedback & insights</p>
                     </div>
                     <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(initialFormState); }} style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                         {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Write Review</>}
@@ -291,7 +285,7 @@ const FacultyReviews = () => {
                                     <div><label style={labelStyle}>Mobile</label><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0 15px', borderRadius: '12px', height: '48px', border: '1px solid rgba(255,255,255,0.1)' }}><span style={{ fontSize: '0.9rem', color: '#ddd' }}>Allowed?</span><div onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} style={{ width: '44px', height: '24px', background: formData.mobileAllowed ? '#10B981' : '#EF4444', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}><div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div></div></div></div>
                                 </div>
                             </div>
-                            <div><label style={labelStyle}>Rating</label><div style={{ display: 'flex', gap: '10px' }}>{[1, 2, 3, 4, 5].map((star) => (<Star key={star} size={36} fill={star <= formData.rating ? "#FBBF24" : "none"} color={star <= formData.rating ? "#FBBF24" : "#4B5563"} style={{ cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, rating: star }))} />))}</div></div>
+                            <div><label style={labelStyle}>Rating</label><div style={{ display: 'flex', gap: '10px' }}>{[1, 2, 3, 4, 5].map((star) => (<Star key={i} size={36} fill={star <= formData.rating ? "#FBBF24" : "none"} color={star <= formData.rating ? "#FBBF24" : "#4B5563"} style={{ cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, rating: star }))} />))}</div></div>
                             <div><label style={labelStyle}>Feedback</label><textarea name="feedback" rows="3" placeholder="Experience..." required value={formData.feedback} onChange={handleChange} style={{...glassInputStyle, padding: '12px', resize: 'none'}} /></div>
                             <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '14px', background: '#3B82F6', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>{loading ? 'Saving...' : (editingId ? 'Update Review' : 'Submit Review')}</button>
                         </form>
@@ -345,6 +339,15 @@ const FacultyReviews = () => {
                                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
                             </div>
 
+                            {/* --- ADMIN ONLY SECTION (Hidden from Normal Users) --- */}
+                            {isAdmin && (
+                                <div style={{ padding: '8px 1.2rem', background: 'rgba(236, 72, 153, 0.1)', borderTop: '1px solid rgba(236, 72, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '8px', color: '#F472B6', fontSize: '0.8rem' }}>
+                                    <ShieldCheck size={14} />
+                                    <span>Posted by: <b>{review.reviewerName}</b></span>
+                                </div>
+                            )}
+                            {/* --------------------------------------------------- */}
+
                             {/* SOCIAL BAR */}
                             <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', gap: '16px' }}>
@@ -364,7 +367,7 @@ const FacultyReviews = () => {
                                 <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{timeAgo(review.createdAt)}</div>
                             </div>
 
-                            {/* COMMENTS */}
+                            {/* COMMENT SECTION */}
                             {activeCommentBox === review.id && (
                                 <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -381,7 +384,7 @@ const FacultyReviews = () => {
                                 </div>
                             )}
 
-                            {/* EDIT/DELETE (Visible only to Reviewer OR Admin) */}
+                            {/* EDIT/DELETE (Admin or Owner) */}
                             {currentUser && (currentUser.uid === review.reviewerId || isAdmin) && (
                                 <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span onClick={() => handleEdit(review)} style={{ cursor: 'pointer', color: '#60A5FA' }}>Edit</span>
