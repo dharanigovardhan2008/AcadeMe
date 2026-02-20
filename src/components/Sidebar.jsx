@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calculator, Calendar, Users, BookOpen, User, Settings, Shield, LogOut, Youtube, Instagram, Mail, MessageCircle } from 'lucide-react';
+// Added MessageSquare to imports
+import { Home, Calculator, Calendar, Users, BookOpen, User, Settings, Shield, LogOut, Youtube, Instagram, Mail, MessageCircle, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 import FeedbackModal from './FeedbackModal';
@@ -26,6 +27,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         { path: '/calc', label: 'CGPA Calculator', icon: Calculator },
         { path: '/attendance', label: 'Attendance', icon: Calendar },
         { path: '/faculty', label: 'Faculty Directory', icon: Users },
+        // --- NEW FEATURE ADDED HERE ---
+        { path: '/reviews', label: 'Faculty Reviews', icon: MessageSquare },
+        // -----------------------------
         { path: '/resources', label: 'Resources Hub', icon: BookOpen },
         { path: '/profile', label: 'Profile', icon: User },
         { path: '/settings', label: 'Settings', icon: Settings },
