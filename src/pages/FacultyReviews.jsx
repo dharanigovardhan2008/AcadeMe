@@ -27,12 +27,9 @@ const FacultyReviews = () => {
 
     const currentUser = auth.currentUser;
 
-    // ==================================================
-    // 🔐 ADMIN CONFIGURATION
-    // ==================================================
+    // ADMIN CONFIGURATION
     const ADMIN_EMAILS = ['palerugopi2008@gmail.com']; 
     const isAdmin = currentUser && ADMIN_EMAILS.includes(currentUser.email);
-    // ==================================================
 
     const initialFormState = {
         facultyName: '',
@@ -188,7 +185,6 @@ const FacultyReviews = () => {
                     ...dataToSave,
                     likes: [], dislikes: [], comments: [],
                     reviewerId: currentUser.uid,
-                    // SAVING STUDENT NAME & EMAIL (Hidden from public)
                     reviewerName: currentUser.displayName || "Unknown Student",
                     reviewerEmail: currentUser.email || "No Email",
                     createdAt: new Date().toISOString()
@@ -285,14 +281,14 @@ const FacultyReviews = () => {
                                     <div><label style={labelStyle}>Mobile</label><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0 15px', borderRadius: '12px', height: '48px', border: '1px solid rgba(255,255,255,0.1)' }}><span style={{ fontSize: '0.9rem', color: '#ddd' }}>Allowed?</span><div onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} style={{ width: '44px', height: '24px', background: formData.mobileAllowed ? '#10B981' : '#EF4444', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}><div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div></div></div></div>
                                 </div>
                             </div>
-                            <div><label style={labelStyle}>Rating</label><div style={{ display: 'flex', gap: '10px' }}>{[1, 2, 3, 4, 5].map((star) => (<Star key={i} size={36} fill={star <= formData.rating ? "#FBBF24" : "none"} color={star <= formData.rating ? "#FBBF24" : "#4B5563"} style={{ cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, rating: star }))} />))}</div></div>
+                            <div><label style={labelStyle}>Rating</label><div style={{ display: 'flex', gap: '10px' }}>{[1, 2, 3, 4, 5].map((star) => (<Star key={star} size={36} fill={star <= formData.rating ? "#FBBF24" : "none"} color={star <= formData.rating ? "#FBBF24" : "#4B5563"} style={{ cursor: 'pointer' }} onClick={() => setFormData(prev => ({ ...prev, rating: star }))} />))}</div></div>
                             <div><label style={labelStyle}>Feedback</label><textarea name="feedback" rows="3" placeholder="Experience..." required value={formData.feedback} onChange={handleChange} style={{...glassInputStyle, padding: '12px', resize: 'none'}} /></div>
                             <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '14px', background: '#3B82F6', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>{loading ? 'Saving...' : (editingId ? 'Update Review' : 'Submit Review')}</button>
                         </form>
                     </GlassCard>
                 )}
 
-                {/* --- REVIEWS GRID (DARK GLASS CARDS) --- */}
+                {/* --- REVIEWS GRID (Vertical List Stats) --- */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#888' }}>No reviews found.</p> : filteredReviews.map((review) => (
                         <GlassCard key={review.id} style={{ 
@@ -320,33 +316,45 @@ const FacultyReviews = () => {
                                 <RatingBadge rating={review.rating} />
                             </div>
 
-                            {/* STATS ROW */}
-                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' }}>
-                                    <ShieldCheck size={14} color="#aaa" /> Internal Marks (Min): <b style={{color:'white'}}>{review.minInternals}</b>
+                            {/* STATS (Vertical One-by-One List) */}
+                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
+                                
+                                {/* 1. Min Internals */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ color: '#aaa' }}>Internal Marks (Min):</div>
+                                    <span style={{ color: 'white', fontWeight: 'bold' }}>{review.minInternals}</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: getTypeColor(review.facultyType) }}>
-                                    {review.facultyType === 'Rod' ? <Flame size={14} /> : <UserCheck size={14} />} 
-                                    <b style={{ textTransform: 'uppercase' }}>{review.facultyType}</b>
+
+                                {/* 2. Faculty Type */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ color: '#aaa' }}>Faculty Type:</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: getTypeColor(review.facultyType) }}>
+                                        {review.facultyType === 'Rod' && <Flame size={14} />}
+                                        <span style={{ fontWeight: 'bold' }}>{review.facultyType}</span>
+                                    </div>
                                 </div>
-                                <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '6px', color: review.mobileAllowed ? '#34D399' : '#F87171' }}>
-                                    <Smartphone size={14} /> <b>{review.mobileAllowed ? "Mobile Allowed" : "Mobile Not Allowed"}</b>
+
+                                {/* 3. Mobile */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ color: '#aaa' }}>Mobile:</div>
+                                    <span style={{ color: review.mobileAllowed ? '#34D399' : '#F87171', fontWeight: 'bold' }}>
+                                        {review.mobileAllowed ? "Allowed" : "Not Allowed"}
+                                    </span>
                                 </div>
                             </div>
 
                             {/* FEEDBACK (No Name Shown Here) */}
-                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', flex: 1 }}>
-                                <p style={{ margin: 0, fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
+                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', flex: 1, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
+                                <p style={{ margin: 0, fontSize: '0.95rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
                             </div>
 
-                            {/* --- ADMIN ONLY SECTION (Hidden from Normal Users) --- */}
+                            {/* --- ADMIN ONLY SECTION --- */}
                             {isAdmin && (
                                 <div style={{ padding: '8px 1.2rem', background: 'rgba(236, 72, 153, 0.1)', borderTop: '1px solid rgba(236, 72, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '8px', color: '#F472B6', fontSize: '0.8rem' }}>
                                     <ShieldCheck size={14} />
                                     <span>Posted by: <b>{review.reviewerName}</b></span>
                                 </div>
                             )}
-                            {/* --------------------------------------------------- */}
 
                             {/* SOCIAL BAR */}
                             <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -384,7 +392,7 @@ const FacultyReviews = () => {
                                 </div>
                             )}
 
-                            {/* EDIT/DELETE (Admin or Owner) */}
+                            {/* EDIT/DELETE (Visible only to Reviewer OR Admin) */}
                             {currentUser && (currentUser.uid === review.reviewerId || isAdmin) && (
                                 <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span onClick={() => handleEdit(review)} style={{ cursor: 'pointer', color: '#60A5FA' }}>Edit</span>
