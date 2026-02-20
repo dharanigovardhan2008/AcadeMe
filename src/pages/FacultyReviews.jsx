@@ -283,7 +283,7 @@ const FacultyReviews = () => {
                             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                 <label style={{ ...labelStyle, marginBottom: '15px', color: '#EC4899', fontWeight: 'bold' }}>Details</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
-                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Min Marks Given</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
+                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Internal Marks (Min)</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
                                     <div style={{ position: 'relative' }}>
                                         <label style={labelStyle}>Faculty Type</label>
                                         <UserCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
@@ -305,17 +305,17 @@ const FacultyReviews = () => {
                     </GlassCard>
                 )}
 
-                {/* --- REVIEWS GRID (TRANSPARENT GLASS CARDS) --- */}
+                {/* --- REVIEWS GRID (DARK GLASS THEME) --- */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#888' }}>No reviews found.</p> : filteredReviews.map((review) => (
                         <GlassCard key={review.id} style={{ 
                             padding: '0', 
                             overflow: 'hidden', 
-                            border: '1px solid rgba(255,255,255,0.08)', // Subtle white border
+                            border: '1px solid rgba(255,255,255,0.08)', 
                             display: 'flex', 
                             flexDirection: 'column', 
                             height: '100%', 
-                            background: 'rgba(15, 15, 25, 0.6)', // TRANSPARENT DARK GLASS
+                            background: 'rgba(15, 15, 25, 0.6)', 
                             backdropFilter: 'blur(10px)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
                         }}>
@@ -327,33 +327,37 @@ const FacultyReviews = () => {
                                     {review.coFaculty && <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#999' }}>& {review.coFaculty}</p>}
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                                         <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.2)', color: '#A78BFA', fontWeight: 'bold', border: '1px solid rgba(167, 139, 250, 0.3)' }}>{review.courseCode}</span>
-                                        {/* Updated Course Name Color (Teal/Cyan) */}
                                         <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(20, 184, 166, 0.2)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(20, 184, 166, 0.3)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.courseName}</span>
                                     </div>
                                 </div>
                                 <RatingBadge rating={review.rating} />
                             </div>
 
-                            {/* STATS ROW (Clean Layout) */}
-                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' }}>
-                                    <ShieldCheck size={14} color="#aaa" /> Min: <b style={{color:'white'}}>{review.minInternals}</b>
+                            {/* STATS ROW */}
+                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', display: 'grid', gridTemplateColumns: '1fr', gap: '8px', fontSize: '0.85rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#aaa' }}>Internal Marks (Min):</span>
+                                    <span style={{ color: 'white', fontWeight: 'bold' }}>{review.minInternals}</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: getTypeColor(review.facultyType) }}>
-                                    {review.facultyType === 'Rod' ? <Flame size={14} /> : <UserCheck size={14} />} 
-                                    <b style={{ textTransform: 'uppercase' }}>{review.facultyType}</b>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#aaa' }}>Faculty Type:</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: getTypeColor(review.facultyType) }}>
+                                        {review.facultyType === 'Rod' && <Flame size={12}/>}
+                                        <span style={{ fontWeight: 'bold' }}>{review.facultyType}</span>
+                                    </div>
                                 </div>
-                                <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '6px', color: review.mobileAllowed ? '#34D399' : '#F87171' }}>
-                                    <Smartphone size={14} /> <b>{review.mobileAllowed ? "Mobile Allowed" : "Mobile Not Allowed"}</b>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#aaa' }}>Mobile:</span>
+                                    <span style={{ color: review.mobileAllowed ? '#34D399' : '#F87171', fontWeight: 'bold' }}>{review.mobileAllowed ? "Allowed" : "Not Allowed"}</span>
                                 </div>
                             </div>
 
-                            {/* FEEDBACK (Transparent Box) */}
+                            {/* FEEDBACK */}
                             <div style={{ padding: '0 1.2rem 1rem 1.2rem', flex: 1 }}>
                                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
                             </div>
 
-                            {/* SOCIAL BAR (Transparent) */}
+                            {/* SOCIAL BAR */}
                             <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', gap: '16px' }}>
                                     {/* Like */}
