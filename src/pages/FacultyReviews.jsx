@@ -7,7 +7,7 @@ import GlassCard from '../components/GlassCard';
 import { 
     Star, User, BookOpen, Code, Smartphone, Plus, X, 
     Search, Filter, Trash2, Edit2, ShieldCheck, Clock, CheckCircle, 
-    ThumbsUp, ThumbsDown, MessageCircle, Send, AlertTriangle, UserCheck, Flame 
+    Heart, ThumbsUp, ThumbsDown, MessageCircle, Send, AlertTriangle, UserCheck, Flame 
 } from 'lucide-react';
 
 const FacultyReviews = () => {
@@ -29,6 +29,12 @@ const FacultyReviews = () => {
 
     const currentUser = auth.currentUser;
 
+    // ==========================================
+    // 🔐 ADMIN CHECK (Replace with your actual logic/email)
+    // ==========================================
+    const ADMIN_EMAILS = ['admin@college.com', 'principal@college.com']; // Add Admin Emails Here
+    const isAdmin = currentUser && ADMIN_EMAILS.includes(currentUser.email);
+
     // Form State
     const initialFormState = {
         facultyName: '',
@@ -36,12 +42,12 @@ const FacultyReviews = () => {
         courseCode: '',
         courseName: '',
         minInternals: '',
-        facultyType: 'Moderate', // Options: Loose, Moderate, Strict, Rod
+        facultyType: 'Moderate', 
         mobileAllowed: true,
         rating: 0,
         feedback: '',
         likes: [],     
-        dislikes: [],  // New Field
+        dislikes: [],
         comments: []   
     };
     const [formData, setFormData] = useState(initialFormState);
@@ -64,6 +70,16 @@ const FacultyReviews = () => {
         interval = Math.floor(seconds / 60);
         if (interval >= 1) return interval + "m ago";
         return "Just now";
+    };
+
+    const getTypeColor = (type) => {
+        switch(type) {
+            case 'Rod': return '#F43F5E'; // Rose/Red (Danger)
+            case 'Strict': return '#EF4444'; // Red
+            case 'Moderate': return '#FACC15'; // Yellow
+            case 'Loose': return '#34D399'; // Green
+            default: return '#ccc';
+        }
     };
 
     // --- Fetch Data ---
@@ -119,13 +135,12 @@ const FacultyReviews = () => {
             if (isLiked) {
                 await updateDoc(reviewRef, { likes: arrayRemove(currentUser.uid) });
             } else {
-                // Remove dislike if exists, then add like
                 await updateDoc(reviewRef, { 
                     likes: arrayUnion(currentUser.uid),
                     dislikes: arrayRemove(currentUser.uid) 
                 });
             }
-            fetchReviews();
+            fetchReviews(); 
         } catch (error) { console.error(error); }
     };
 
@@ -138,9 +153,8 @@ const FacultyReviews = () => {
             if (isDisliked) {
                 await updateDoc(reviewRef, { dislikes: arrayRemove(currentUser.uid) });
             } else {
-                // Remove like if exists, then add dislike
                 await updateDoc(reviewRef, { 
-                    dislikes: arrayUnion(currentUser.uid),
+                    dislikes: arrayUnion(currentUser.uid), 
                     likes: arrayRemove(currentUser.uid)
                 });
             }
@@ -169,17 +183,14 @@ const FacultyReviews = () => {
         } catch (error) { console.error(error); }
     };
 
-    // --- Submit Review ---
+    // --- Submit Review (Create/Edit) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         if(!currentUser) return alert("Please login first");
         if(formData.rating === 0) return alert("Please select a star rating");
         setLoading(true);
         try {
-            const dataToSave = {
-                ...formData,
-                updatedAt: new Date().toISOString()
-            };
+            const dataToSave = { ...formData, updatedAt: new Date().toISOString() };
 
             if (editingId) {
                 const reviewRef = doc(db, "facultyReviews", editingId);
@@ -200,13 +211,15 @@ const FacultyReviews = () => {
         setLoading(false);
     };
 
+    // --- Delete (Owner OR Admin) ---
     const handleDelete = async (reviewId) => {
-        if (window.confirm("Delete review?")) {
+        if (window.confirm("Delete this review permanently?")) {
             await deleteDoc(doc(db, "facultyReviews", reviewId));
             fetchReviews();
         }
     };
 
+    // --- Edit (Owner OR Admin) ---
     const handleEdit = (review) => {
         setFormData(review);
         setEditingId(review.id);
@@ -214,32 +227,21 @@ const FacultyReviews = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // --- STYLES & COMPONENTS ---
-    const glassInputStyle = { width: '100%', padding: '12px 12px 12px 45px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', outline: 'none' };
-    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' };
-
+    // --- UI Components ---
     const RatingBadge = ({ rating }) => {
-        let bg = '#EF4444'; // Red
-        if (rating >= 4) bg = '#10B981'; // Green
-        else if (rating === 3) bg = '#F59E0B'; // Orange
+        let bg = '#EF4444';
+        if (rating >= 4) bg = '#10B981';
+        else if (rating === 3) bg = '#F59E0B';
         return (
-            <div style={{ background: bg, color: 'white', padding: '8px 12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '50px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                <span style={{ fontSize: '1.4rem', fontWeight: 'bold', lineHeight: '1' }}>{rating}</span>
+            <div style={{ background: bg, color: 'white', padding: '6px 10px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '45px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 'bold', lineHeight: '1' }}>{rating}</span>
                 <div style={{ display: 'flex', marginTop: '2px' }}>{[...Array(5)].map((_, i) => (<Star key={i} size={6} fill="white" color="white" style={{ opacity: i < rating ? 1 : 0.4 }} />))}</div>
             </div>
         );
     };
 
-    // Helper to get Color for Faculty Type
-    const getTypeColor = (type) => {
-        switch(type) {
-            case 'Rod': return '#F43F5E'; // Rose Red (Danger)
-            case 'Strict': return '#F97316'; // Orange
-            case 'Moderate': return '#FACC15'; // Yellow
-            case 'Loose': return '#34D399'; // Green
-            default: return '#9CA3AF';
-        }
-    };
+    const glassInputStyle = { width: '100%', padding: '12px 12px 12px 45px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', outline: 'none' };
+    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' };
 
     return (
         <div style={{ padding: '20px', minHeight: '100vh', background: '#0F0F1A', paddingTop: '80px', color: 'white' }}>
@@ -251,7 +253,7 @@ const FacultyReviews = () => {
                         <h1 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold' }}>Faculty Reviews</h1>
                         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Honest feedback & insights</p>
                     </div>
-                    <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(initialFormState); }} style={{ padding: '10px 24px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(initialFormState); }} style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                         {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Write Review</>}
                     </button>
                 </div>
@@ -281,9 +283,9 @@ const FacultyReviews = () => {
                             
                             {/* Stats Inputs */}
                             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <label style={{ ...labelStyle, marginBottom: '15px', color: '#EC4899', fontWeight: 'bold' }}>Internals & Behavior</label>
+                                <label style={{ ...labelStyle, marginBottom: '15px', color: '#EC4899', fontWeight: 'bold' }}>Details</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
-                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Internal Marks (Min)</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
+                                    <div style={{ position: 'relative' }}><label style={labelStyle}>Min Marks Given</label><ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} /><input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} /></div>
                                     <div style={{ position: 'relative' }}>
                                         <label style={labelStyle}>Faculty Type</label>
                                         <UserCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
@@ -291,7 +293,7 @@ const FacultyReviews = () => {
                                             <option style={{color:'black'}}>Loose</option>
                                             <option style={{color:'black'}}>Moderate</option>
                                             <option style={{color:'black'}}>Strict</option>
-                                            <option style={{color:'black', fontWeight: 'bold', color: 'red'}}>Rod</option>
+                                            <option style={{color:'black', fontWeight:'bold', color:'red'}}>Rod</option>
                                         </select>
                                     </div>
                                     <div><label style={labelStyle}>Mobile</label><div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0 15px', borderRadius: '12px', height: '48px', border: '1px solid rgba(255,255,255,0.1)' }}><span style={{ fontSize: '0.9rem', color: '#ddd' }}>Allowed?</span><div onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} style={{ width: '44px', height: '24px', background: formData.mobileAllowed ? '#10B981' : '#EF4444', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}><div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div></div></div></div>
@@ -305,20 +307,19 @@ const FacultyReviews = () => {
                     </GlassCard>
                 )}
 
-                {/* --- REVIEWS GRID (Clean, Square Cards) --- */}
+                {/* --- REVIEWS GRID --- */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#888' }}>No reviews found.</p> : filteredReviews.map((review) => (
                         <GlassCard key={review.id} style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(30, 41, 59, 0.7)' }}>
                             
                             {/* HEADER */}
-                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)' }}>
                                 <div style={{ paddingRight: '10px' }}>
-                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>{review.facultyName}</h3>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{review.facultyName}</h3>
                                     {review.coFaculty && <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#999' }}>& {review.coFaculty}</p>}
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                                         <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.2)', color: '#A78BFA', fontWeight: 'bold', border: '1px solid rgba(167, 139, 250, 0.3)' }}>{review.courseCode}</span>
-                                        {/* New Course Name Style: Cyan/Teal */}
-                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(34, 211, 238, 0.15)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(34, 211, 238, 0.3)' }}>{review.courseName}</span>
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(34, 211, 238, 0.15)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(34, 211, 238, 0.3)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.courseName}</span>
                                     </div>
                                 </div>
                                 <RatingBadge rating={review.rating} />
@@ -356,7 +357,7 @@ const FacultyReviews = () => {
                                         <ThumbsDown size={16} fill={review.dislikes?.includes(currentUser?.uid) ? "#F87171" : "none"} />
                                         <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{review.dislikes?.length || 0}</span>
                                     </div>
-                                    {/* Comment */}
+                                    {/* Comments */}
                                     <div onClick={() => setActiveCommentBox(activeCommentBox === review.id ? null : review.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#94A3B8' }}>
                                         <MessageCircle size={16} />
                                         <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{review.comments?.length || 0}</span>
@@ -365,7 +366,7 @@ const FacultyReviews = () => {
                                 <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{timeAgo(review.createdAt)}</div>
                             </div>
 
-                            {/* COMMENTS & ACTIONS */}
+                            {/* COMMENT SECTION */}
                             {activeCommentBox === review.id && (
                                 <div style={{ padding: '10px', background: 'rgba(0,0,0,0.6)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                                     <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -382,7 +383,8 @@ const FacultyReviews = () => {
                                 </div>
                             )}
 
-                            {currentUser && currentUser.uid === review.reviewerId && (
+                            {/* EDIT/DELETE (Admin or Owner) */}
+                            {currentUser && (currentUser.uid === review.reviewerId || isAdmin) && (
                                 <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span onClick={() => handleEdit(review)} style={{ cursor: 'pointer', color: '#60A5FA' }}>Edit</span>
                                     <span onClick={() => handleDelete(review.id)} style={{ cursor: 'pointer', color: '#F87171' }}>Delete</span>
