@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import GlassCard from '../components/GlassCard';
-import { Star, User, Book, Code, Smartphone, MessageSquare, Plus, X, GraduationCap, Users, Search, Filter } from 'lucide-react';
+import { 
+    Star, User, BookOpen, Code, Smartphone, Plus, X, 
+    Search, Filter, Trash2, ShieldCheck, AlertCircle, CheckCircle 
+} from 'lucide-react';
 
 const FacultyReviews = () => {
     const [reviews, setReviews] = useState([]);
@@ -12,7 +15,7 @@ const FacultyReviews = () => {
     
     // Search & Sort State
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortOption, setSortOption] = useState('newest'); // newest, highest, lowest
+    const [sortOption, setSortOption] = useState('newest'); // newest, rating, courseCode
     
     // Form State
     const [formData, setFormData] = useState({
@@ -20,11 +23,14 @@ const FacultyReviews = () => {
         coFaculty: '',
         courseCode: '',
         courseName: '',
-        internals: '', // Changed to empty string for Number input
-        mobileAllowed: false,
+        minInternals: '',    // New Field: Minimum marks given
+        internalsVerdict: 'Good', // New Field: Good / Average / Bad
+        mobileAllowed: true, // Default to allowed (Green toggle)
         rating: 0,
         feedback: ''
     });
+
+    const currentUser = auth.currentUser;
 
     // 1. Fetch Reviews
     useEffect(() => {
@@ -46,7 +52,7 @@ const FacultyReviews = () => {
     useEffect(() => {
         let result = [...reviews];
 
-        // Filter by Search
+        // Filter
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
             result = result.filter(r => 
@@ -63,6 +69,8 @@ const FacultyReviews = () => {
             result.sort((a, b) => b.rating - a.rating);
         } else if (sortOption === 'lowest') {
             result.sort((a, b) => a.rating - b.rating);
+        } else if (sortOption === 'courseCode') {
+            result.sort((a, b) => a.courseCode.localeCompare(b.courseCode));
         }
 
         setFilteredReviews(result);
@@ -73,17 +81,29 @@ const FacultyReviews = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // 3. Delete Review Logic
+    const handleDelete = async (reviewId) => {
+        if (window.confirm("Are you sure you want to delete this review?")) {
+            try {
+                await deleteDoc(doc(db, "facultyReviews", reviewId));
+                setReviews(prev => prev.filter(r => r.id !== reviewId));
+            } catch (error) {
+                console.error("Error deleting review:", error);
+                alert("Failed to delete review.");
+            }
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if(!auth.currentUser) return alert("Please login first");
+        if(!currentUser) return alert("Please login first");
         if(formData.rating === 0) return alert("Please select a star rating");
 
         setLoading(true);
         try {
             await addDoc(collection(db, "facultyReviews"), {
                 ...formData,
-                // We still save ID for admin purposes, but we won't display the name
-                reviewerId: auth.currentUser.uid,
+                reviewerId: currentUser.uid,
                 createdAt: new Date().toISOString()
             });
             window.location.reload(); 
@@ -94,70 +114,87 @@ const FacultyReviews = () => {
         setLoading(false);
     };
 
-    // Styling
+    // --- SUB-COMPONENTS ---
+    
+    // The Colored Rating Box (Green/Orange/Red)
+    const RatingBadge = ({ rating }) => {
+        let bg = '#EF4444'; // Red
+        if (rating >= 4) bg = '#10B981'; // Green
+        else if (rating === 3) bg = '#F59E0B'; // Orange
+
+        return (
+            <div style={{ 
+                background: bg, color: 'white', padding: '8px 16px', borderRadius: '16px', 
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                minWidth: '60px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+            }}>
+                <span style={{ fontSize: '1.4rem', fontWeight: 'bold', lineHeight: '1' }}>{rating}</span>
+                <div style={{ display: 'flex', marginTop: '2px' }}>
+                    {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={8} fill="white" color="white" style={{ opacity: i < rating ? 1 : 0.4 }} />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const glassInputStyle = {
         width: '100%', padding: '12px 12px 12px 45px', background: 'rgba(0,0,0,0.3)', 
         border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'white', outline: 'none'
     };
-    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' };
+    const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' };
 
     return (
         <div style={{ padding: '20px', minHeight: '100vh', background: '#0F0F1A', paddingTop: '80px', color: 'white' }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
                 
                 {/* --- HEADER --- */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="gradient-text" style={{ fontSize: '2rem', fontWeight: 'bold' }}>Faculty Reviews</h1>
-                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Anonymous feedback for juniors</p>
+                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Share honest feedback & help juniors</p>
                     </div>
                     <button onClick={() => setShowForm(!showForm)} style={{ 
-                        padding: '10px 20px', borderRadius: '30px', border: 'none',
+                        padding: '12px 24px', borderRadius: '30px', border: 'none',
                         background: 'linear-gradient(135deg, #EC4899, #8B5CF6)', color: 'white', fontWeight: 'bold',
-                        display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'
+                        display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(236,72,153,0.4)'
                     }}>
                         {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Write Review</>}
                     </button>
                 </div>
 
-                {/* --- SEARCH & SORT BAR (New Feature) --- */}
+                {/* --- SEARCH & SORT --- */}
                 {!showForm && (
-                    <GlassCard style={{ padding: '1rem', marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                        
-                        {/* Search Input */}
-                        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
                             <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#aaa' }} />
                             <input 
-                                type="text" 
-                                placeholder="Search Faculty or Course..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                type="text" placeholder="Search by Faculty, Course Code or Subject..." 
+                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                 style={{ ...glassInputStyle, paddingLeft: '40px', background: 'rgba(255,255,255,0.05)' }} 
                             />
                         </div>
-
-                        {/* Sort Dropdown */}
-                        <div style={{ position: 'relative', minWidth: '150px' }}>
+                        <div style={{ position: 'relative', minWidth: '180px' }}>
                             <Filter size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#aaa' }} />
                             <select 
-                                value={sortOption} 
-                                onChange={(e) => setSortOption(e.target.value)}
+                                value={sortOption} onChange={(e) => setSortOption(e.target.value)}
                                 style={{ ...glassInputStyle, paddingLeft: '40px', background: 'rgba(255,255,255,0.05)', appearance: 'none', cursor: 'pointer' }}
                             >
                                 <option style={{color:'black'}} value="newest">Newest First</option>
                                 <option style={{color:'black'}} value="highest">Highest Rated</option>
                                 <option style={{color:'black'}} value="lowest">Lowest Rated</option>
+                                <option style={{color:'black'}} value="courseCode">Sort by Course Code</option>
                             </select>
                         </div>
-                    </GlassCard>
+                    </div>
                 )}
 
-                {/* --- ADD REVIEW FORM --- */}
+                {/* --- FORM --- */}
                 {showForm && (
                     <GlassCard style={{ marginBottom: '2rem', padding: '2rem', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
                         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
                             
-                            {/* Row 1 */}
+                            {/* Faculty Info */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                                 <div style={{ position: 'relative' }}>
                                     <label style={labelStyle}>Faculty Name</label>
@@ -166,56 +203,57 @@ const FacultyReviews = () => {
                                 </div>
                                 <div style={{ position: 'relative' }}>
                                     <label style={labelStyle}>Co-Faculty (Optional)</label>
-                                    <Users size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
+                                    <User size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
                                     <input type="text" name="coFaculty" placeholder="Prof. Name" value={formData.coFaculty} onChange={handleChange} style={glassInputStyle} />
                                 </div>
                             </div>
 
-                            {/* Row 2 */}
+                            {/* Course Info */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                                 <div style={{ position: 'relative' }}>
                                     <label style={labelStyle}>Course Code</label>
                                     <Code size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
-                                    <input type="text" name="courseCode" placeholder="CSE1001" required value={formData.courseCode} onChange={handleChange} style={glassInputStyle} />
+                                    <input type="text" name="courseCode" placeholder="e.g. CSE1001" required value={formData.courseCode} onChange={handleChange} style={glassInputStyle} />
                                 </div>
                                 <div style={{ position: 'relative' }}>
                                     <label style={labelStyle}>Course Name</label>
-                                    <Book size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
-                                    <input type="text" name="courseName" placeholder="Subject Name" required value={formData.courseName} onChange={handleChange} style={glassInputStyle} />
+                                    <BookOpen size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
+                                    <input type="text" name="courseName" placeholder="e.g. Data Structures" required value={formData.courseName} onChange={handleChange} style={glassInputStyle} />
                                 </div>
                             </div>
 
-                            {/* Row 3 - Updated Internals & Mobile */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                                <div style={{ position: 'relative' }}>
-                                    <label style={labelStyle}>Internals Marks (Average)</label>
-                                    <GraduationCap size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
-                                    {/* Changed to Number Input */}
-                                    <input 
-                                        type="number" 
-                                        name="internals" 
-                                        placeholder="e.g. 45" 
-                                        required 
-                                        value={formData.internals} 
-                                        onChange={handleChange} 
-                                        style={glassInputStyle} 
-                                    />
-                                </div>
+                            {/* Internals & Mobile Block */}
+                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <label style={{ ...labelStyle, marginBottom: '15px', fontSize: '1rem', color: '#EC4899', fontWeight: 'bold' }}>Internals & Rules</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
+                                    
+                                    {/* Min Internals */}
+                                    <div style={{ position: 'relative' }}>
+                                        <label style={labelStyle}>Min Marks Given</label>
+                                        <ShieldCheck size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
+                                        <input type="number" name="minInternals" placeholder="e.g. 40" required value={formData.minInternals} onChange={handleChange} style={glassInputStyle} />
+                                    </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '0 15px', borderRadius: '12px', height: '48px', marginTop: '29px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <span style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Smartphone size={16}/> Mobile Allowed?
-                                    </span>
-                                    {/* Green/Red Toggle */}
-                                    <div 
-                                        onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} 
-                                        style={{ 
-                                            width: '44px', height: '24px', 
-                                            background: formData.mobileAllowed ? '#10B981' : '#EF4444', // Green if Allowed, Red if Not
-                                            borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' 
-                                        }}
-                                    >
-                                        <div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div>
+                                    {/* Verdict */}
+                                    <div style={{ position: 'relative' }}>
+                                        <label style={labelStyle}>Internals Verdict</label>
+                                        <CheckCircle size={18} style={{ position: 'absolute', left: '14px', top: '40px', color: '#aaa' }} />
+                                        <select name="internalsVerdict" value={formData.internalsVerdict} onChange={handleChange} style={{...glassInputStyle, appearance: 'none', cursor: 'pointer'}}>
+                                            <option style={{color:'black'}} value="Good">Good (High Marks)</option>
+                                            <option style={{color:'black'}} value="Average">Average</option>
+                                            <option style={{color:'black'}} value="Bad">Bad (Strict)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Mobile Toggle */}
+                                    <div>
+                                        <label style={labelStyle}>Mobile Policy</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0 15px', borderRadius: '12px', height: '48px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                            <span style={{ fontSize: '0.9rem', color: '#ddd' }}>Allowed?</span>
+                                            <div onClick={() => setFormData(prev => ({...prev, mobileAllowed: !prev.mobileAllowed}))} style={{ width: '44px', height: '24px', background: formData.mobileAllowed ? '#10B981' : '#EF4444', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
+                                                <div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: formData.mobileAllowed ? '23px' : '3px', transition: '0.3s' }}></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -225,24 +263,18 @@ const FacultyReviews = () => {
                                 <label style={labelStyle}>Rating</label>
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     {[1, 2, 3, 4, 5].map((star) => (
-                                        <Star 
-                                            key={star} size={32} 
-                                            fill={star <= formData.rating ? "#FBBF24" : "none"} 
-                                            color={star <= formData.rating ? "#FBBF24" : "#4B5563"} 
-                                            style={{ cursor: 'pointer', transition: 'transform 0.2s' }} 
-                                            onClick={() => setFormData(prev => ({ ...prev, rating: star }))} 
-                                        />
+                                        <Star key={star} size={36} fill={star <= formData.rating ? "#FBBF24" : "none"} color={star <= formData.rating ? "#FBBF24" : "#4B5563"} style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setFormData(prev => ({ ...prev, rating: star }))} />
                                     ))}
                                 </div>
                             </div>
 
                             {/* Feedback */}
                             <div>
-                                <label style={labelStyle}>Feedback</label>
-                                <textarea name="feedback" rows="3" placeholder="Write your review..." required value={formData.feedback} onChange={handleChange} style={{...glassInputStyle, padding: '12px', resize: 'none'}} />
+                                <label style={labelStyle}>Detailed Feedback</label>
+                                <textarea name="feedback" rows="3" placeholder="Share your experience..." required value={formData.feedback} onChange={handleChange} style={{...glassInputStyle, padding: '12px', resize: 'none'}} />
                             </div>
 
-                            <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', background: '#3B82F6', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}>
+                            <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '14px', background: '#3B82F6', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', marginTop: '10px' }}>
                                 {loading ? 'Submitting...' : 'Submit Review'}
                             </button>
                         </form>
@@ -250,51 +282,88 @@ const FacultyReviews = () => {
                 )}
 
                 {/* --- REVIEWS LIST --- */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? (
                         <p style={{ color: '#666', gridColumn: '1/-1', textAlign: 'center', marginTop: '2rem' }}>No reviews found.</p>
                     ) : (
                         filteredReviews.map((review) => (
-                            <GlassCard key={review.id} style={{ padding: '1.5rem', position: 'relative', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <GlassCard key={review.id} style={{ padding: '0', position: 'relative', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                                 
-                                {/* Header: Name & Star */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'flex-start' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>{review.facultyName}</h3>
+                                {/* 1. Card Header */}
+                                <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.02)' }}>
+                                    <div style={{ flex: 1, paddingRight: '10px' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 'bold', color: 'white' }}>{review.facultyName}</h3>
                                         {review.coFaculty && <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#aaa' }}>& {review.coFaculty}</p>}
+                                        
+                                        {/* Course Name is now here prominent */}
+                                        <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA', padding: '4px 10px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                                            <BookOpen size={14} /> {review.courseName}
+                                        </div>
                                     </div>
-                                    <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '5px 10px', borderRadius: '8px', color: '#FBBF24', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
-                                        <Star size={14} fill="#FBBF24"/> {review.rating}
+
+                                    {/* The Rating Badge (Green/Orange/Red Box) */}
+                                    <RatingBadge rating={review.rating} />
+                                </div>
+
+                                {/* 2. Details Grid (Course Code | Internals | Mobile) */}
+                                <div style={{ padding: '0 1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1rem' }}>
+                                    
+                                    {/* Course Code */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ccc', fontSize: '0.9rem', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px' }}>
+                                        <Code size={16} color="#A78BFA" /> {review.courseCode}
+                                    </div>
+
+                                    {/* Mobile Status */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', color: review.mobileAllowed ? '#34D399' : '#F87171' }}>
+                                        <Smartphone size={16} /> {review.mobileAllowed ? "Mobile Allowed" : "No Mobiles"}
+                                    </div>
+
+                                    {/* Internals Block */}
+                                    <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(236, 72, 153, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#F472B6', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                                            <ShieldCheck size={16} /> Internals:
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '10px', fontSize: '0.85rem' }}>
+                                            <span style={{ color: 'white' }}>Min: <b>{review.minInternals}</b></span>
+                                            <span style={{ 
+                                                color: review.internalsVerdict === 'Good' ? '#34D399' : review.internalsVerdict === 'Bad' ? '#F87171' : '#FBBF24',
+                                                fontWeight: 'bold', textTransform: 'uppercase' 
+                                            }}>
+                                                {review.internalsVerdict}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Details Grid - No Emojis, Glass Icons Only */}
-                                <div style={{ fontSize: '0.9rem', color: '#ccc', marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Book size={16} color="#8B5CF6" /> 
-                                        <span>{review.courseCode}</span>
-                                    </div>
-                                    
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <GraduationCap size={16} color="#EC4899" /> 
-                                        <span>{review.internals} Internals</span>
-                                    </div>
-                                    
-                                    {/* Mobile Status: Green for Allowed, Red for Not Allowed */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', color: review.mobileAllowed ? '#34D399' : '#F87171' }}>
-                                        <Smartphone size={16} /> 
-                                        <span>{review.mobileAllowed ? "Mobile Allowed" : "Mobile Not Allowed"}</span>
-                                    </div>
+                                {/* 3. Feedback */}
+                                <div style={{ padding: '0 1.5rem 1.5rem 1.5rem' }}>
+                                    <p style={{ margin: 0, fontSize: '0.95rem', fontStyle: 'italic', color: '#ddd', lineHeight: '1.5' }}>
+                                        "{review.feedback}"
+                                    </p>
                                 </div>
 
-                                {/* Feedback Box */}
-                                <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: '#eee', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '10px', lineHeight: '1.5', borderLeft: '3px solid #3B82F6' }}>
-                                    "{review.feedback}"
-                                </p>
+                                {/* 4. Delete Button (Only for owner) */}
+                                {currentUser && currentUser.uid === review.reviewerId && (
+                                    <div style={{ position: 'absolute', top: '15px', right: '15px' }}>
+                                        {/* Since Rating is top right, let's put delete button small near the top or bottom right footer */}
+                                    </div>
+                                )}
                                 
-                                {/* REMOVED "By [Student Name]" line as requested */}
-                                
+                                {/* Footer Actions */}
+                                {currentUser && currentUser.uid === review.reviewerId && (
+                                    <button 
+                                        onClick={() => handleDelete(review.id)}
+                                        style={{ 
+                                            width: '100%', background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderTop: '1px solid rgba(239, 68, 68, 0.2)',
+                                            color: '#F87171', padding: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            fontSize: '0.85rem', fontWeight: 'bold', transition: '0.2s'
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                    >
+                                        <Trash2 size={14} /> Delete My Review
+                                    </button>
+                                )}
                             </GlassCard>
                         ))
                     )}
