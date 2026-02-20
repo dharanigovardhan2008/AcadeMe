@@ -30,9 +30,9 @@ const FacultyReviews = () => {
     const currentUser = auth.currentUser;
 
     // ==========================================
-    // 🔐 ADMIN CHECK (Replace with your actual logic/email)
+    // 🔐 ADMIN CHECK 
     // ==========================================
-    const ADMIN_EMAILS = ['admin@college.com', 'principal@college.com']; // Add Admin Emails Here
+    const ADMIN_EMAILS = ['admin@college.com', 'principal@college.com']; 
     const isAdmin = currentUser && ADMIN_EMAILS.includes(currentUser.email);
 
     // Form State
@@ -183,7 +183,7 @@ const FacultyReviews = () => {
         } catch (error) { console.error(error); }
     };
 
-    // --- Submit Review (Create/Edit) ---
+    // --- Submit Review ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         if(!currentUser) return alert("Please login first");
@@ -211,7 +211,6 @@ const FacultyReviews = () => {
         setLoading(false);
     };
 
-    // --- Delete (Owner OR Admin) ---
     const handleDelete = async (reviewId) => {
         if (window.confirm("Delete this review permanently?")) {
             await deleteDoc(doc(db, "facultyReviews", reviewId));
@@ -219,7 +218,6 @@ const FacultyReviews = () => {
         }
     };
 
-    // --- Edit (Owner OR Admin) ---
     const handleEdit = (review) => {
         setFormData(review);
         setEditingId(review.id);
@@ -307,26 +305,37 @@ const FacultyReviews = () => {
                     </GlassCard>
                 )}
 
-                {/* --- REVIEWS GRID --- */}
+                {/* --- REVIEWS GRID (TRANSPARENT GLASS CARDS) --- */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                     {filteredReviews.length === 0 ? <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#888' }}>No reviews found.</p> : filteredReviews.map((review) => (
-                        <GlassCard key={review.id} style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(30, 41, 59, 0.7)' }}>
+                        <GlassCard key={review.id} style={{ 
+                            padding: '0', 
+                            overflow: 'hidden', 
+                            border: '1px solid rgba(255,255,255,0.08)', // Subtle white border
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            height: '100%', 
+                            background: 'rgba(15, 15, 25, 0.6)', // TRANSPARENT DARK GLASS
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                        }}>
                             
                             {/* HEADER */}
-                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'rgba(255,255,255,0.03)' }}>
+                            <div style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <div style={{ paddingRight: '10px' }}>
                                     <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{review.facultyName}</h3>
                                     {review.coFaculty && <p style={{ margin: '4px 0', fontSize: '0.8rem', color: '#999' }}>& {review.coFaculty}</p>}
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                                         <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.2)', color: '#A78BFA', fontWeight: 'bold', border: '1px solid rgba(167, 139, 250, 0.3)' }}>{review.courseCode}</span>
-                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(34, 211, 238, 0.15)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(34, 211, 238, 0.3)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.courseName}</span>
+                                        {/* Updated Course Name Color (Teal/Cyan) */}
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(20, 184, 166, 0.2)', color: '#22D3EE', fontWeight: 'bold', border: '1px solid rgba(20, 184, 166, 0.3)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.courseName}</span>
                                     </div>
                                 </div>
                                 <RatingBadge rating={review.rating} />
                             </div>
 
-                            {/* STATS ROW */}
-                            <div style={{ padding: '1rem 1.2rem', background: 'rgba(0,0,0,0.2)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
+                            {/* STATS ROW (Clean Layout) */}
+                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' }}>
                                     <ShieldCheck size={14} color="#aaa" /> Min: <b style={{color:'white'}}>{review.minInternals}</b>
                                 </div>
@@ -339,13 +348,13 @@ const FacultyReviews = () => {
                                 </div>
                             </div>
 
-                            {/* FEEDBACK */}
-                            <div style={{ padding: '1rem 1.2rem', flex: 1, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                            {/* FEEDBACK (Transparent Box) */}
+                            <div style={{ padding: '0 1.2rem 1rem 1.2rem', flex: 1 }}>
                                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#e2e8f0', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>"{review.feedback}"</p>
                             </div>
 
-                            {/* SOCIAL BAR */}
-                            <div style={{ padding: '0.8rem 1.2rem', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                            {/* SOCIAL BAR (Transparent) */}
+                            <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', gap: '16px' }}>
                                     {/* Like */}
                                     <div onClick={() => handleLike(review)} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', transition: '0.2s', color: review.likes?.includes(currentUser?.uid) ? '#34D399' : '#94A3B8' }}>
@@ -368,7 +377,7 @@ const FacultyReviews = () => {
 
                             {/* COMMENT SECTION */}
                             {activeCommentBox === review.id && (
-                                <div style={{ padding: '10px', background: 'rgba(0,0,0,0.6)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         {review.comments?.length > 0 ? review.comments.map((c) => (
                                             <div key={c.id} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '6px 8px', borderRadius: '6px' }}>
@@ -385,7 +394,7 @@ const FacultyReviews = () => {
 
                             {/* EDIT/DELETE (Admin or Owner) */}
                             {currentUser && (currentUser.uid === review.reviewerId || isAdmin) && (
-                                <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div style={{ padding: '6px 1.2rem', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end', gap: '12px', fontSize: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span onClick={() => handleEdit(review)} style={{ cursor: 'pointer', color: '#60A5FA' }}>Edit</span>
                                     <span onClick={() => handleDelete(review.id)} style={{ cursor: 'pointer', color: '#F87171' }}>Delete</span>
                                 </div>
