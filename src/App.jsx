@@ -20,7 +20,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
-import FacultyReviews from './pages/FacultyReviews'; // <--- NEW IMPORT
+import FacultyReviews from './pages/FacultyReviews'; 
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -36,8 +36,10 @@ const ProtectedRoute = ({ children }) => {
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
+  // 1. ACTIVATE ANIMATION SYSTEM GLOBALLY
   useAnimationSystem(); 
 
+  // 2. ADMIN MODAL HOTKEY LISTENER
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
