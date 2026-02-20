@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-// Added MessageSquare to imports
 import { Home, Calculator, Calendar, Users, BookOpen, User, Settings, Shield, LogOut, Youtube, Instagram, Mail, MessageCircle, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,7 +7,6 @@ import FeedbackModal from './FeedbackModal';
 import logo from '../assets/logo.jpg';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
-    // Added 'user' to get the avatar and name
     const { user, isAdmin, logout } = useAuth();
     const navigate = useNavigate();
     const [showFeedback, setShowFeedback] = useState(false);
@@ -27,15 +25,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         { path: '/calc', label: 'CGPA Calculator', icon: Calculator },
         { path: '/attendance', label: 'Attendance', icon: Calendar },
         { path: '/faculty', label: 'Faculty Directory', icon: Users },
-        // --- NEW FEATURE ADDED HERE ---
-        { path: '/reviews', label: 'Faculty Reviews', icon: MessageSquare },
-        // -----------------------------
+        { path: '/reviews', label: 'Faculty Reviews', icon: MessageSquare }, // New Feature
         { path: '/resources', label: 'Resources Hub', icon: BookOpen },
         { path: '/profile', label: 'Profile', icon: User },
         { path: '/settings', label: 'Settings', icon: Settings },
     ];
 
-    // UPDATED CHECK: Show Admin Panel if isAdmin is true OR if database role is 'admin'
+    // Show Admin Panel if isAdmin is true OR if database role is 'admin'
     if (isAdmin || user?.role === 'admin') {
         navItems.push({ path: '/admin', label: 'Admin Panel', icon: Shield });
     }
@@ -98,7 +94,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Bottom Section */}
             <div style={{ padding: '0 1rem 1rem 1rem' }}>
                 
-                {/* NEW: User Profile Snippet (Shows selected Avatar) */}
+                {/* User Profile Snippet */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '10px', marginBottom: '1rem',
@@ -129,7 +125,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <a href="https://youtube.com/@genxmind-m8r?si=xHZeCJ3ZRTMjmePF" target="_blank" rel="noreferrer" style={{ color: '#EF4444', display: 'flex', alignItems: 'center' }} title="YouTube">
                         <Youtube size={20} />
                     </a>
-                    <a href="https://www.instagram.com/genx_mind?igsh=MWl2MTM0djhyMnU2aw==" target="_blank" rel="noreferrer" style={{ color: '#E1306C', display: 'flex', alignItems: 'center' }} title="Instagram">
+                    {/* UPDATED INSTAGRAM LINK */}
+                    <a href="https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5" target="_blank" rel="noreferrer" style={{ color: '#E1306C', display: 'flex', alignItems: 'center' }} title="Instagram">
                         <Instagram size={20} />
                     </a>
                     <a href="mailto:genxmind1@gmail.com" style={{ color: '#FBBF24', display: 'flex', alignItems: 'center' }} title="Email Us">
