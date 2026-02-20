@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, Calendar, Users, BookOpen, TrendingUp } from 'lucide-react';
+// Added MessageSquare and ArrowRight to imports
+import { Calculator, Calendar, Users, BookOpen, TrendingUp, MessageSquare, ArrowRight } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
@@ -188,6 +189,54 @@ const Dashboard = () => {
           color="#F472B6"
           onClick={() => navigate('/faculty')}
         />
+      </div>
+
+      {/* ================= NEW: FACULTY REVIEWS BLOCK ================= */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <GlassCard 
+            onClick={() => navigate('/reviews')} 
+            style={{ 
+                cursor: 'pointer', 
+                position: 'relative', 
+                overflow: 'hidden', 
+                padding: '2rem',
+                border: '1px solid rgba(236, 72, 153, 0.3)', // Pink accent to match theme
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem'
+            }}
+        >
+            {/* Background Decor */}
+            <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(236,72,153,0.15) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(40px)', zIndex: 0 }}></div>
+            
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                <div style={{ 
+                    width: '60px', height: '60px', 
+                    background: 'linear-gradient(135deg, #EC4899, #BE185D)', 
+                    borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 8px 20px rgba(236, 72, 153, 0.3)'
+                }}>
+                    <MessageSquare size={30} color="white" />
+                </div>
+                <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>Faculty Reviews</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0 }}>
+                        Rate professors, check internals difficulty & read feedback.
+                    </p>
+                </div>
+            </div>
+
+            <div style={{ 
+                display: 'flex', alignItems: 'center', gap: '8px', 
+                color: '#EC4899', fontWeight: 'bold', fontSize: '1rem', 
+                background: 'rgba(236, 72, 153, 0.1)', padding: '10px 20px', 
+                borderRadius: '30px', position: 'relative', zIndex: 1 
+            }}>
+                View Reviews <ArrowRight size={20} />
+            </div>
+        </GlassCard>
       </div>
 
       {/* ================= QUICK ACTIONS ================= */}
