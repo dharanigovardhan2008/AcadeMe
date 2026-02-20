@@ -1,8 +1,3 @@
-Here is the updated **`src/App.jsx`**.
-
-I have added the import for `FacultyReviews` and the Protected Route for `/reviews`. I have not changed any other existing features or styles.
-
-```jsx
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -41,10 +36,8 @@ const ProtectedRoute = ({ children }) => {
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
-  // 1. ACTIVATE ANIMATION SYSTEM GLOBALLY
   useAnimationSystem(); 
 
-  // 2. ADMIN MODAL HOTKEY LISTENER
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
@@ -106,4 +99,3 @@ function App() {
 }
 
 export default App;
-```
