@@ -32,7 +32,7 @@ const FacultyReviews = () => {
     // ==========================================
     // 🔐 ADMIN CHECK 
     // ==========================================
-    const ADMIN_EMAILS = ['admin@college.com', 'principal@college.com']; 
+    const ADMIN_EMAILS = ['palerugopi2008@gmail.com', 'principal@college.com']; 
     const isAdmin = currentUser && ADMIN_EMAILS.includes(currentUser.email);
 
     // Form State
