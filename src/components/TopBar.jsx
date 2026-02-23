@@ -12,13 +12,12 @@ const TopBar = ({ toggleSidebar }) => {
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [replyText, setReplyText] = useState({}); // Map of msgId -> text
+    const [unreadCount, setUnreadCount] = useState(0); // Added unread count state
 
     useEffect(() => {
         if (!user) return;
 
         // Listen for notifications for this user
-        // Note: orderBy("createdAt") with where("userId") requires an index. 
-        // To avoid broken UI before index is created, we filter here and sort in JS.
         const q = query(
             collection(db, "notifications"),
             where("userId", "==", user.uid)
@@ -33,12 +32,17 @@ const TopBar = ({ toggleSidebar }) => {
                 return dateB - dateA;
             });
             setNotifications(list);
+            
+            // Set unread count (you can refine logic here, e.g., filter by !read)
+            if (!showNotifications) {
+                 setUnreadCount(list.length);
+            }
         }, (error) => {
             console.error("Error fetching notifications:", error);
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user, showNotifications]); 
 
     const handleReply = async (msgId) => {
         const text = replyText[msgId];
@@ -61,10 +65,13 @@ const TopBar = ({ toggleSidebar }) => {
         }
     };
 
-    const unreadCount = notifications.filter(n => !n.read && n.type === 'admin_message').length; // Logic can be complex, for now prompt logic
-    // Actually simplicity: Just show count of all messages where last reply was NOT user? 
-    // Or just total count. Let's stick to total for now or simple "unread" if we had a flag tracked per side.
-    // Given the simple schema, let's just show total count of messages for now or 0 if "read" flag used.
+    // Toggle function to handle opening notifications and clearing count
+    const handleToggleNotifications = () => {
+        setShowNotifications(!showNotifications);
+        if (!showNotifications) {
+            setUnreadCount(0); // Clear count when opening
+        }
+    };
 
 
     return (
@@ -92,18 +99,18 @@ const TopBar = ({ toggleSidebar }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                 <div style={{ position: 'relative' }}>
                     <button
-                        onClick={() => setShowNotifications(!showNotifications)}
+                        onClick={handleToggleNotifications} // Use the new handler
                         style={{ position: 'relative', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
                     >
                         <Bell size={24} />
-                        {notifications.length > 0 && (
+                        {unreadCount > 0 && ( // Use unreadCount state
                             <span style={{
                                 position: 'absolute', top: '-2px', right: '-2px',
                                 background: 'var(--danger)', color: 'white',
                                 borderRadius: '50%', fontSize: '0.6rem', width: '16px', height: '16px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
                             }}>
-                                {notifications.length}
+                                {unreadCount}
                             </span>
                         )}
                     </button>
