@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, BookOpen, Phone, User, X, Plus, Trash2, Edit2, Code, Filter } from 'lucide-react';
+import { Search, BookOpen, Phone, User, X, Plus, Trash2, Edit2, Code, Filter, RefreshCcw } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import GlassInput from '../components/GlassInput';
@@ -11,8 +11,6 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
 const FacultyDirectory = () => {
     const [facultyList, setFacultyList] = useState([]);
     const [search, setSearch] = useState('');
-    
-    // Changed 'dept' to 'courseFilter'
     const [courseFilter, setCourseFilter] = useState('All');
     
     const [selectedFaculty, setSelectedFaculty] = useState(null);
@@ -28,9 +26,7 @@ const FacultyDirectory = () => {
 
     // Form State
     const initialFormState = {
-        name: '', designation: '', department: '', 
-        phone: '', 
-        courses: [] // Array of { name: '', code: '' }
+        name: '', designation: '', department: 'CSE', phone: '', courses: []
     };
     const [formData, setFormData] = useState(initialFormState);
     const [tempCourse, setTempCourse] = useState({ name: '', code: '' });
@@ -48,19 +44,24 @@ const FacultyDirectory = () => {
     // 2. Extract Unique Course Codes for Filter
     const uniqueCourseCodes = useMemo(() => {
         const codes = facultyList.flatMap(f => f.courses?.map(c => c.code) || []);
-        // Remove duplicates, sort, and add 'All' at the start
-        return ['All', ...new Set(codes)].sort();
+        // Remove duplicates, remove empty strings, sort alphabetically
+        return ['All', ...new Set(codes.filter(c => c))].sort();
     }, [facultyList]);
 
-    // 3. Filter Logic (Updated)
+    // 3. ADVANCED SEARCH & FILTER LOGIC
     const filtered = facultyList.filter(f => {
-        // Search by Name or Course Name
-        const searchLower = search.toLowerCase();
+        const searchLower = search.toLowerCase().trim();
+        
+        // Search in Name, Designation, Course Names, Course Codes
         const matchesSearch = 
-            f.name?.toLowerCase().includes(searchLower) ||
-            f.courses?.some(c => c.name.toLowerCase().includes(searchLower));
+            (f.name?.toLowerCase() || '').includes(searchLower) || 
+            (f.designation?.toLowerCase() || '').includes(searchLower) ||
+            f.courses?.some(c => 
+                (c.name?.toLowerCase() || '').includes(searchLower) || 
+                (c.code?.toLowerCase() || '').includes(searchLower)
+            );
 
-        // Filter by Course Code
+        // Filter by Course Code Button
         const matchesCode = courseFilter === 'All' || 
             f.courses?.some(c => c.code === courseFilter);
 
@@ -125,7 +126,7 @@ const FacultyDirectory = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
                         <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>Faculty Directory</h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>Find professors by Course Code</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>Find professors & their courses</p>
                     </div>
                     
                     {isAdmin && (
@@ -145,26 +146,27 @@ const FacultyDirectory = () => {
                 <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     {/* Search Bar */}
                     <div style={{ flex: 1, minWidth: '250px' }}>
-                        <GlassInput icon={Search} placeholder="Search by Name or Subject..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ margin: 0 }} />
+                        <GlassInput icon={Search} placeholder="Search 'Gopi', 'CS101', 'Java'..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ margin: 0 }} />
                     </div>
 
-                    {/* NEW: Course Code Filter Buttons */}
-                    <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '5px', maxWidth: '100%', alignItems: 'center' }}>
-                        <Filter size={18} color="#aaa" style={{marginRight:'5px'}} />
+                    {/* Filter Bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '5px 10px', borderRadius: '25px', overflowX: 'auto', maxWidth: '100%', gap: '8px' }}>
+                        <Filter size={18} color="#aaa" style={{ flexShrink: 0 }} />
                         {uniqueCourseCodes.map(code => (
                             <button 
                                 key={code} 
                                 onClick={() => setCourseFilter(code)} 
                                 style={{ 
-                                    padding: '8px 16px', 
+                                    padding: '6px 14px', 
                                     borderRadius: '20px', 
                                     border: '1px solid', 
-                                    borderColor: courseFilter === code ? 'var(--primary)' : 'rgba(255,255,255,0.1)', 
+                                    borderColor: courseFilter === code ? 'var(--primary)' : 'transparent', 
                                     background: courseFilter === code ? 'rgba(59, 130, 246, 0.2)' : 'transparent', 
                                     color: courseFilter === code ? 'white' : 'var(--text-secondary)', 
                                     cursor: 'pointer', 
                                     whiteSpace: 'nowrap',
-                                    fontWeight: courseFilter === code ? 'bold' : 'normal'
+                                    fontSize: '0.85rem',
+                                    transition: '0.2s'
                                 }}
                             >
                                 {code}
@@ -180,20 +182,20 @@ const FacultyDirectory = () => {
                     <h3 style={{ marginBottom: '1.5rem' }}>{isEditing ? 'Edit Faculty' : 'Add New Faculty'}</h3>
                     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <input type="text" placeholder="Name" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
+                            <input type="text" placeholder="Name (e.g. Dr. Gopi)" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={inputStyle} />
                             <input type="text" placeholder="Designation" required value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} style={inputStyle} />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <input type="text" placeholder="Department (e.g. CSE)" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} style={inputStyle} />
+                            <input type="text" placeholder="Department" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} style={inputStyle} />
                             <input type="text" placeholder="Phone" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} style={inputStyle} />
                         </div>
 
-                        {/* Course Addition Section */}
+                        {/* Course Addition */}
                         <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px' }}>
-                            <label style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '8px', display: 'block' }}>Add Courses Taught</label>
+                            <label style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '8px', display: 'block' }}>Assign Courses</label>
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                                 <input type="text" placeholder="Code (e.g. CS101)" value={tempCourse.code} onChange={e => setTempCourse({...tempCourse, code: e.target.value})} style={inputStyle} />
-                                <input type="text" placeholder="Name (e.g. Java)" value={tempCourse.name} onChange={e => setTempCourse({...tempCourse, name: e.target.value})} style={inputStyle} />
+                                <input type="text" placeholder="Subject Name" value={tempCourse.name} onChange={e => setTempCourse({...tempCourse, name: e.target.value})} style={inputStyle} />
                                 <button type="button" onClick={addCourseToForm} style={{ padding: '0 15px', background: '#34D399', border: 'none', borderRadius: '8px', cursor: 'pointer', color: 'black' }}><Plus /></button>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -215,7 +217,7 @@ const FacultyDirectory = () => {
 
             {/* FACULTY GRID */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {filtered.map(f => (
+                {filtered.length > 0 ? filtered.map(f => (
                     <GlassCard
                         key={f.id}
                         className="hover:bg-white/5 cursor-pointer"
@@ -230,7 +232,7 @@ const FacultyDirectory = () => {
                         <h3 style={{ fontWeight: 'bold', marginBottom: '0.2rem' }}>{f.name}</h3>
                         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{f.designation}</p>
                         
-                        {/* Display First 2 Course Codes as Tags on Card */}
+                        {/* Course Tags */}
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
                             {f.courses?.slice(0, 2).map((c, idx) => (
                                 <Badge key={idx} variant="primary">{c.code}</Badge>
@@ -238,7 +240,7 @@ const FacultyDirectory = () => {
                             {f.courses?.length > 2 && <span style={{fontSize:'0.8rem', color:'#aaa'}}>+{f.courses.length - 2}</span>}
                         </div>
 
-                        {/* Admin Buttons */}
+                        {/* Admin Action Buttons */}
                         {isAdmin && (
                             <div style={{ position: 'absolute', top: '15px', right: '15px', display: 'flex', gap: '8px' }}>
                                 <button onClick={(e) => { e.stopPropagation(); handleEdit(f); }} style={{ background: 'none', border: 'none', color: '#60A5FA', cursor: 'pointer' }}><Edit2 size={16} /></button>
@@ -246,7 +248,12 @@ const FacultyDirectory = () => {
                             </div>
                         )}
                     </GlassCard>
-                ))}
+                )) : (
+                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: '#666' }}>
+                        <RefreshCcw size={40} style={{ marginBottom: '10px', opacity: 0.5 }} />
+                        <p>No faculty members match your search.</p>
+                    </div>
+                )}
             </div>
 
             {/* DETAIL MODAL */}
@@ -261,7 +268,7 @@ const FacultyDirectory = () => {
                             </div>
                             <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{selectedFaculty.name}</h2>
                             <p style={{ color: 'var(--primary)' }}>{selectedFaculty.designation}</p>
-                            <div style={{ marginTop: '0.5rem' }}>{selectedFaculty.department}</div>
+                            <div style={{ marginTop: '0.5rem' }}><Badge variant="primary">{selectedFaculty.department}</Badge></div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -282,6 +289,9 @@ const FacultyDirectory = () => {
                                 </div>
                             </div>
 
+                            {/* Phone */}
+                            <InfoRow icon={<Phone size={20} color="var(--success)" />} label="Phone" value={selectedFaculty.phone || "N/A"} />
+
                             {/* Course Codes List */}
                             <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: 'var(--warning)' }}>
@@ -298,7 +308,6 @@ const FacultyDirectory = () => {
                                 </div>
                             </div>
 
-                            <InfoRow icon={<Phone size={20} color="var(--success)" />} label="Phone" value={selectedFaculty.phone || "N/A"} />
                         </div>
 
                         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
