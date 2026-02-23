@@ -3,7 +3,7 @@ import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucid
 import GlassCard from './GlassCard';
 
 // 🔴 PASTE YOUR API KEY HERE 🔴
-const API_KEY = "AIzaSyDye7yMEWsoVKx_ELvYqZ-xsYyONkFU7Sg"; 
+const API_KEY = "AIzaSyDA2RKUhmoY8y4ozvYjGQpsIWkqemyYIvw"; 
 
 const AIAssistant = () => {
     const [isOpen, setIsOpen] = useState(false);
