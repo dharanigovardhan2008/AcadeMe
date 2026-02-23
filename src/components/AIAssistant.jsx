@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-// We are using the official library now
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucide-react';
 import GlassCard from './GlassCard';
@@ -17,8 +16,7 @@ const AIAssistant = () => {
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Initialize Google AI
-    // We use a try-catch block here in case the key is missing
+    // Initialize Google AI with Safety Check
     let genAI;
     try {
         genAI = new GoogleGenerativeAI(API_KEY);
@@ -45,8 +43,8 @@ const AIAssistant = () => {
         try {
             if (!genAI) throw new Error("API Key is missing or invalid.");
 
-            // Using the standard free model
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            // 🟢 CHANGED TO 'gemini-pro' (The Standard Stable Model) 🟢
+            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
             
             const result = await model.generateContent(input);
             const response = await result.response;
@@ -54,12 +52,11 @@ const AIAssistant = () => {
             
             setMessages(prev => [...prev, { role: 'model', text: text }]);
         } catch (error) {
-            console.error(error);
+            console.error("Gemini Error:", error);
             let errorMsg = "⚠️ Connection Error.";
             
-            // Check for specific error types
-            if (error.message.includes("404")) errorMsg = "⚠️ Model not found. Try creating a new API Key.";
-            if (error.message.includes("429")) errorMsg = "⚠️ Too many requests. Wait a moment.";
+            if (error.message.includes("404")) errorMsg = "⚠️ Model Error. Please ensure your API Key is from Google AI Studio.";
+            if (error.message.includes("429")) errorMsg = "⚠️ Too many requests. Please wait a moment.";
             if (error.message.includes("API Key")) errorMsg = "⚠️ Invalid API Key.";
 
             setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
@@ -110,7 +107,7 @@ const AIAssistant = () => {
                 </div>
             )}
 
-            {/* FLOATING BUTTON */}
+            {/* BUTTON */}
             <button onClick={() => setIsOpen(!isOpen)} style={{ width: '60px', height: '60px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
             </button>
