@@ -11,13 +11,16 @@ const TopBar = ({ toggleSidebar }) => {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [replyText, setReplyText] = useState({}); // Map of msgId -> text
-    const [unreadCount, setUnreadCount] = useState(0); // Added unread count state
+    const [replyText, setReplyText] = useState({});
+    
+    // Initialize unread count
+    const [unreadCount, setUnreadCount] = useState(0);
+    // Track if user has seen notifications in this session
+    const [hasSeen, setHasSeen] = useState(false);
 
     useEffect(() => {
         if (!user) return;
 
-        // Listen for notifications for this user
         const q = query(
             collection(db, "notifications"),
             where("userId", "==", user.uid)
@@ -25,24 +28,25 @@ const TopBar = ({ toggleSidebar }) => {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Client-side sort safely
+            
             list.sort((a, b) => {
                 const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
                 const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
                 return dateB - dateA;
             });
-            setNotifications(list);
             
-            // Set unread count (you can refine logic here, e.g., filter by !read)
-            if (!showNotifications) {
-                 setUnreadCount(list.length);
+            setNotifications(list);
+
+            // FIX: Only update unread count if the user hasn't opened the panel yet
+            if (!hasSeen && !showNotifications) {
+                setUnreadCount(list.length);
             }
         }, (error) => {
             console.error("Error fetching notifications:", error);
         });
 
         return () => unsubscribe();
-    }, [user, showNotifications]); 
+    }, [user, hasSeen]); // Removed showNotifications to prevent re-render loops
 
     const handleReply = async (msgId) => {
         const text = replyText[msgId];
@@ -56,7 +60,7 @@ const TopBar = ({ toggleSidebar }) => {
                     text: text,
                     timestamp: new Date().toISOString()
                 }),
-                read: false // Mark unread for admin (optional field logic can be refined)
+                read: false
             });
             setReplyText(prev => ({ ...prev, [msgId]: '' }));
             alert("Reply sent!");
@@ -65,14 +69,14 @@ const TopBar = ({ toggleSidebar }) => {
         }
     };
 
-    // Toggle function to handle opening notifications and clearing count
+    // FIX: Click handler sets count to 0 and marks as seen
     const handleToggleNotifications = () => {
-        setShowNotifications(!showNotifications);
         if (!showNotifications) {
-            setUnreadCount(0); // Clear count when opening
+            setUnreadCount(0);
+            setHasSeen(true); // Prevent future updates from resetting the count
         }
+        setShowNotifications(!showNotifications);
     };
-
 
     return (
         <div style={{
@@ -103,7 +107,7 @@ const TopBar = ({ toggleSidebar }) => {
                         style={{ position: 'relative', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
                     >
                         <Bell size={24} />
-                        {unreadCount > 0 && ( // Use unreadCount state
+                        {unreadCount > 0 && (
                             <span style={{
                                 position: 'absolute', top: '-2px', right: '-2px',
                                 background: 'var(--danger)', color: 'white',
@@ -145,7 +149,6 @@ const TopBar = ({ toggleSidebar }) => {
                                                 </div>
                                             </div>
 
-                                            {/* Previous Replies Logic */}
                                             {note.replies && note.replies.length > 0 && (
                                                 <div style={{ marginLeft: '2rem', marginTop: '0.5rem', marginBottom: '0.5rem', borderLeft: '2px solid rgba(255,255,255,0.1)', paddingLeft: '0.5rem' }}>
                                                     {note.replies.map((r, i) => (
@@ -157,7 +160,6 @@ const TopBar = ({ toggleSidebar }) => {
                                                 </div>
                                             )}
 
-                                            {/* Reply Input */}
                                             <div style={{ display: 'flex', gap: '5px', marginTop: '0.5rem' }}>
                                                 <GlassInput
                                                     placeholder="Reply..."
