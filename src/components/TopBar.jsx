@@ -4,23 +4,20 @@ import { Search, Bell, Menu, User, X, MessageCircle, Send } from 'lucide-react';
 import GlassInput from './GlassInput';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 
 const TopBar = ({ toggleSidebar }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [replyText, setReplyText] = useState({});
-    
-    // Initialize unread count
+    const [replyText, setReplyText] = useState({}); 
     const [unreadCount, setUnreadCount] = useState(0);
-    // Track if user has seen notifications in this session
-    const [hasSeen, setHasSeen] = useState(false);
 
     useEffect(() => {
         if (!user) return;
 
+        // Listen for notifications for this user
         const q = query(
             collection(db, "notifications"),
             where("userId", "==", user.uid)
@@ -29,6 +26,7 @@ const TopBar = ({ toggleSidebar }) => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
+            // Sort by date (newest first)
             list.sort((a, b) => {
                 const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
                 const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
@@ -37,16 +35,23 @@ const TopBar = ({ toggleSidebar }) => {
             
             setNotifications(list);
 
-            // FIX: Only update unread count if the user hasn't opened the panel yet
-            if (!hasSeen && !showNotifications) {
-                setUnreadCount(list.length);
-            }
+            // --- PERSISTENT UNREAD LOGIC ---
+            // 1. Get the count of messages we saw last time from LocalStorage
+            const storageKey = `acadeMe_notif_count_${user.uid}`;
+            const lastSeenCount = parseInt(localStorage.getItem(storageKey) || '0');
+
+            // 2. Calculate real unread (Total in DB - Total we saw before)
+            const realUnread = list.length - lastSeenCount;
+
+            // 3. Set badge (if realUnread is negative, it means messages were deleted, so show 0)
+            setUnreadCount(realUnread > 0 ? realUnread : 0);
+
         }, (error) => {
             console.error("Error fetching notifications:", error);
         });
 
         return () => unsubscribe();
-    }, [user, hasSeen]); // Removed showNotifications to prevent re-render loops
+    }, [user]);
 
     const handleReply = async (msgId) => {
         const text = replyText[msgId];
@@ -60,7 +65,7 @@ const TopBar = ({ toggleSidebar }) => {
                     text: text,
                     timestamp: new Date().toISOString()
                 }),
-                read: false
+                read: false 
             });
             setReplyText(prev => ({ ...prev, [msgId]: '' }));
             alert("Reply sent!");
@@ -69,13 +74,17 @@ const TopBar = ({ toggleSidebar }) => {
         }
     };
 
-    // FIX: Click handler sets count to 0 and marks as seen
+    // Toggle function: Open dropdown AND save current count to storage
     const handleToggleNotifications = () => {
-        if (!showNotifications) {
+        const isOpen = !showNotifications;
+        setShowNotifications(isOpen);
+
+        if (isOpen) {
+            // User opened the panel, mark all current messages as "Seen" locally
             setUnreadCount(0);
-            setHasSeen(true); // Prevent future updates from resetting the count
+            const storageKey = `acadeMe_notif_count_${user.uid}`;
+            localStorage.setItem(storageKey, notifications.length.toString());
         }
-        setShowNotifications(!showNotifications);
     };
 
     return (
@@ -103,7 +112,7 @@ const TopBar = ({ toggleSidebar }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                 <div style={{ position: 'relative' }}>
                     <button
-                        onClick={handleToggleNotifications} // Use the new handler
+                        onClick={handleToggleNotifications} 
                         style={{ position: 'relative', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
                     >
                         <Bell size={24} />
@@ -149,6 +158,7 @@ const TopBar = ({ toggleSidebar }) => {
                                                 </div>
                                             </div>
 
+                                            {/* Replies */}
                                             {note.replies && note.replies.length > 0 && (
                                                 <div style={{ marginLeft: '2rem', marginTop: '0.5rem', marginBottom: '0.5rem', borderLeft: '2px solid rgba(255,255,255,0.1)', paddingLeft: '0.5rem' }}>
                                                     {note.replies.map((r, i) => (
@@ -160,6 +170,7 @@ const TopBar = ({ toggleSidebar }) => {
                                                 </div>
                                             )}
 
+                                            {/* Reply Input */}
                                             <div style={{ display: 'flex', gap: '5px', marginTop: '0.5rem' }}>
                                                 <GlassInput
                                                     placeholder="Reply..."
