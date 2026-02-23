@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Calendar, Plus, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, Plus, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react'; // Added Trash2
 import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
+// --- NEW IMPORTS FOR DELETE FUNCTION ---
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const AttendanceTracker = () => {
     const { attendanceSubjects, updateAttendance, addAttendanceSubject, courses } = useData();
+    const { user } = useAuth(); // Needed for deletion
     const [newSubject, setNewSubject] = useState({ name: '', total: '', attended: '' });
     const [calcData, setCalcData] = useState({ selectedCourseName: '' });
 
@@ -26,6 +31,25 @@ const AttendanceTracker = () => {
         }
     };
 
+    // --- NEW: DELETE FUNCTION ---
+    const handleDeleteSubject = async (subjectToDelete) => {
+        if (window.confirm(`Are you sure you want to delete ${subjectToDelete.name}?`)) {
+            try {
+                // Filter out the subject
+                const updatedList = attendanceSubjects.filter(s => s.name !== subjectToDelete.name);
+                
+                // Update Firestore directly
+                const userRef = doc(db, "users", user.uid);
+                await updateDoc(userRef, {
+                    attendanceSubjects: updatedList
+                });
+            } catch (error) {
+                console.error("Error deleting course:", error);
+                alert("Failed to delete course.");
+            }
+        }
+    };
+
     return (
         <DashboardLayout>
             <div style={{ marginBottom: '2rem' }}>
@@ -35,11 +59,11 @@ const AttendanceTracker = () => {
 
             {/* Overall Stats Card */}
             <div style={{
-                background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.7), rgba(40, 30, 60, 0.4))', // Deep violet charcoal
+                background: 'linear-gradient(135deg, rgba(30, 20, 50, 0.7), rgba(40, 30, 60, 0.4))',
                 backdropFilter: 'blur(20px)',
-                borderRadius: '24px', // More rounded
+                borderRadius: '24px',
                 padding: '2rem',
-                border: '0.5px solid rgba(255,255,255,0.1)', // Ultra-thin border
+                border: '0.5px solid rgba(255,255,255,0.1)',
                 marginBottom: '2rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -78,7 +102,7 @@ const AttendanceTracker = () => {
                     }
 
                     return (
-                        <div key={subject.id} style={{
+                        <div key={subject.id || subject.name} style={{
                             background: 'rgba(255, 255, 255, 0.03)',
                             backdropFilter: 'blur(15px)',
                             borderRadius: '20px',
@@ -87,13 +111,29 @@ const AttendanceTracker = () => {
                             transition: 'transform 0.2s',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.05)'
                         }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                                <h3 style={{ fontWeight: '600', fontSize: '1.1rem' }}>{subject.name}</h3>
-                                <span style={{
-                                    fontSize: '1.2rem',
-                                    fontWeight: 'bold',
-                                    color: isSafe ? '#34D399' : '#F87171' // Mint Green or Red
-                                }}>{percentage}%</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h3 style={{ fontWeight: '600', fontSize: '1.1rem', margin: 0 }}>{subject.name}</h3>
+                                
+                                {/* --- PERCENTAGE & DELETE BUTTON --- */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{
+                                        fontSize: '1.2rem',
+                                        fontWeight: 'bold',
+                                        color: isSafe ? '#34D399' : '#F87171'
+                                    }}>{percentage}%</span>
+                                    
+                                    <button 
+                                        onClick={() => handleDeleteSubject(subject)}
+                                        style={{
+                                            background: 'rgba(239, 68, 68, 0.15)', border: 'none', borderRadius: '8px',
+                                            padding: '6px', cursor: 'pointer', color: '#F87171', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center'
+                                        }}
+                                        title="Delete Course"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>
