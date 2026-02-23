@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucide-react';
 import GlassCard from './GlassCard';
 
-// 🔴 PASTE YOUR NEW API KEY HERE 🔴
+// 🔴 PASTE YOUR API KEY HERE 🔴
 const API_KEY = "AIzaSyDA2RKUhmoY8y4ozvYjGQpsIWkqemyYIvw"; 
 
 const AIAssistant = () => {
@@ -31,10 +31,8 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
-            // Using the latest Gemini 1.5 Flash model
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            
-            const response = await fetch(url, {
+            // 🟢 FIXED: Changed to 'gemini-pro' which is the standard stable model
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -48,25 +46,18 @@ const AIAssistant = () => {
 
             const data = await response.json();
 
-            // 🚨 DEBUGGING BLOCK 🚨
             if (!response.ok) {
-                console.error("Google API Error:", data);
-                // This alert will tell you EXACTLY what is wrong
-                alert(`Google Error Code: ${data.error?.code}\nMessage: ${data.error?.message}`);
-                throw new Error(data.error?.message || "API Error");
+                const errorMessage = data.error?.message || "Unknown Error";
+                alert(`Google API Error: ${errorMessage}`);
+                throw new Error(errorMessage);
             }
 
-            // Extract text safely
-            if (data.candidates && data.candidates[0].content) {
-                const text = data.candidates[0].content.parts[0].text;
-                setMessages(prev => [...prev, { role: 'model', text: text }]);
-            } else {
-                setMessages(prev => [...prev, { role: 'model', text: "I didn't understand that. Please try again." }]);
-            }
+            const text = data.candidates[0].content.parts[0].text;
+            setMessages(prev => [...prev, { role: 'model', text: text }]);
 
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'model', text: "⚠️ Connection Failed. Check the alert popup for details." }]);
+            setMessages(prev => [...prev, { role: 'model', text: "⚠️ I couldn't connect. Please check your API Key." }]);
         }
         setLoading(false);
     };
@@ -115,7 +106,7 @@ const AIAssistant = () => {
                 </div>
             )}
 
-            {/* BUTTON */}
+            {/* FLOATING BUTTON */}
             <button onClick={() => setIsOpen(!isOpen)} style={{ width: '60px', height: '60px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
             </button>
