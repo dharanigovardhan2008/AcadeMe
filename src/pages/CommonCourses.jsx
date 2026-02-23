@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, CheckCircle, Search, BookOpen, RefreshCw } from 'lucide-react';
+// FIX: Added RefreshCcw to imports
+import { Layers, CheckCircle, Search, BookOpen, RefreshCcw } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import DashboardLayout from '../components/DashboardLayout';
@@ -10,23 +11,20 @@ const CommonCourses = () => {
     const [dept1, setDept1] = useState('CSE');
     const [dept2, setDept2] = useState('IT');
     const [commonList, setCommonList] = useState([]);
-    const [allCourses, setAllCourses] = useState([]); // Store all fetched courses
+    const [allCourses, setAllCourses] = useState([]); 
     const [loading, setLoading] = useState(true);
 
     const DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'AIDS', 'BT', 'BME'];
 
-    // 1. Fetch Courses from Firestore
     useEffect(() => {
         const fetchCourses = async () => {
             try {
-                // Assuming your collection is named "mandatoryCourses" or "courses"
+                // Adjust collection name if yours is different (e.g. 'courses' or 'mandatoryCourses')
                 const querySnapshot = await getDocs(collection(db, "mandatoryCourses")); 
                 const coursesData = [];
                 
                 querySnapshot.forEach((doc) => {
                     coursesData.push(doc.data()); 
-                    // Expected structure: { name: "Math-1", department: "CSE" } 
-                    // OR { name: "Math-1", departments: ["CSE", "ECE"] }
                 });
                 setAllCourses(coursesData);
                 setLoading(false);
@@ -38,27 +36,24 @@ const CommonCourses = () => {
         fetchCourses();
     }, []);
 
-    // 2. Logic to Find Common Courses
     const findCommon = () => {
         if (dept1 === dept2) {
             alert("Please select two different departments.");
             return;
         }
 
-        // Filter courses for Dept 1
+        // Filter for Dept 1
         const list1 = allCourses
             .filter(c => c.department === dept1 || (Array.isArray(c.departments) && c.departments.includes(dept1)))
-            .map(c => c.name); // Get only names
+            .map(c => c.name);
 
-        // Filter courses for Dept 2
+        // Filter for Dept 2
         const list2 = allCourses
             .filter(c => c.department === dept2 || (Array.isArray(c.departments) && c.departments.includes(dept2)))
             .map(c => c.name);
 
         // Find Intersection
         const common = list1.filter(courseName => list2.includes(courseName));
-        
-        // Remove duplicates just in case
         setCommonList([...new Set(common)]);
     };
 
