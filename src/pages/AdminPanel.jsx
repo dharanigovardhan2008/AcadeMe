@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, Layers, BarChart2, Settings as SettingsIcon, Shield, Plus, MoreVertical, Trash2, Ban, CheckCircle, MessageCircle, Mail, Send, Bell } from 'lucide-react';
+import { Users, BookOpen, Layers, BarChart2, Settings as SettingsIcon, Shield, Plus, Trash2, Ban, CheckCircle, MessageCircle, Mail, Send, Bell, Star } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import GlassCard from '../components/GlassCard';
@@ -7,9 +7,10 @@ import GlassButton from '../components/GlassButton';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext'; // Security
-import { useNavigate } from 'react-router-dom';   // Redirect
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
+// --- USER MANAGEMENT ---
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -110,7 +111,6 @@ const UserManagement = () => {
                             <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '1rem' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                        {/* AVATAR ADDED HERE */}
                                         <img 
                                             src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=32`} 
                                             alt={user.name} 
@@ -188,6 +188,7 @@ const UserManagement = () => {
     );
 };
 
+// --- FACULTY MANAGEMENT ---
 const FacultyManagement = () => {
     const { faculty } = useData();
     const [newFaculty, setNewFaculty] = useState({ name: '', designation: '', mobile: '', branch: 'CSE' });
@@ -312,6 +313,7 @@ const FacultyManagement = () => {
     );
 };
 
+// --- RESOURCES MANAGEMENT ---
 const ResourcesManagement = () => {
     const [resources, setResources] = useState([]);
     const [newResource, setNewResource] = useState({ title: '', type: 'concept-map', url: '', branches: [] });
