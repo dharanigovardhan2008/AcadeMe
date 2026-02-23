@@ -4,7 +4,7 @@ import GlassCard from './GlassCard';
 import ReactMarkdown from 'react-markdown';
 
 // 🔴 PASTE YOUR *NEW* API KEY HERE 🔴
-const API_KEY = "gen-lang-client-0068907848"; 
+const API_KEY = "AIzaSyDscBJQGxCYdmY8KMynOecn-StyALMHef0"; 
 
 const AIAssistant = () => {
     const [isOpen, setIsOpen] = useState(false);
