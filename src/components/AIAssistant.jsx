@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+// We are using the official library now
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucide-react';
 import GlassCard from './GlassCard';
+import ReactMarkdown from 'react-markdown';
 
 // 🔴 PASTE YOUR API KEY HERE 🔴
 const API_KEY = "AIzaSyDA2RKUhmoY8y4ozvYjGQpsIWkqemyYIvw"; 
@@ -13,6 +16,15 @@ const AIAssistant = () => {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
+
+    // Initialize Google AI
+    // We use a try-catch block here in case the key is missing
+    let genAI;
+    try {
+        genAI = new GoogleGenerativeAI(API_KEY);
+    } catch (error) {
+        console.error("Error initializing AI:", error);
+    }
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,33 +43,26 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
-            // 🟢 FIXED: Changed to 'gemini-pro' which is the standard stable model
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: input }]
-                    }]
-                })
-            });
+            if (!genAI) throw new Error("API Key is missing or invalid.");
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                const errorMessage = data.error?.message || "Unknown Error";
-                alert(`Google API Error: ${errorMessage}`);
-                throw new Error(errorMessage);
-            }
-
-            const text = data.candidates[0].content.parts[0].text;
+            // Using the standard free model
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            
+            const result = await model.generateContent(input);
+            const response = await result.response;
+            const text = response.text();
+            
             setMessages(prev => [...prev, { role: 'model', text: text }]);
-
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'model', text: "⚠️ I couldn't connect. Please check your API Key." }]);
+            let errorMsg = "⚠️ Connection Error.";
+            
+            // Check for specific error types
+            if (error.message.includes("404")) errorMsg = "⚠️ Model not found. Try creating a new API Key.";
+            if (error.message.includes("429")) errorMsg = "⚠️ Too many requests. Wait a moment.";
+            if (error.message.includes("API Key")) errorMsg = "⚠️ Invalid API Key.";
+
+            setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
         }
         setLoading(false);
     };
@@ -87,10 +92,9 @@ const AIAssistant = () => {
                             {messages.map((msg, idx) => (
                                 <div key={idx} style={{ 
                                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '10px 14px', borderRadius: '12px', fontSize: '0.9rem', lineHeight: '1.5', 
-                                    background: msg.role === 'user' ? '#3B82F6' : 'rgba(255,255,255,0.1)', color: 'white',
-                                    whiteSpace: 'pre-wrap' 
+                                    background: msg.role === 'user' ? '#3B82F6' : 'rgba(255,255,255,0.1)', color: 'white' 
                                 }}>
-                                    {msg.text}
+                                    {msg.role === 'model' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
                                 </div>
                             ))}
                             {loading && <div style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: '10px' }}>Thinking...</div>}
