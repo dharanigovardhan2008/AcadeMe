@@ -20,7 +20,9 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
-import FacultyReviews from './pages/FacultyReviews'; 
+import FacultyReviews from './pages/FacultyReviews';
+import CommonCourses from './pages/CommonCourses'; // <--- NEW IMPORT
+import AIAssistant from './components/AIAssistant'; 
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -64,6 +66,10 @@ const AppContent = () => {
         <Route path="/calc" element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>} />
         <Route path="/attendance" element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>} />
+        
+        {/* --- COMMON COURSES ROUTE --- */}
+        <Route path="/common-courses" element={<ProtectedRoute><CommonCourses /></ProtectedRoute>} />
+        
         <Route path="/faculty" element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
         <Route path="/resources" element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -80,6 +86,9 @@ const AppContent = () => {
       </Routes>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      
+      {/* AI Chatbot */}
+      <AIAssistant />
     </>
   );
 };
