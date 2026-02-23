@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Added MessageSquare and ArrowRight to imports
-import { Calculator, Calendar, Users, BookOpen, TrendingUp, MessageSquare, ArrowRight } from 'lucide-react';
+import { Calculator, Calendar, Users, BookOpen, TrendingUp, MessageSquare, ArrowRight, Megaphone } from 'lucide-react'; // Added Megaphone
 import GlassCard from '../components/GlassCard';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
@@ -9,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 
 import { db } from '../firebase';
-import { collection, query, limit, getDocs, where } from 'firebase/firestore';
+import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 
 // ================= CACHE =================
 const CACHE_DURATION = 300000;
@@ -47,10 +46,13 @@ const Dashboard = () => {
         const cached = getFromCache('dashboard_updates');
         if (cached) {
           setUpdates(cached);
-          return;
+          // Don't return, fetch fresh data in background to update cache if needed, 
+          // or just return if you trust cache completely. 
+          // For updates, it's better to fetch fresh if cache is old.
         }
 
-        const q = query(collection(db, "updates"), limit(5));
+        // Fetch latest 3 updates, sorted by date
+        const q = query(collection(db, "updates"), orderBy("date", "desc"), limit(3));
         const snapshot = await getDocs(q);
         const list = [];
         snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
@@ -88,7 +90,7 @@ const Dashboard = () => {
   const currentAttendance = calculateAttendance();
   const attendanceStatus = currentAttendance >= 80 ? 'Safe' : 'Low';
 
-  // ===== NEW: Dynamic Greeting Logic =====
+  // ===== Dynamic Greeting =====
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -96,7 +98,6 @@ const Dashboard = () => {
     return 'Good Evening';
   };
   const greeting = getGreeting();
-  // =======================================
 
   const quickActions = [
     { label: 'My Courses', icon: BookOpen, path: '/courses' },
@@ -154,6 +155,31 @@ const Dashboard = () => {
         />
       </GlassCard>
 
+      {/* ================= UPDATES / ANNOUNCEMENTS (Added This) ================= */}
+      {updates.length > 0 && (
+        <div style={{ marginBottom: '2.5rem' }}>
+            <GlassCard style={{ padding: '1.5rem', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                    <Megaphone size={24} color="#FBBF24" />
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>Latest Announcements</h2>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {updates.map(update => (
+                        <div key={update.id} style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', borderLeft: '4px solid #FBBF24' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <h4 style={{ fontWeight: 'bold', fontSize: '1rem', margin: 0 }}>{update.title}</h4>
+                                <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
+                                    {update.date ? new Date(update.date).toLocaleDateString() : 'Recent'}
+                                </span>
+                            </div>
+                            <p style={{ fontSize: '0.9rem', color: '#ddd', margin: 0 }}>{update.message}</p>
+                        </div>
+                    ))}
+                </div>
+            </GlassCard>
+        </div>
+      )}
+
       {/* ================= STATS ================= */}
       <div
         style={{
@@ -201,7 +227,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* ================= NEW: FACULTY REVIEWS BLOCK ================= */}
+      {/* ================= FACULTY REVIEWS BLOCK ================= */}
       <div style={{ marginBottom: '2.5rem' }}>
         <GlassCard 
             onClick={() => navigate('/reviews')} 
