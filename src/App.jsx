@@ -21,6 +21,7 @@ import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
 import FacultyReviews from './pages/FacultyReviews'; 
+import AIAssistant from './components/AIAssistant'; // <--- NEW AI IMPORT
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -69,7 +70,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         
-        {/* NEW FEATURE ROUTE */}
+        {/* Faculty Reviews Route */}
         <Route path="/reviews" element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>} />
         
         {/* Admin Route */}
@@ -80,6 +81,9 @@ const AppContent = () => {
       </Routes>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      
+      {/* --- AI ASSISTANT (VISIBLE ON ALL PAGES) --- */}
+      <AIAssistant />
     </>
   );
 };
