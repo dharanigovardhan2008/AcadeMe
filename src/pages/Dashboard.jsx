@@ -88,6 +88,16 @@ const Dashboard = () => {
   const currentAttendance = calculateAttendance();
   const attendanceStatus = currentAttendance >= 80 ? 'Safe' : 'Low';
 
+  // ===== NEW: Dynamic Greeting Logic =====
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+  const greeting = getGreeting();
+  // =======================================
+
   const quickActions = [
     { label: 'My Courses', icon: BookOpen, path: '/courses' },
     { label: 'CGPA Calculator', icon: Calculator, path: '/calc' },
@@ -109,7 +119,7 @@ const Dashboard = () => {
         }}
       >
         <h1 style={{ fontSize: '1.8rem', fontWeight: 700 }}>
-          Good Morning, {user?.name?.split(' ')[0] || 'Student'} 👋
+          {greeting}, {user?.name?.split(' ')[0] || 'Student'} 👋
         </h1>
 
         <p style={{ opacity: 0.7, marginTop: 6 }}>
