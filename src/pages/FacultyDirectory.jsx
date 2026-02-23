@@ -5,7 +5,7 @@ import GlassButton from '../components/GlassButton';
 import GlassInput from '../components/GlassInput';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 
 const FacultyDirectory = () => {
@@ -15,6 +15,12 @@ const FacultyDirectory = () => {
     const [selectedFaculty, setSelectedFaculty] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // --- ADMIN CHECK ---
+    const currentUser = auth.currentUser;
+    const ADMIN_EMAIL = "palerugopi2008@gmail.com"; 
+    const isAdmin = currentUser && currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    // -------------------
 
     // Form State
     const [newFaculty, setNewFaculty] = useState({
@@ -73,12 +79,16 @@ const FacultyDirectory = () => {
                         <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>Faculty Directory</h1>
                         <p style={{ color: 'var(--text-secondary)' }}>Connect with your professors</p>
                     </div>
-                    <button 
-                        onClick={() => setShowForm(!showForm)}
-                        style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', color: 'white', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
-                        {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Add Faculty</>}
-                    </button>
+                    
+                    {/* ONLY ADMIN CAN SEE ADD BUTTON */}
+                    {isAdmin && (
+                        <button 
+                            onClick={() => setShowForm(!showForm)}
+                            style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', color: 'white', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Add Faculty</>}
+                        </button>
+                    )}
                 </div>
 
                 <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -115,8 +125,8 @@ const FacultyDirectory = () => {
                 </div>
             </GlassCard>
 
-            {/* ADD FORM */}
-            {showForm && (
+            {/* ADD FORM (Admin Only) */}
+            {isAdmin && showForm && (
                 <GlassCard style={{ marginBottom: '2rem', padding: '2rem', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                     <h3 style={{ marginBottom: '1.5rem' }}>Add New Faculty</h3>
                     <form onSubmit={handleAddFaculty} style={{ display: 'grid', gap: '1rem' }}>
@@ -167,8 +177,10 @@ const FacultyDirectory = () => {
                     <GlassCard onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px', margin: '20px', position: 'relative' }}>
                         <button onClick={() => setSelectedFaculty(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={24} /></button>
                         
-                        {/* Delete Button inside Modal */}
-                        <button onClick={() => handleDelete(selectedFaculty.id)} style={{ position: 'absolute', top: '20px', left: '20px', background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Delete Faculty"><Trash2 size={24} /></button>
+                        {/* ONLY ADMIN CAN SEE DELETE BUTTON */}
+                        {isAdmin && (
+                            <button onClick={() => handleDelete(selectedFaculty.id)} style={{ position: 'absolute', top: '20px', left: '20px', background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Delete Faculty"><Trash2 size={24} /></button>
+                        )}
 
                         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                             <div style={{ width: '100px', height: '100px', borderRadius: '50%', margin: '0 auto 1rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.2)' }}>
