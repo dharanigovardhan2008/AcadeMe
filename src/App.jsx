@@ -21,13 +21,12 @@ import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
 import FacultyReviews from './pages/FacultyReviews';
-import CommonCourses from './pages/CommonCourses'; // <--- NEW IMPORT
-import AIAssistant from './components/AIAssistant'; 
+import CommonCourses from './pages/CommonCourses'; 
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Loading application...</div>;
+  if (loading) return <div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Loading...</div>;
   if (!user) {
     return <Navigate to="/login" />;
   }
@@ -67,7 +66,6 @@ const AppContent = () => {
         <Route path="/attendance" element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>} />
         
-        {/* --- COMMON COURSES ROUTE --- */}
         <Route path="/common-courses" element={<ProtectedRoute><CommonCourses /></ProtectedRoute>} />
         
         <Route path="/faculty" element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
@@ -86,9 +84,6 @@ const AppContent = () => {
       </Routes>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
-      
-      {/* AI Chatbot */}
-      <AIAssistant />
     </>
   );
 };
