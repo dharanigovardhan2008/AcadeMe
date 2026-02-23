@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Added RefreshCcw to imports
 import { Layers, CheckCircle, Search, BookOpen, RefreshCcw } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
@@ -11,22 +10,40 @@ const CommonCourses = () => {
     const [dept1, setDept1] = useState('CSE');
     const [dept2, setDept2] = useState('IT');
     const [commonList, setCommonList] = useState([]);
-    const [allCourses, setAllCourses] = useState([]); 
+    
+    // Store data in a map: { 'CSE': ['Math', 'Physics'], 'IT': ['Math'] }
+    const [coursesMap, setCoursesMap] = useState({}); 
     const [loading, setLoading] = useState(true);
 
     const DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'AIDS', 'BT', 'BME'];
 
     useEffect(() => {
         const fetchCourses = async () => {
+            setLoading(true);
             try {
-                // Adjust collection name if yours is different (e.g. 'courses' or 'mandatoryCourses')
+                // Try fetching from 'mandatoryCourses' collection
                 const querySnapshot = await getDocs(collection(db, "mandatoryCourses")); 
-                const coursesData = [];
-                
+                const tempMap = {};
+
                 querySnapshot.forEach((doc) => {
-                    coursesData.push(doc.data()); 
+                    const data = doc.data();
+                    
+                    // Case 1: Doc is { department: "CSE", subjects: ["Math", "Physics"] }
+                    if (data.department && Array.isArray(data.subjects)) {
+                        tempMap[data.department] = data.subjects.map(s => s.name || s); 
+                    }
+                    // Case 2: Doc is { name: "Math", department: "CSE" } (Flat list)
+                    else if (data.name && data.department) {
+                        if (!tempMap[data.department]) tempMap[data.department] = [];
+                        tempMap[data.department].push(data.name);
+                    }
+                    // Case 3: Doc ID is "CSE" and contains fields like { sub1: "Math", sub2: "Physics" }
+                    // (Less common but possible)
                 });
-                setAllCourses(coursesData);
+
+                // If empty, try fallback to check if you stored it differently
+                // For now, let's assume Case 1 or 2.
+                setCoursesMap(tempMap);
                 setLoading(false);
             } catch (error) {
                 console.error("Error fetching courses:", error);
@@ -42,18 +59,14 @@ const CommonCourses = () => {
             return;
         }
 
-        // Filter for Dept 1
-        const list1 = allCourses
-            .filter(c => c.department === dept1 || (Array.isArray(c.departments) && c.departments.includes(dept1)))
-            .map(c => c.name);
+        const list1 = coursesMap[dept1] || [];
+        const list2 = coursesMap[dept2] || [];
 
-        // Filter for Dept 2
-        const list2 = allCourses
-            .filter(c => c.department === dept2 || (Array.isArray(c.departments) && c.departments.includes(dept2)))
-            .map(c => c.name);
-
-        // Find Intersection
-        const common = list1.filter(courseName => list2.includes(courseName));
+        // Simple string comparison (Case Insensitive trim)
+        const common = list1.filter(c1 => 
+            list2.some(c2 => c1.toLowerCase().trim() === c2.toLowerCase().trim())
+        );
+        
         setCommonList([...new Set(common)]);
     };
 
@@ -132,7 +145,7 @@ const CommonCourses = () => {
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
                             <Layers size={40} style={{ marginBottom: '10px', opacity: 0.3 }} />
-                            <p>Select departments to see results.</p>
+                            <p>No common subjects found (or select departments).</p>
                             {loading && <p style={{ fontSize: '0.8rem', marginTop: '10px' }}>Loading Database...</p>}
                         </div>
                     )}
