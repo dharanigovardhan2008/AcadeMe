@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucide-react';
 import GlassCard from './GlassCard';
 import ReactMarkdown from 'react-markdown';
 
-// 🔴 PASTE YOUR API KEY HERE 🔴
-const API_KEY = "AIzaSyDA2RKUhmoY8y4ozvYjGQpsIWkqemyYIvw"; 
+// 🔴 PASTE YOUR *NEW* API KEY HERE 🔴
+const API_KEY = "gen-lang-client-0068907848"; 
 
 const AIAssistant = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -15,14 +14,6 @@ const AIAssistant = () => {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
-
-    // Initialize Google AI with Safety Check
-    let genAI;
-    try {
-        genAI = new GoogleGenerativeAI(API_KEY);
-    } catch (error) {
-        console.error("Error initializing AI:", error);
-    }
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,25 +32,39 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
-            if (!genAI) throw new Error("API Key is missing or invalid.");
+            // DIRECT FETCH to the Free Tier Endpoint
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: input }]
+                    }]
+                })
+            });
 
-            // 🟢 CHANGED TO 'gemini-pro' (The Standard Stable Model) 🟢
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const data = await response.json();
+
+            // Check if Google sent an error back
+            if (!response.ok) {
+                console.error("API Error:", data);
+                throw new Error(data.error?.message || "Connection failed");
+            }
+
+            // Extract text
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             
-            const result = await model.generateContent(input);
-            const response = await result.response;
-            const text = response.text();
-            
-            setMessages(prev => [...prev, { role: 'model', text: text }]);
+            if (text) {
+                setMessages(prev => [...prev, { role: 'model', text: text }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: "⚠️ I didn't get a response. Please try asking differently." }]);
+            }
+
         } catch (error) {
-            console.error("Gemini Error:", error);
-            let errorMsg = "⚠️ Connection Error.";
-            
-            if (error.message.includes("404")) errorMsg = "⚠️ Model Error. Please ensure your API Key is from Google AI Studio.";
-            if (error.message.includes("429")) errorMsg = "⚠️ Too many requests. Please wait a moment.";
-            if (error.message.includes("API Key")) errorMsg = "⚠️ Invalid API Key.";
-
-            setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
+            console.error("Chat Error:", error);
+            setMessages(prev => [...prev, { role: 'model', text: "⚠️ Connection Error. Please ensure you created a NEW Project in Google AI Studio." }]);
         }
         setLoading(false);
     };
@@ -91,7 +96,8 @@ const AIAssistant = () => {
                                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '10px 14px', borderRadius: '12px', fontSize: '0.9rem', lineHeight: '1.5', 
                                     background: msg.role === 'user' ? '#3B82F6' : 'rgba(255,255,255,0.1)', color: 'white' 
                                 }}>
-                                    {msg.role === 'model' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
+                                    {/* Tries to render Markdown, falls back to text if library missing */}
+                                    {typeof ReactMarkdown !== 'undefined' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
                                 </div>
                             ))}
                             {loading && <div style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: '10px' }}>Thinking...</div>}
