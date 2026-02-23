@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calculator, Calendar, Users, BookOpen, User, Settings, Shield, LogOut, Youtube, Instagram, Mail, MessageCircle, MessageSquare } from 'lucide-react';
+import { Home, Calculator, Calendar, Users, BookOpen, User, Settings, Shield, LogOut, Youtube, Instagram, Mail, MessageCircle, MessageSquare, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 import FeedbackModal from './FeedbackModal';
@@ -16,22 +16,23 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         navigate('/login');
     };
 
-    // Calculate Avatar URL (Custom selected or Initials fallback)
     const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
 
     const navItems = [
         { path: '/dashboard', label: 'Dashboard', icon: Home },
         { path: '/courses', label: 'My Courses', icon: BookOpen },
+        // --- NEW FEATURE ---
+        { path: '/common-courses', label: 'Common Courses', icon: Layers },
+        // -------------------
         { path: '/calc', label: 'CGPA Calculator', icon: Calculator },
         { path: '/attendance', label: 'Attendance', icon: Calendar },
         { path: '/faculty', label: 'Faculty Directory', icon: Users },
-        { path: '/reviews', label: 'Faculty Reviews', icon: MessageSquare }, // New Feature
+        { path: '/reviews', label: 'Faculty Reviews', icon: MessageSquare },
         { path: '/resources', label: 'Resources Hub', icon: BookOpen },
         { path: '/profile', label: 'Profile', icon: User },
         { path: '/settings', label: 'Settings', icon: Settings },
     ];
 
-    // Show Admin Panel if isAdmin is true OR if database role is 'admin'
     if (isAdmin || user?.role === 'admin') {
         navItems.push({ path: '/admin', label: 'Admin Panel', icon: Shield });
     }
@@ -52,7 +53,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             transition: 'transform 0.3s ease-in-out',
         }} className="sidebar-desktop">
 
-            {/* App Logo Section */}
             <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{
                     width: '40px', height: '40px',
@@ -64,7 +64,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <h2 className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>AcadeMe</h2>
             </div>
 
-            {/* Navigation Items */}
             <nav style={{ flex: 1, padding: '0 1rem', overflowY: 'auto' }}>
                 <ul style={{ listStyle: 'none' }}>
                     {navItems.map((item) => (
@@ -91,10 +90,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </ul>
             </nav>
 
-            {/* Bottom Section */}
             <div style={{ padding: '0 1rem 1rem 1rem' }}>
                 
-                {/* User Profile Snippet */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '10px', marginBottom: '1rem',
@@ -116,7 +113,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </div>
                 </div>
 
-                {/* Social Links */}
                 <div style={{
                     display: 'flex', justifyContent: 'space-around', alignItems: 'center',
                     marginBottom: '1rem', padding: '10px',
@@ -125,7 +121,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <a href="https://youtube.com/@genxmind-m8r?si=xHZeCJ3ZRTMjmePF" target="_blank" rel="noreferrer" style={{ color: '#EF4444', display: 'flex', alignItems: 'center' }} title="YouTube">
                         <Youtube size={20} />
                     </a>
-                    {/* UPDATED INSTAGRAM LINK */}
                     <a href="https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5" target="_blank" rel="noreferrer" style={{ color: '#E1306C', display: 'flex', alignItems: 'center' }} title="Instagram">
                         <Instagram size={20} />
                     </a>
@@ -137,7 +132,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </button>
                 </div>
 
-                {/* Logout Button */}
                 <button
                     onClick={handleLogout}
                     style={{
