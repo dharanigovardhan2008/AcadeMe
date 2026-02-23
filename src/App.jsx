@@ -21,7 +21,6 @@ import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
 import CompleteProfile from './pages/CompleteProfile';
 import FacultyReviews from './pages/FacultyReviews'; 
-import AIAssistant from './components/AIAssistant'; // <--- NEW AI IMPORT
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -81,9 +80,6 @@ const AppContent = () => {
       </Routes>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
-      
-      {/* --- AI ASSISTANT (VISIBLE ON ALL PAGES) --- */}
-      <AIAssistant />
     </>
   );
 };
