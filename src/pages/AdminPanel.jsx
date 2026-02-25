@@ -843,7 +843,7 @@ const AdminPanel = () => {
                                     Review Reports
                                 </GlassButton>
                                 <GlassButton
-                                    onClick={() => alert("All systems are operational! ✅")}
+                                    onClick={() => alert("Antha Bagane Vunnai Le raa! ✅")}
                                     style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}
                                 >
                                     System Status
