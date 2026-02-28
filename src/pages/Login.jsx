@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, LogIn, ArrowRight, ShieldCheck, Zap, Globe, Cpu } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import AnimatedText from '../components/AnimatedText';
+import Lanyard from '../components/Lanyard'; // <--- NEW IMPORT
 
 // --- IMPORTS FOR GOOGLE AUTH ---
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
@@ -68,12 +69,20 @@ const Login = () => {
 
     return (
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#05050A', position: 'relative', overflow: 'hidden' }}>
-            <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0 }}></div>
-            <div className="animate-float" style={{ position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(59,130,246,0.3) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0 }}></div>
-            <div className="animate-float-delay" style={{ position: 'absolute', bottom: '10%', right: '20%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(70px)', zIndex: 0 }}></div>
+            
+            {/* --- 3D LANYARD BACKGROUND --- */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+                <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+            </div>
 
-            <div className="reveal-scale card-3d" style={{ width: '100%', maxWidth: '440px', padding: '20px', zIndex: 10 }}>
-                <GlassCard className="glass-card" style={{ border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)' }}>
+            <div className="bg-tech-grid" style={{ position: 'absolute', inset: 0, opacity: 0.3, zIndex: 0, pointerEvents: 'none' }}></div>
+            
+            {/* Floating Orbs (Optional: Can keep or remove if Lanyard is enough) */}
+            <div className="animate-float" style={{ position: 'absolute', top: '10%', left: '20%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0 }}></div>
+            <div className="animate-float-delay" style={{ position: 'absolute', bottom: '10%', right: '20%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', filter: 'blur(70px)', zIndex: 0 }}></div>
+
+            <div className="reveal-scale card-3d" style={{ width: '100%', maxWidth: '440px', padding: '20px', zIndex: 10, position: 'relative' }}>
+                <GlassCard className="glass-card" style={{ border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)', background: 'rgba(15, 15, 25, 0.7)', backdropFilter: 'blur(20px)' }}>
                     <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                         <div style={{ width: '60px', height: '60px', margin: '0 auto 1rem', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px rgba(59, 130, 246, 0.3)' }}>
                             <LogIn size={30} color="white" />
