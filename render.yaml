@@ -1,0 +1,9 @@
+services:
+  - type: worker
+    name: academe-notifier
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python notify.py
+    envVars:
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: serviceAccount.json
