@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Moon, Sun, Bell, Volume2, Shield, AlertCircle, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Moon, Bell, Database, CheckCircle, XCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import DashboardLayout from '../components/DashboardLayout';
+import { auth, requestNotificationPermission } from '../firebase';
 
 const Toggle = ({ value, onChange }) => (
     <div
@@ -24,14 +25,46 @@ const Toggle = ({ value, onChange }) => (
 const Settings = () => {
     const [settings, setSettings] = useState({
         darkMode: true,
-        pushNotifs: true,
+        pushNotifs: false,
         emailNotifs: false,
         sounds: true,
         cgpaAlerts: true,
         attendanceAlerts: true
     });
 
+    const [notifStatus, setNotifStatus] = useState(null);
+    const [loading, setLoading] = useState(false);
+
     const toggle = (key) => setSettings({ ...settings, [key]: !settings[key] });
+
+    const handlePushNotifToggle = async (value) => {
+        if (value) {
+            setLoading(true);
+            setNotifStatus(null);
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    setNotifStatus('error');
+                    setLoading(false);
+                    return;
+                }
+                const token = await requestNotificationPermission(user.uid);
+                if (token) {
+                    setSettings({ ...settings, pushNotifs: true });
+                    setNotifStatus('success');
+                } else {
+                    setNotifStatus('error');
+                }
+            } catch (err) {
+                console.error(err);
+                setNotifStatus('error');
+            }
+            setLoading(false);
+        } else {
+            setSettings({ ...settings, pushNotifs: false });
+            setNotifStatus(null);
+        }
+    };
 
     return (
         <DashboardLayout>
@@ -58,10 +91,33 @@ const Settings = () => {
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Bell size={20} /> Notifications
                     </h3>
+
+                    {/* Push Notifications with real FCM */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <p>Push Notifications</p>
-                        <Toggle value={settings.pushNotifs} onChange={() => toggle('pushNotifs')} />
+                        <div>
+                            <p style={{ fontWeight: '500' }}>Push Notifications</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Get notified when admin posts updates
+                            </p>
+                            {loading && (
+                                <p style={{ fontSize: '0.8rem', color: '#f7971e', marginTop: '4px' }}>
+                                    ⏳ Enabling notifications...
+                                </p>
+                            )}
+                            {notifStatus === 'success' && (
+                                <p style={{ fontSize: '0.8rem', color: '#43e97b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <CheckCircle size={12} /> Notifications enabled successfully!
+                                </p>
+                            )}
+                            {notifStatus === 'error' && (
+                                <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <XCircle size={12} /> Failed. Please allow notifications in browser settings.
+                                </p>
+                            )}
+                        </div>
+                        <Toggle value={settings.pushNotifs} onChange={handlePushNotifToggle} />
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <p>Email Updates</p>
                         <Toggle value={settings.emailNotifs} onChange={() => toggle('emailNotifs')} />
