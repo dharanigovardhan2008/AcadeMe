@@ -1,12 +1,24 @@
-import React from "react";
+
+import React, { useState, useEffect } from "react";
 
 const DownloadAppBanner = () => {
 
-  const downloadApp = () => {
-    window.open = "/app/AcadeMe.apk";
-  };
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (isAndroid) {
+      setShowBanner(true);
+    }
+
+  }, []);
+
+  if (!showBanner) return null;
 
   return (
+
     <div style={{
       position: "fixed",
       bottom: "20px",
@@ -24,11 +36,12 @@ const DownloadAppBanner = () => {
     }}>
 
       <div style={{fontSize:"14px"}}>
-        Install <b>AcadeMe App</b> for better experience
+        Install <b>AcadeMe App</b>
       </div>
 
-      <button
-        onClick={downloadApp}
+      <a
+        href="/app/AcadeMe.apk"
+        download
         style={{
           background:"#4f46e5",
           border:"none",
@@ -36,13 +49,15 @@ const DownloadAppBanner = () => {
           padding:"8px 14px",
           borderRadius:"8px",
           cursor:"pointer",
-          fontWeight:"600"
+          fontWeight:"600",
+          textDecoration:"none"
         }}
       >
-        Download
-      </button>
+        Install
+      </a>
 
     </div>
+
   );
 };
 
