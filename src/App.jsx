@@ -27,8 +27,7 @@ import CommonCourses from "./pages/CommonCourses";
 
 import AdminModal from "./components/AdminModal";
 
-/* ---------------- Protected Route ---------------- */
-
+/* Protected Route */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -47,18 +46,13 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-/* ---------------- Main App Content ---------------- */
-
+/* Main App Content */
 const AppContent = () => {
-
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
-  /* Enable animation system */
   useAnimationSystem();
 
-  /* Admin shortcut (CTRL + SHIFT + A) */
   useEffect(() => {
-
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === "A") {
         e.preventDefault();
@@ -71,13 +65,11 @@ const AppContent = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-
   }, []);
 
   return (
     <>
       <Routes>
-
         <Route path="/" element={<SplashScreen />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -191,7 +183,6 @@ const AppContent = () => {
         />
 
         <Route path="*" element={<Navigate to="/" />} />
-
       </Routes>
 
       <AdminModal
@@ -202,27 +193,20 @@ const AppContent = () => {
   );
 };
 
-/* ---------------- Root App ---------------- */
-
+/* Root App */
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AuthProvider>
           <DataProvider>
-
             <div
               className="app-container"
               style={{ minHeight: "100vh", background: "#0F0F1A" }}
             >
-
-              {/* Install APK popup */}
               <AppInstallPopup />
-
               <AppContent />
-
             </div>
-
           </DataProvider>
         </AuthProvider>
       </ErrorBoundary>
@@ -231,4 +215,4 @@ function App() {
 }
 
 export default App;
-```
+
