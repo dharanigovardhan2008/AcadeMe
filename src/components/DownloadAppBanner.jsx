@@ -10,16 +10,20 @@ const DownloadAppBanner = () => {
     if (isAndroid) setShowBanner(true);
   }, []);
 
-  const downloadApp = () => {
+const downloadApp = (e) => {
 
-    const link = document.createElement("a");
-    link.href = "/app/AcadeMe.apk";
-    link.setAttribute("download", "AcadeMe.apk");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  e.preventDefault(); // stop page reload
 
-  };
+  const link = document.createElement("a");
+  link.href = "/app/AcadeMe.apk";
+  link.download = "AcadeMe.apk";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+};
+
 
   if (!showBanner) return null;
 
