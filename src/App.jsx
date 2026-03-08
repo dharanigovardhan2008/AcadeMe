@@ -142,31 +142,3 @@ function App() {
 }
 
 export default App;
-```
-
----
-
-## What Changed and Why
-
-**`LoadingScreen` component** replaces the raw `"Loading..."` text. Shows your app's blue/purple glowing blobs and a spinner — matches your existing design language from `SplashScreen.jsx`.
-
-**8-second timeout in `ProtectedRoute`** — if Firebase hangs forever (broken keys, no internet), after 8 seconds the app stops waiting and redirects to `/login` instead of showing a blank screen forever.
-
-**`timedOut` state** — separates "still loading" from "gave up waiting" so the fallback is clean.
-
----
-
-## But also fix this immediately
-
-Even with this fix, if your **Vercel env vars aren't set**, Firebase will keep failing. Check Vercel → your project → Settings → Environment Variables and confirm all these exist:
-```
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-VITE_FIREBASE_MEASUREMENT_ID
-VITE_GEMINI_API_KEY
-VITE_ADMIN_PIN
-VITE_ADMIN_EMAIL
