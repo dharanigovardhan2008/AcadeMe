@@ -2,51 +2,48 @@
 import React, { useEffect, useState } from "react";
 
 function PWAInstallButton() {
-
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showButton, setShowButton] = useState(false);
 
   useEffect(() => {
-
-    const handleBeforeInstallPrompt = (e) => {
-
-      e.preventDefault();
-
-      setDeferredPrompt(e);
-
-      setShowButton(true);
-
+    const handler = (e) => {
+      e.preventDefault();          // stop browser auto prompt
+      setDeferredPrompt(e);        // store event for later
+      setShowButton(true);         // show our button
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("beforeinstallprompt", handler);
 
-    return () =>
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleInstallClick = async () => {
+  const handleInstall = async (e) => {
+    e.preventDefault(); // prevent page reload
 
-    if (!deferredPrompt) return;
+    // If native PWA install is available
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
 
-    deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
 
-    const choiceResult = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        console.log("User installed the app");
+      }
 
-    if (choiceResult.outcome === "accepted") {
-      console.log("User accepted the install prompt");
+      setDeferredPrompt(null);
+      setShowButton(false);
+    } 
+    // Fallback: download APK
+    else {
+      window.open("/app/AcadeMe.apk", "_blank");
     }
-
-    setDeferredPrompt(null);
-    setShowButton(false);
-
   };
 
   if (!showButton) return null;
 
   return (
     <button
-      onClick={handleInstallClick}
+      onClick={handleInstall}
       style={{
         position: "fixed",
         bottom: "20px",
@@ -68,3 +65,4 @@ function PWAInstallButton() {
 }
 
 export default PWAInstallButton;
+
