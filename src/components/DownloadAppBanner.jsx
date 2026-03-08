@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import logo from "../assets/logo.jpg";
 
-// ✅ This — direct download, no GitHub page
-const APK_URL = "https://objects.githubusercontent.com/github-production-release-asset-2e65be/dharanigovardhan2008/AcadeMe/v1/AcadeMe.apk";
+const APK_URL = "https://drive.google.com/uc?export=download&id=1VLiFhunuvjc01BatpyqMs5V1SfKESE9Y";
 
 const DownloadAppBanner = () => {
   const [showBanner, setShowBanner]         = useState(false);
@@ -48,10 +47,8 @@ const DownloadAppBanner = () => {
     setPhase("downloading");
     setProgress(0);
 
-    // On Android, window.open with _self keeps it in background download manager
-    // without navigating away from the page
-    const link = document.createElement("a");
-    link.href = APK_URL;
+    const link         = document.createElement("a");
+    link.href          = APK_URL;
     link.setAttribute("download", "AcadeMe.apk");
     link.setAttribute("target", "_self");
     link.style.display = "none";
@@ -59,26 +56,7 @@ const DownloadAppBanner = () => {
     link.click();
     document.body.removeChild(link);
 
-    // Simulate progress
-    let current = 0;
-    const interval = setInterval(() => {
-      current += Math.random() * 8 + 3;
-      if (current >= 95) {
-        clearInterval(interval);
-        setProgress(95);
-      } else {
-        setProgress(Math.round(current));
-      }
-    }, 300);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      setProgress(100);
-      setPhase("done");
-      setTimeout(() => setShowBanner(false), 2500);
-    }, 4000);
-  };
-
+    // Simulate progress bar
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 8 + 3;
@@ -397,7 +375,7 @@ const DownloadAppBanner = () => {
             {[
               { v: <><span style={{ color: "#fbbc04" }}>★</span> 4.8</>, l: "Rating"   },
               { v: "500+",  l: "Students" },
-              { v: "~5 MB", l: "Size"     },
+              { v: "~3 MB", l: "Size"     },
               { v: "Free",  l: "Price"    },
             ].map((s, i) => (
               <div className="ps-stat" key={i}>
