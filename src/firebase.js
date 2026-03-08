@@ -25,7 +25,7 @@ export const requestNotificationPermission = async (userId) => {
     if (permission === 'granted') {
       const token = await getToken(messaging, {
         vapidKey: 'BO2UR2vUG0XuHYOCO4XzZJQSD3clerf3YEzdyNDqnfmZeLEmiflYu3jnRbiHM-WqtOlC_XDT06uUhLr6WRHxKlM',
-        serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        serviceWorkerRegistration: await navigator.serviceWorker.register('/sw.js')
       });
       if (token && userId) {
         await setDoc(doc(db, 'users', userId), 
@@ -46,3 +46,4 @@ export const requestNotificationPermission = async (userId) => {
 export const onForegroundMessage = (callback) => {
   onMessage(messaging, callback);
 };
+
