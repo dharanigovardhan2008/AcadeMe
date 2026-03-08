@@ -19,7 +19,7 @@ const AppInstallPopup = () => {
   }, []);
 
   const handleInstall = () => {
-    window.location.href = "/app/academe.apk";
+    window.location.href = "/app/AcadeMe.apk";
   };
 
   const handleClose = () => {
