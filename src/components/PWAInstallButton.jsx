@@ -1,73 +1,70 @@
-```javascript
-import React, { useState, useEffect } from "react";
 
-const PWAInstallButton = () => {
+import React, { useEffect, useState } from "react";
+
+function PWAInstallButton() {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showInstall, setShowInstall] = useState(false);
+  const [showButton, setShowButton] = useState(false);
 
   useEffect(() => {
 
-    const handler = (e) => {
+    const handleBeforeInstallPrompt = (e) => {
 
       e.preventDefault();
 
       setDeferredPrompt(e);
 
-      setShowInstall(true);
+      setShowButton(true);
 
     };
 
-    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () =>
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
   }, []);
 
-  const installApp = async () => {
+  const handleInstallClick = async () => {
 
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
 
-    const { outcome } = await deferredPrompt.userChoice;
+    const choiceResult = await deferredPrompt.userChoice;
 
-    if (outcome === "accepted") {
-      console.log("App installed");
+    if (choiceResult.outcome === "accepted") {
+      console.log("User accepted the install prompt");
     }
 
     setDeferredPrompt(null);
-    setShowInstall(false);
+    setShowButton(false);
 
   };
 
-  if (!showInstall) return null;
+  if (!showButton) return null;
 
   return (
-
     <button
-      onClick={installApp}
+      onClick={handleInstallClick}
       style={{
-        position:"fixed",
-        bottom:"20px",
-        left:"50%",
-        transform:"translateX(-50%)",
-        background:"#4f46e5",
-        color:"white",
-        border:"none",
-        padding:"12px 20px",
-        borderRadius:"10px",
-        fontSize:"14px",
-        cursor:"pointer",
-        zIndex:9999
+        position: "fixed",
+        bottom: "20px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        padding: "12px 20px",
+        background: "#4f46e5",
+        color: "white",
+        border: "none",
+        borderRadius: "10px",
+        cursor: "pointer",
+        fontSize: "14px",
+        zIndex: 9999
       }}
     >
       Install AcadeMe App
     </button>
-
   );
-
-};
+}
 
 export default PWAInstallButton;
-```
