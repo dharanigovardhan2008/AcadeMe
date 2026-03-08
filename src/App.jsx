@@ -1,45 +1,174 @@
-import React, { useEffect, useState } from "react";
 
-const AppLoader = ({ children }) => {
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { DataProvider } from './context/DataContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import useAnimationSystem from './hooks/useAnimationSystem';
 
-  const [loading,setLoading] = useState(true);
+import AppInstallPopup from "./components/AppInstallPopup";
+import AppInstallCard from "./components/AppInstallCard";
 
-  useEffect(()=>{
+import SplashScreen from './pages/SplashScreen';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import AdminModal from './components/AdminModal';
+import Dashboard from './pages/Dashboard';
+import CGPACalculator from './pages/CGPACalculator';
+import MandatoryCourses from './pages/MandatoryCourses';
+import AttendanceTracker from './pages/AttendanceTracker';
+import FacultyDirectory from './pages/FacultyDirectory';
+import ResourcesHub from './pages/ResourcesHub';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import AdminPanel from './pages/AdminPanel';
+import CompleteProfile from './pages/CompleteProfile';
+import FacultyReviews from './pages/FacultyReviews';
+import CommonCourses from './pages/CommonCourses';
 
-    setTimeout(()=>{
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
 
-      setLoading(false);
-
-    },1500);
-
-  },[]);
-
-  if(loading){
-
-    return(
-
-      <div style={{
-        height:"100vh",
-        background:"#0F0F1A",
-        display:"flex",
-        justifyContent:"center",
-        alignItems:"center",
-        flexDirection:"column",
-        color:"white"
-      }}>
-
-        <img src="/icon-192.png" style={{width:"90px"}}/>
-
-        <h2 style={{marginTop:"20px"}}>AcadeMe</h2>
-
+  if (loading) {
+    return (
+      <div style={{ color: "white", padding: "2rem", textAlign: "center" }}>
+        Loading...
       </div>
-
-    )
-
+    );
   }
 
-  return children
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  return children;
+};
+
+const AppContent = () => {
+
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+
+  useAnimationSystem();
+
+  useEffect(() => {
+
+    const handleKeyDown = (e) => {
+
+      if (e.ctrlKey && e.shiftKey && e.key === "A") {
+        e.preventDefault();
+        setAdminModalOpen(true);
+      }
+
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+
+  }, []);
+
+  return (
+    <>
+      <Routes>
+
+        <Route path="/" element={<SplashScreen />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        <Route path="/complete-profile"
+          element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>}
+        />
+
+        <Route path="/dashboard"
+          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
+        />
+
+        <Route path="/calc"
+          element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>}
+        />
+
+        <Route path="/attendance"
+          element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>}
+        />
+
+        <Route path="/courses"
+          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>}
+        />
+
+        <Route path="/common-courses"
+          element={<ProtectedRoute><CommonCourses /></ProtectedRoute>}
+        />
+
+        <Route path="/faculty"
+          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>}
+        />
+
+        <Route path="/resources"
+          element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>}
+        />
+
+        <Route path="/profile"
+          element={<ProtectedRoute><Profile /></ProtectedRoute>}
+        />
+
+        <Route path="/settings"
+          element={<ProtectedRoute><Settings /></ProtectedRoute>}
+        />
+
+        <Route path="/reviews"
+          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>}
+        />
+
+        <Route path="/admin"
+          element={<ProtectedRoute><AdminPanel /></ProtectedRoute>}
+        />
+
+        <Route path="*" element={<Navigate to="/" />} />
+
+      </Routes>
+
+      <AdminModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+      />
+    </>
+  );
+};
+
+function App() {
+
+  return (
+
+    <Router>
+
+      <ErrorBoundary>
+
+        <AuthProvider>
+
+          <DataProvider>
+
+            <div
+              className="app-container"
+              style={{ minHeight: "100vh", background: "#0F0F1A" }}
+            >
+
+              <AppInstallCard />
+              <AppInstallPopup />
+
+              <AppContent />
+
+            </div>
+
+          </DataProvider>
+
+        </AuthProvider>
+
+      </ErrorBoundary>
+
+    </Router>
+
+  );
 
 }
 
-export default AppLoader
+export default App;
