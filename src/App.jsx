@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAnimationSystem from './hooks/useAnimationSystem';
-
 
 import AppInstallPopup from "./components/AppInstallPopup";
 
@@ -166,10 +166,6 @@ function App() {
               style={{ minHeight: "100vh", background: "#0F0F1A" }}
             >
 
-              {/* Native PWA Install Button */}
-              <PWAInstallButton />
-
-              {/* Optional APK install popup */}
               <AppInstallPopup />
 
               <AppContent />
@@ -189,3 +185,4 @@ function App() {
 }
 
 export default App;
+
