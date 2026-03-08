@@ -18,7 +18,7 @@ const AppInstallCard = () => {
 
   const installApp = () => {
 
-    window.location.href = "/app/academe.apk";
+    window.location.href = "/app/AcadeMe.apk";
 
     localStorage.setItem("appInstalled", "true");
 
