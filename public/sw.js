@@ -23,7 +23,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/* Fetch (offline cache fallback) */
+/* Fetch (offline support) */
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
@@ -46,50 +46,36 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-/* Background Notification */
+/* Background Notifications */
 messaging.onBackgroundMessage((payload) => {
-  console.log("Background notification received:", payload);
+  console.log("Background message received:", payload);
 
-  const notificationTitle =
-    payload.notification?.title || "AcadeMe Update";
-
-  const notificationOptions = {
+  const title = payload.notification?.title || "AcadeMe";
+  const options = {
     body: payload.notification?.body || "New update available",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    image: "/icon-512.png",
-    vibrate: [200, 100, 200],
-    tag: "acade-me-notification",
-    renotify: true,
-    requireInteraction: false,
     data: {
       url: "https://acade-me.vercel.app"
-    },
-    actions: [
-      {
-        action: "open",
-        title: "Open AcadeMe"
-      }
-    ]
+    }
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, options);
 });
 
-/* Notification Click */
+/* Notification click */
 self.addEventListener("notificationclick", function(event) {
   event.notification.close();
 
-  const targetUrl = event.notification.data?.url || "https://acade-me.vercel.app";
+  const url = event.notification.data?.url || "https://acade-me.vercel.app";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url === targetUrl && "focus" in client) {
+        if (client.url === url && "focus" in client) {
           return client.focus();
         }
       }
-      return clients.openWindow(targetUrl);
+      return clients.openWindow(url);
     })
   );
 });
