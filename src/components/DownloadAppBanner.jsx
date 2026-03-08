@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import logo from "../assets/logo.jpg";
 
-const APK_URL = "https://github.com/dharanigovardhan2008/AcadeMe/releases/download/v1/AcadeMe.apk";
+// ✅ This — direct download, no GitHub page
+const APK_URL = "https://objects.githubusercontent.com/github-production-release-asset-2e65be/dharanigovardhan2008/AcadeMe/v1/AcadeMe.apk";
 
 const DownloadAppBanner = () => {
   const [showBanner, setShowBanner]         = useState(false);
@@ -47,17 +48,37 @@ const DownloadAppBanner = () => {
     setPhase("downloading");
     setProgress(0);
 
-    // Hidden anchor — stays on page, no CORS, browser handles natively
-    const a         = document.createElement("a");
-    a.href          = APK_URL;
-    a.download      = "AcadeMe.apk";
-    a.rel           = "noopener noreferrer";
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // On Android, window.open with _self keeps it in background download manager
+    // without navigating away from the page
+    const link = document.createElement("a");
+    link.href = APK_URL;
+    link.setAttribute("download", "AcadeMe.apk");
+    link.setAttribute("target", "_self");
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-    // Simulate progress bar since native downloads cant be tracked
+    // Simulate progress
+    let current = 0;
+    const interval = setInterval(() => {
+      current += Math.random() * 8 + 3;
+      if (current >= 95) {
+        clearInterval(interval);
+        setProgress(95);
+      } else {
+        setProgress(Math.round(current));
+      }
+    }, 300);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setProgress(100);
+      setPhase("done");
+      setTimeout(() => setShowBanner(false), 2500);
+    }, 4000);
+  };
+
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 8 + 3;
