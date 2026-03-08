@@ -3,7 +3,8 @@ import { Moon, Bell, Database, CheckCircle, XCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import DashboardLayout from '../components/DashboardLayout';
-import { auth, requestNotificationPermission } from '../firebase';
+import { auth, requestNotificationPermission, db } from '../firebase';
+import { doc, getDoc } from "firebase/firestore";
 
 const Toggle = ({ value, onChange }) => (
     <div
@@ -23,6 +24,7 @@ const Toggle = ({ value, onChange }) => (
 );
 
 const Settings = () => {
+
     const [settings, setSettings] = useState({
         darkMode: true,
         pushNotifs: false,
@@ -48,13 +50,16 @@ const Settings = () => {
                     setLoading(false);
                     return;
                 }
+
                 const token = await requestNotificationPermission(user.uid);
+
                 if (token) {
                     setSettings({ ...settings, pushNotifs: true });
                     setNotifStatus('success');
                 } else {
                     setNotifStatus('error');
                 }
+
             } catch (err) {
                 console.error(err);
                 setNotifStatus('error');
@@ -65,6 +70,38 @@ const Settings = () => {
             setNotifStatus(null);
         }
     };
+
+    /* 🔧 LOAD NOTIFICATION STATE FROM FIRESTORE */
+    useEffect(() => {
+
+        const loadNotificationState = async () => {
+            try {
+
+                const user = auth.currentUser;
+                if (!user) return;
+
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+
+                    if (data.notificationsEnabled === true) {
+                        setSettings(prev => ({
+                            ...prev,
+                            pushNotifs: true
+                        }));
+                    }
+                }
+
+            } catch (error) {
+                console.error("Error loading notification state:", error);
+            }
+        };
+
+        loadNotificationState();
+
+    }, []);
 
     return (
         <DashboardLayout>
@@ -78,6 +115,7 @@ const Settings = () => {
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Moon size={20} /> Appearance
                     </h3>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div>
                             <p style={{ fontWeight: '500' }}>Dark Mode</p>
@@ -92,29 +130,32 @@ const Settings = () => {
                         <Bell size={20} /> Notifications
                     </h3>
 
-                    {/* Push Notifications with real FCM */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div>
                             <p style={{ fontWeight: '500' }}>Push Notifications</p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                 Get notified when admin posts updates
                             </p>
+
                             {loading && (
                                 <p style={{ fontSize: '0.8rem', color: '#f7971e', marginTop: '4px' }}>
                                     ⏳ Enabling notifications...
                                 </p>
                             )}
+
                             {notifStatus === 'success' && (
                                 <p style={{ fontSize: '0.8rem', color: '#43e97b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <CheckCircle size={12} /> Notifications enabled successfully!
                                 </p>
                             )}
+
                             {notifStatus === 'error' && (
                                 <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <XCircle size={12} /> Failed. Please allow notifications in browser settings.
                                 </p>
                             )}
                         </div>
+
                         <Toggle value={settings.pushNotifs} onChange={handlePushNotifToggle} />
                     </div>
 
@@ -122,16 +163,19 @@ const Settings = () => {
                         <p>Email Updates</p>
                         <Toggle value={settings.emailNotifs} onChange={() => toggle('emailNotifs')} />
                     </div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
                         <p>Attendance Alerts</p>
                         <Toggle value={settings.attendanceAlerts} onChange={() => toggle('attendanceAlerts')} />
                     </div>
+
                 </GlassCard>
 
                 <GlassCard className="mb-6">
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Database size={20} /> Data & Storage
                     </h3>
+
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <GlassButton style={{ flex: 1, justifyContent: 'center' }}>Export My Data</GlassButton>
                         <GlassButton style={{ flex: 1, justifyContent: 'center', color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)' }}>Clear Cache</GlassButton>
