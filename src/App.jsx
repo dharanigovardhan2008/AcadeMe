@@ -5,6 +5,9 @@ import { DataProvider } from './context/DataContext';
 import ErrorBoundary from './components/ErrorBoundary'; 
 import useAnimationSystem from './hooks/useAnimationSystem'; 
 
+// NEW: Install App Prompt
+import InstallApp from './components/InstallApp';
+
 // Page Imports
 import SplashScreen from './pages/SplashScreen';
 import Login from './pages/Login';
@@ -95,6 +98,10 @@ function App() {
         <AuthProvider>
           <DataProvider>
             <div className="app-container" style={{ minHeight: '100vh', background: '#0F0F1A' }}>
+
+              {/* NEW: Install App Prompt */}
+              <InstallApp />
+
               <AppContent />
             </div>
           </DataProvider>
