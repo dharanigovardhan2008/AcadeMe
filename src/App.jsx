@@ -6,7 +6,7 @@ import { DataProvider } from './context/DataContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAnimationSystem from './hooks/useAnimationSystem';
 
-import AppInstallPopup from "./components/AppInstallPopup";
+
 
 import SplashScreen from './pages/SplashScreen';
 import Login from './pages/Login';
@@ -166,7 +166,6 @@ function App() {
               style={{ minHeight: "100vh", background: "#0F0F1A" }}
             >
 
-              <AppInstallPopup />
 
               <AppContent />
 
