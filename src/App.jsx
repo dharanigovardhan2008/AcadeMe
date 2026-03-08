@@ -1,29 +1,34 @@
 
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { DataProvider } from './context/DataContext';
-import ErrorBoundary from './components/ErrorBoundary';
-import useAnimationSystem from './hooks/useAnimationSystem';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { DataProvider } from "./context/DataContext";
+
+import ErrorBoundary from "./components/ErrorBoundary";
+import useAnimationSystem from "./hooks/useAnimationSystem";
+
+import DownloadAppBanner from "./components/DownloadAppBanner";
+
+import SplashScreen from "./pages/SplashScreen";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import CGPACalculator from "./pages/CGPACalculator";
+import MandatoryCourses from "./pages/MandatoryCourses";
+import AttendanceTracker from "./pages/AttendanceTracker";
+import FacultyDirectory from "./pages/FacultyDirectory";
+import ResourcesHub from "./pages/ResourcesHub";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import AdminPanel from "./pages/AdminPanel";
+import CompleteProfile from "./pages/CompleteProfile";
+import FacultyReviews from "./pages/FacultyReviews";
+import CommonCourses from "./pages/CommonCourses";
+
+import AdminModal from "./components/AdminModal";
 
 
-
-import SplashScreen from './pages/SplashScreen';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import AdminModal from './components/AdminModal';
-import Dashboard from './pages/Dashboard';
-import CGPACalculator from './pages/CGPACalculator';
-import MandatoryCourses from './pages/MandatoryCourses';
-import AttendanceTracker from './pages/AttendanceTracker';
-import FacultyDirectory from './pages/FacultyDirectory';
-import ResourcesHub from './pages/ResourcesHub';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import AdminPanel from './pages/AdminPanel';
-import CompleteProfile from './pages/CompleteProfile';
-import FacultyReviews from './pages/FacultyReviews';
-import CommonCourses from './pages/CommonCourses';
 
 const ProtectedRoute = ({ children }) => {
 
@@ -44,6 +49,8 @@ const ProtectedRoute = ({ children }) => {
   return children;
 
 };
+
+
 
 const AppContent = () => {
 
@@ -69,6 +76,7 @@ const AppContent = () => {
   }, []);
 
   return (
+
     <>
       <Routes>
 
@@ -146,8 +154,12 @@ const AppContent = () => {
       />
 
     </>
+
   );
+
 };
+
+
 
 function App() {
 
@@ -163,9 +175,14 @@ function App() {
 
             <div
               className="app-container"
-              style={{ minHeight: "100vh", background: "#0F0F1A" }}
+              style={{
+                minHeight: "100vh",
+                background: "#0F0F1A"
+              }}
             >
 
+              {/* APK INSTALL BANNER */}
+              <DownloadAppBanner />
 
               <AppContent />
 
