@@ -16,9 +16,7 @@ const DownloadAppBanner = () => {
       || window.navigator.standalone === true;
     if (isStandalone) return;
 
-    // ✅ User tapped "Not now" this session — hide until next session only
-    // When they uninstall and reopen browser — sessionStorage is cleared
-    // so banner shows again automatically
+    // ✅ Only hide for current session if user taps "Not now"
     const hiddenThisSession = sessionStorage.getItem("banner_hidden_this_session");
     if (hiddenThisSession) return;
 
@@ -29,7 +27,6 @@ const DownloadAppBanner = () => {
     };
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
-    // Show on Android even without PWA prompt
     const isAndroid = /Android/i.test(navigator.userAgent);
     if (isAndroid) {
       setTimeout(() => setShowBanner(true), 2000);
@@ -55,16 +52,14 @@ const DownloadAppBanner = () => {
     setPhase("downloading");
     setProgress(0);
 
-    // ✅ iframe — downloads silently, no URL bar, no new tab
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = APK_URL;
-    document.body.appendChild(iframe);
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-      }
-    }, 10000);
+    // ✅ Most reliable method — direct anchor click
+    const link = document.createElement("a");
+    link.href = APK_URL;
+    link.download = "AcadeMe.apk";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
     // Simulate progress bar
     let current = 0;
@@ -96,9 +91,8 @@ const DownloadAppBanner = () => {
     downloadAPK();
   };
 
-  // ✅ "Not now" — hides THIS session only
-  // Next time they open browser = sessionStorage cleared = banner shows again
-  // If they uninstall APK = not standalone = banner shows again
+  // ✅ "Not now" hides THIS session only
+  // Uninstall APK = not standalone = banner shows again next visit
   const handleLater = () => {
     setDismissed(true);
     setShowBanner(false);
@@ -256,7 +250,7 @@ const DownloadAppBanner = () => {
         .ps-btn-install:hover:not(:disabled)  { background: #017a56; }
         .ps-btn-install:active:not(:disabled) { transform: scale(0.97); }
         .ps-btn-install:disabled { opacity: 0.75; cursor: not-allowed; }
-        .ps-btn-install.error    { background: #c0392b; }
+        .ps-btn-install.error { background: #c0392b; }
         .ps-spinner {
           width: 18px; height: 18px;
           border: 2px solid rgba(255,255,255,0.3);
