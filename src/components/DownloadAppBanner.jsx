@@ -15,6 +15,17 @@ const DownloadAppBanner = () => {
 
   }, []);
 
+  const downloadApp = () => {
+
+    const link = document.createElement("a");
+    link.href = "/app/AcadeMe.apk";
+    link.download = "AcadeMe.apk";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+  };
+
   if (!showBanner) return null;
 
   return (
@@ -39,9 +50,8 @@ const DownloadAppBanner = () => {
         Install <b>AcadeMe App</b>
       </div>
 
-      <a
-        href="/app/AcadeMe.apk"
-        download
+      <button
+        onClick={downloadApp}
         style={{
           background:"#4f46e5",
           border:"none",
@@ -49,12 +59,11 @@ const DownloadAppBanner = () => {
           padding:"8px 14px",
           borderRadius:"8px",
           cursor:"pointer",
-          fontWeight:"600",
-          textDecoration:"none"
+          fontWeight:"600"
         }}
       >
         Install
-      </a>
+      </button>
 
     </div>
 
