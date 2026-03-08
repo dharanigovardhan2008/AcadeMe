@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from "react";
 
 const AppInstallPopup = () => {
+
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
-    const installed = localStorage.getItem("appInstallDismissed");
 
-    if (!installed) {
-      setTimeout(() => {
+    const dismissed = localStorage.getItem("academeInstallDismissed");
+
+    if (!dismissed) {
+      const timer = setTimeout(() => {
         setShowPopup(true);
       }, 4000);
+
+      return () => clearTimeout(timer);
     }
+
   }, []);
 
   const handleInstall = () => {
@@ -18,13 +23,14 @@ const AppInstallPopup = () => {
   };
 
   const handleClose = () => {
-    localStorage.setItem("appInstallDismissed", "true");
+    localStorage.setItem("academeInstallDismissed", "true");
     setShowPopup(false);
   };
 
   if (!showPopup) return null;
 
   return (
+
     <div
       style={{
         position: "fixed",
@@ -33,51 +39,80 @@ const AppInstallPopup = () => {
         transform: "translateX(-50%)",
         background: "#111827",
         color: "white",
-        padding: "18px 22px",
-        borderRadius: "12px",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+        padding: "18px 20px",
+        borderRadius: "14px",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
         zIndex: 9999,
-        width: "320px",
-        textAlign: "center"
+        width: "340px",
+        display: "flex",
+        alignItems: "center",
+        gap: "14px"
       }}
     >
-      <h3 style={{ marginBottom: "8px" }}>Install AcadeMe App</h3>
 
-      <p style={{ fontSize: "14px", opacity: 0.8 }}>
-        Get faster access and full screen experience.
-      </p>
+      {/* APP ICON */}
 
-      <div style={{ marginTop: "14px" }}>
-        <button
-          onClick={handleInstall}
-          style={{
-            background: "#3b82f6",
-            border: "none",
-            color: "white",
-            padding: "8px 16px",
-            borderRadius: "8px",
-            marginRight: "10px",
-            cursor: "pointer"
-          }}
-        >
-          Install
-        </button>
+      <img
+        src="/icon-192.png"
+        alt="AcadeMe"
+        style={{
+          width: "42px",
+          height: "42px",
+          borderRadius: "10px"
+        }}
+      />
 
-        <button
-          onClick={handleClose}
-          style={{
-            background: "transparent",
-            border: "1px solid #374151",
-            color: "white",
-            padding: "8px 16px",
-            borderRadius: "8px",
-            cursor: "pointer"
-          }}
-        >
-          Later
-        </button>
+      {/* TEXT */}
+
+      <div style={{ flex: 1 }}>
+
+        <div style={{ fontWeight: "600", fontSize: "15px" }}>
+          Install AcadeMe App
+        </div>
+
+        <div style={{ fontSize: "13px", opacity: 0.8 }}>
+          Faster access & full screen experience
+        </div>
+
+        <div style={{ marginTop: "10px" }}>
+
+          <button
+            onClick={handleInstall}
+            style={{
+              background: "#3b82f6",
+              border: "none",
+              color: "white",
+              padding: "6px 14px",
+              borderRadius: "7px",
+              marginRight: "8px",
+              cursor: "pointer",
+              fontSize: "13px"
+            }}
+          >
+            Install
+          </button>
+
+          <button
+            onClick={handleClose}
+            style={{
+              background: "transparent",
+              border: "1px solid #374151",
+              color: "white",
+              padding: "6px 14px",
+              borderRadius: "7px",
+              cursor: "pointer",
+              fontSize: "13px"
+            }}
+          >
+            Later
+          </button>
+
+        </div>
+
       </div>
+
     </div>
+
   );
 };
 
