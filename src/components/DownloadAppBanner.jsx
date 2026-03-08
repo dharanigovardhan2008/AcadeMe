@@ -10,12 +10,10 @@ const DownloadAppBanner = () => {
     if (isAndroid) setShowBanner(true);
   }, []);
 
-  const downloadApp = () => {
-
-    // Force download APK
-    window.location.href = "/app/AcadeMe.apk";
-
-  };
+ const downloadApp = () => {
+  window.location.href =
+  "https://github.com/dharanigovardhan2008/AcadeMe/releases/download/v1/AcadeMe.apk";
+};
 
   if (!showBanner) return null;
 
