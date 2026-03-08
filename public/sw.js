@@ -2,13 +2,13 @@ const CACHE_NAME = "acade-me-cache-v1";
 
 /* Install */
 self.addEventListener("install", (event) => {
-  console.log("Service Worker: Installed");
+  console.log("Service Worker Installed");
   self.skipWaiting();
 });
 
 /* Activate */
 self.addEventListener("activate", (event) => {
-  console.log("Service Worker: Activated");
+  console.log("Service Worker Activated");
 
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-/* Firebase Messaging */
+/* Firebase */
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
 
@@ -46,14 +46,22 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-/* Background Notifications */
+/* Background notification */
 messaging.onBackgroundMessage((payload) => {
-  console.log("Background message received:", payload);
+
+  console.log("Notification received:", payload);
 
   const title = payload.notification?.title || "AcadeMe";
+
   const options = {
     body: payload.notification?.body || "New update available",
+
+    /* small logo like WhatsApp */
     icon: "/icon-192.png",
+    badge: "/icon-192.png",
+
+    tag: "acade-me",
+
     data: {
       url: "https://acade-me.vercel.app"
     }
@@ -62,8 +70,9 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(title, options);
 });
 
-/* Notification click */
-self.addEventListener("notificationclick", function(event) {
+/* Open website when notification clicked */
+self.addEventListener("notificationclick", (event) => {
+
   event.notification.close();
 
   const url = event.notification.data?.url || "https://acade-me.vercel.app";
@@ -78,4 +87,5 @@ self.addEventListener("notificationclick", function(event) {
       return clients.openWindow(url);
     })
   );
+
 });
