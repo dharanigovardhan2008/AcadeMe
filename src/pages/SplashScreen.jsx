@@ -1,17 +1,26 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import GlassCard from '../components/GlassCard';
 import logo from '../assets/logo.jpg';
 
 const SplashScreen = () => {
     const navigate = useNavigate();
+    const { user, loading } = useAuth();
 
     useEffect(() => {
+        if (loading) return; // Wait for auth to check
+
         const timer = setTimeout(() => {
-            navigate('/login');
+            if (user) {
+                navigate('/dashboard'); // Already logged in → go to dashboard
+            } else {
+                navigate('/login'); // Not logged in → go to login
+            }
         }, 3000);
+
         return () => clearTimeout(timer);
-    }, [navigate]);
+    }, [navigate, user, loading]);
 
     return (
         <div style={{
@@ -22,7 +31,6 @@ const SplashScreen = () => {
             position: 'relative',
             overflow: 'hidden'
         }}>
-            {/* Floating orbs */}
             <div style={{
                 position: 'absolute', top: '25%', left: '25%', width: '250px', height: '250px',
                 background: 'var(--primary)', borderRadius: '50%', filter: 'blur(80px)', opacity: 0.3,
@@ -33,7 +41,6 @@ const SplashScreen = () => {
                 background: 'var(--secondary)', borderRadius: '50%', filter: 'blur(80px)', opacity: 0.3,
                 animation: 'float 6s ease-in-out infinite', animationDelay: '2s'
             }}></div>
-
             <GlassCard style={{
                 textAlign: 'center',
                 zIndex: 10,
@@ -45,7 +52,7 @@ const SplashScreen = () => {
             }}>
                 <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                     <div style={{
-                        width: '120px', height: '120px', // slightly larger
+                        width: '120px', height: '120px',
                         borderRadius: '50%', overflow: 'hidden',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
@@ -53,10 +60,8 @@ const SplashScreen = () => {
                         <img src={logo} alt="AcadeMe" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                 </div>
-
                 <h1 className="gradient-text" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>AcadeMe</h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '2rem' }}>Your Academic Journey, Simplified</p>
-
                 <div style={{
                     width: '32px', height: '32px',
                     border: '4px solid rgba(255,255,255,0.1)',
