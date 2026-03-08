@@ -10,10 +10,15 @@ const DownloadAppBanner = () => {
     if (isAndroid) setShowBanner(true);
   }, []);
 
- const downloadApp = () => {
-  window.location.href =
-  "https://github.com/dharanigovardhan2008/AcadeMe/releases/download/v1/AcadeMe.apk";
-};
+  const downloadApp = () => {
+
+    const apkUrl =
+      "https://github.com/dharanigovardhan2008/AcadeMe/releases/download/v1/AcadeMe.apk";
+
+    // Force browser download outside React Router
+    window.open(apkUrl, "_blank");
+
+  };
 
   if (!showBanner) return null;
 
@@ -34,7 +39,7 @@ const DownloadAppBanner = () => {
       zIndex: 9999
     }}>
 
-      <div style={{fontSize:"14px"}}>
+      <div style={{ fontSize: "14px" }}>
         Install <b>AcadeMe App</b>
       </div>
 
@@ -42,13 +47,13 @@ const DownloadAppBanner = () => {
         type="button"
         onClick={downloadApp}
         style={{
-          background:"#4f46e5",
-          border:"none",
-          color:"white",
-          padding:"8px 14px",
-          borderRadius:"8px",
-          cursor:"pointer",
-          fontWeight:"600"
+          background: "#4f46e5",
+          border: "none",
+          color: "white",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontWeight: "600"
         }}
       >
         Install
@@ -59,4 +64,3 @@ const DownloadAppBanner = () => {
 };
 
 export default DownloadAppBanner;
-
