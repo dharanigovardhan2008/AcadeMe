@@ -10,38 +10,30 @@ const DownloadAppBanner = () => {
     if (isAndroid) setShowBanner(true);
   }, []);
 
-const downloadApp = (e) => {
+  const downloadApp = () => {
 
-  e.preventDefault(); // stop page reload
+    // Force download APK
+    window.location.href = "/app/AcadeMe.apk";
 
-  const link = document.createElement("a");
-  link.href = "/app/AcadeMe.apk";
-  link.download = "AcadeMe.apk";
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-};
-
+  };
 
   if (!showBanner) return null;
 
   return (
     <div style={{
-      position:"fixed",
-      bottom:"20px",
-      left:"50%",
-      transform:"translateX(-50%)",
-      background:"#1a1b2e",
-      color:"white",
-      padding:"14px 20px",
-      borderRadius:"12px",
-      display:"flex",
-      alignItems:"center",
-      gap:"15px",
-      boxShadow:"0 10px 30px rgba(0,0,0,0.5)",
-      zIndex:9999
+      position: "fixed",
+      bottom: "20px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "#1a1b2e",
+      color: "white",
+      padding: "14px 20px",
+      borderRadius: "12px",
+      display: "flex",
+      alignItems: "center",
+      gap: "15px",
+      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+      zIndex: 9999
     }}>
 
       <div style={{fontSize:"14px"}}>
@@ -49,6 +41,7 @@ const downloadApp = (e) => {
       </div>
 
       <button
+        type="button"
         onClick={downloadApp}
         style={{
           background:"#4f46e5",
@@ -65,7 +58,6 @@ const downloadApp = (e) => {
 
     </div>
   );
-
 };
 
 export default DownloadAppBanner;
