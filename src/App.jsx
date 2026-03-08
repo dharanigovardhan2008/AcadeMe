@@ -5,7 +5,7 @@ import { DataProvider } from './context/DataContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAnimationSystem from './hooks/useAnimationSystem';
 
-import PWAInstallButton from "./components/PWAInstallButton";
+
 import AppInstallPopup from "./components/AppInstallPopup";
 
 import SplashScreen from './pages/SplashScreen';
