@@ -11,8 +11,16 @@ const DownloadAppBanner = () => {
   const [progress, setProgress]             = useState(0);
 
   useEffect(() => {
-    const alreadyDismissed = sessionStorage.getItem("install_banner_dismissed");
-    if (alreadyDismissed) return;
+    // ✅ If already installed as PWA/standalone — never show
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    // ✅ User tapped "Not now" this session — hide until next session only
+    // When they uninstall and reopen browser — sessionStorage is cleared
+    // so banner shows again automatically
+    const hiddenThisSession = sessionStorage.getItem("banner_hidden_this_session");
+    if (hiddenThisSession) return;
 
     const handleBeforeInstall = (e) => {
       e.preventDefault();
@@ -21,9 +29,9 @@ const DownloadAppBanner = () => {
     };
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
-    const isAndroid    = /Android/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    if (isAndroid && !isStandalone) {
+    // Show on Android even without PWA prompt
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
       setTimeout(() => setShowBanner(true), 2000);
     }
 
@@ -47,14 +55,16 @@ const DownloadAppBanner = () => {
     setPhase("downloading");
     setProgress(0);
 
-    const link         = document.createElement("a");
-    link.href          = APK_URL;
-    link.setAttribute("download", "AcadeMe.apk");
-    link.setAttribute("target", "_self");
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // ✅ iframe — downloads silently, no URL bar, no new tab
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = APK_URL;
+    document.body.appendChild(iframe);
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 10000);
 
     // Simulate progress bar
     let current = 0;
@@ -86,10 +96,13 @@ const DownloadAppBanner = () => {
     downloadAPK();
   };
 
+  // ✅ "Not now" — hides THIS session only
+  // Next time they open browser = sessionStorage cleared = banner shows again
+  // If they uninstall APK = not standalone = banner shows again
   const handleLater = () => {
     setDismissed(true);
     setShowBanner(false);
-    sessionStorage.setItem("install_banner_dismissed", "true");
+    sessionStorage.setItem("banner_hidden_this_session", "true");
   };
 
   if (!showBanner || dismissed) return null;
@@ -120,184 +133,123 @@ const DownloadAppBanner = () => {
           0%   { background-position: -200% center; }
           100% { background-position:  200% center; }
         }
-
         .ps-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.55);
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.55);
           z-index: 99998;
           animation: fadeIn 0.3s ease forwards;
         }
         .ps-wrap {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          position: fixed; bottom: 0; left: 0; right: 0;
           z-index: 99999;
           font-family: 'Google Sans', 'Roboto', sans-serif;
-          animation: ps-slide 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+          animation: ps-slide 0.5s cubic-bezier(0.34,1.2,0.64,1) forwards;
         }
         .ps-sheet {
           background: #1f1f1f;
           border-radius: 28px 28px 0 0;
           overflow: hidden;
-          box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.7);
+          box-shadow: 0 -4px 40px rgba(0,0,0,0.7);
         }
         .ps-handle {
-          width: 36px;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.18);
+          width: 36px; height: 4px;
+          background: rgba(255,255,255,0.18);
           border-radius: 2px;
           margin: 12px auto 16px;
         }
         .ps-header {
-          display: flex;
-          align-items: center;
-          gap: 16px;
+          display: flex; align-items: center; gap: 16px;
           padding: 0 20px 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
         }
         .ps-icon {
-          width: 64px;
-          height: 64px;
-          border-radius: 16px;
-          overflow: hidden;
-          flex-shrink: 0;
-          background: transparent;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 64px; height: 64px; border-radius: 16px;
+          overflow: hidden; flex-shrink: 0; background: transparent;
+          display: flex; align-items: center; justify-content: center;
         }
         .ps-icon img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 16px;
+          width: 100%; height: 100%;
+          object-fit: cover; border-radius: 16px;
         }
         .ps-name {
-          font-size: 17px;
-          font-weight: 700;
-          color: #fff;
-          margin-bottom: 2px;
+          font-size: 17px; font-weight: 700;
+          color: #fff; margin-bottom: 2px;
         }
         .ps-dev {
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.4);
-          margin-bottom: 6px;
+          color: rgba(255,255,255,0.4); margin-bottom: 6px;
         }
         .ps-chips {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          flex-wrap: wrap;
+          display: flex; align-items: center;
+          gap: 6px; flex-wrap: wrap;
         }
         .ps-chip {
-          display: flex;
-          align-items: center;
-          gap: 3px;
-          background: rgba(255, 255, 255, 0.07);
-          border-radius: 20px;
-          padding: 3px 9px;
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.6);
-          font-weight: 500;
+          display: flex; align-items: center; gap: 3px;
+          background: rgba(255,255,255,0.07); border-radius: 20px;
+          padding: 3px 9px; font-size: 11px;
+          color: rgba(255,255,255,0.6); font-weight: 500;
         }
         .ps-dot {
-          width: 3px;
-          height: 3px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.25);
+          width: 3px; height: 3px; border-radius: 50%;
+          background: rgba(255,255,255,0.25);
         }
         .ps-stats {
           display: flex;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
         }
         .ps-stat {
-          flex: 1;
-          text-align: center;
-          padding: 12px 0;
-          position: relative;
+          flex: 1; text-align: center;
+          padding: 12px 0; position: relative;
         }
         .ps-stat + .ps-stat::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 20%;
-          bottom: 20%;
-          width: 1px;
-          background: rgba(255, 255, 255, 0.09);
+          content: ''; position: absolute;
+          left: 0; top: 20%; bottom: 20%;
+          width: 1px; background: rgba(255,255,255,0.09);
         }
         .ps-stat-v {
-          font-size: 14px;
-          font-weight: 700;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 2px;
+          font-size: 14px; font-weight: 700; color: #fff;
+          display: flex; align-items: center;
+          justify-content: center; gap: 2px;
         }
         .ps-stat-l {
           font-size: 11px;
-          color: rgba(255, 255, 255, 0.38);
-          margin-top: 2px;
+          color: rgba(255,255,255,0.38); margin-top: 2px;
         }
         .ps-desc {
-          padding: 13px 20px;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.48);
-          line-height: 1.55;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+          padding: 13px 20px; font-size: 13px;
+          color: rgba(255,255,255,0.48); line-height: 1.55;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
         }
-        .ps-progress-wrap {
-          padding: 14px 20px 4px;
-        }
+        .ps-progress-wrap { padding: 14px 20px 4px; }
         .ps-progress-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.45);
+          display: flex; justify-content: space-between;
+          font-size: 12px; color: rgba(255,255,255,0.45);
           margin-bottom: 8px;
         }
         .ps-progress-track {
-          height: 4px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 2px;
-          overflow: hidden;
+          height: 4px; background: rgba(255,255,255,0.1);
+          border-radius: 2px; overflow: hidden;
         }
         .ps-progress-fill {
-          height: 100%;
-          border-radius: 2px;
+          height: 100%; border-radius: 2px;
           background: linear-gradient(
-            90deg,
-            #01875f 0%,
-            #34d399 50%,
-            #01875f 100%
+            90deg, #01875f 0%, #34d399 50%, #01875f 100%
           );
           background-size: 200% auto;
           animation: progress-shine 1.5s linear infinite;
           transition: width 0.4s ease;
         }
         .ps-actions {
-          display: flex;
-          gap: 12px;
-          padding: 16px 20px 36px;
-          align-items: center;
+          display: flex; gap: 12px;
+          padding: 16px 20px 36px; align-items: center;
         }
         .ps-btn-install {
-          flex: 1;
-          height: 48px;
-          background: #01875f;
-          border: none;
-          border-radius: 24px;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
+          flex: 1; height: 48px; background: #01875f;
+          border: none; border-radius: 24px; color: #fff;
+          font-size: 15px; font-weight: 700; cursor: pointer;
           font-family: inherit;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
+          display: flex; align-items: center;
+          justify-content: center; gap: 8px;
           transition: background 0.2s, transform 0.1s;
           letter-spacing: 0.2px;
         }
@@ -305,36 +257,29 @@ const DownloadAppBanner = () => {
         .ps-btn-install:active:not(:disabled) { transform: scale(0.97); }
         .ps-btn-install:disabled { opacity: 0.75; cursor: not-allowed; }
         .ps-btn-install.error    { background: #c0392b; }
-
         .ps-spinner {
-          width: 18px;
-          height: 18px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: #fff;
-          border-radius: 50%;
+          width: 18px; height: 18px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-top-color: #fff; border-radius: 50%;
           animation: spin 0.7s linear infinite;
         }
         .ps-check {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          display: inline-flex; align-items: center; gap: 6px;
+          animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
         .ps-btn-later {
-          height: 48px;
-          padding: 0 20px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 24px;
-          color: rgba(255, 255, 255, 0.65);
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: inherit;
+          height: 48px; padding: 0 20px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 24px; color: rgba(255,255,255,0.65);
+          font-size: 14px; font-weight: 600;
+          cursor: pointer; font-family: inherit;
           transition: background 0.2s, color 0.2s;
           white-space: nowrap;
         }
-        .ps-btn-later:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .ps-btn-later:hover {
+          background: rgba(255,255,255,0.1); color: #fff;
+        }
       `}</style>
 
       {/* Backdrop */}
@@ -346,11 +291,9 @@ const DownloadAppBanner = () => {
       {/* Bottom Sheet */}
       <div className="ps-wrap">
         <div className="ps-sheet">
-
-          {/* Drag Handle */}
           <div className="ps-handle" />
 
-          {/* App Header */}
+          {/* Header */}
           <div className="ps-header">
             <div className="ps-icon">
               <img src={logo} alt="AcadeMe" />
@@ -370,7 +313,7 @@ const DownloadAppBanner = () => {
             </div>
           </div>
 
-          {/* Stats Row */}
+          {/* Stats */}
           <div className="ps-stats">
             {[
               { v: <><span style={{ color: "#fbbc04" }}>★</span> 4.8</>, l: "Rating"   },
@@ -391,7 +334,7 @@ const DownloadAppBanner = () => {
             all in one place for SIMATS students.
           </div>
 
-          {/* Progress Bar — only while downloading */}
+          {/* Progress Bar */}
           {phase === "downloading" && (
             <div className="ps-progress-wrap">
               <div className="ps-progress-row">
@@ -407,7 +350,7 @@ const DownloadAppBanner = () => {
             </div>
           )}
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="ps-actions">
             <button
               className={`ps-btn-install ${phase === "error" ? "error" : ""}`}
@@ -415,10 +358,7 @@ const DownloadAppBanner = () => {
               disabled={phase === "downloading" || phase === "done"}
             >
               {phase === "downloading" && (
-                <>
-                  <div className="ps-spinner" />
-                  Downloading {progress}%
-                </>
+                <><div className="ps-spinner" /> Downloading {progress}%</>
               )}
               {phase === "done" && (
                 <span className="ps-check">
@@ -431,7 +371,7 @@ const DownloadAppBanner = () => {
                 </span>
               )}
               {phase === "error" && <>⚠ Retry</>}
-              {phase === "idle"  && (
+              {phase === "idle" && (
                 <>
                   <svg width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor"
@@ -445,10 +385,7 @@ const DownloadAppBanner = () => {
               )}
             </button>
 
-            <button
-              className="ps-btn-later"
-              onClick={handleLater}
-            >
+            <button className="ps-btn-later" onClick={handleLater}>
               {phase === "downloading" ? "Cancel" : "Not now"}
             </button>
           </div>
