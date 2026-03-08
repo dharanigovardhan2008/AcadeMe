@@ -6,8 +6,8 @@ import { DataProvider } from './context/DataContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAnimationSystem from './hooks/useAnimationSystem';
 
+import PWAInstallButton from "./components/PWAInstallButton";
 import AppInstallPopup from "./components/AppInstallPopup";
-import AppInstallCard from "./components/AppInstallCard";
 
 import SplashScreen from './pages/SplashScreen';
 import Login from './pages/Login';
@@ -27,6 +27,7 @@ import FacultyReviews from './pages/FacultyReviews';
 import CommonCourses from './pages/CommonCourses';
 
 const ProtectedRoute = ({ children }) => {
+
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -42,6 +43,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   return children;
+
 };
 
 const AppContent = () => {
@@ -75,51 +77,63 @@ const AppContent = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        <Route path="/complete-profile"
+        <Route
+          path="/complete-profile"
           element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>}
         />
 
-        <Route path="/dashboard"
+        <Route
+          path="/dashboard"
           element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
         />
 
-        <Route path="/calc"
+        <Route
+          path="/calc"
           element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>}
         />
 
-        <Route path="/attendance"
+        <Route
+          path="/attendance"
           element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>}
         />
 
-        <Route path="/courses"
+        <Route
+          path="/courses"
           element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>}
         />
 
-        <Route path="/common-courses"
+        <Route
+          path="/common-courses"
           element={<ProtectedRoute><CommonCourses /></ProtectedRoute>}
         />
 
-        <Route path="/faculty"
+        <Route
+          path="/faculty"
           element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>}
         />
 
-        <Route path="/resources"
+        <Route
+          path="/resources"
           element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>}
         />
 
-        <Route path="/profile"
+        <Route
+          path="/profile"
           element={<ProtectedRoute><Profile /></ProtectedRoute>}
         />
 
-        <Route path="/settings"
+        <Route
+          path="/settings"
           element={<ProtectedRoute><Settings /></ProtectedRoute>}
         />
 
-        <Route path="/reviews"
+        <Route
+          path="/reviews"
           element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>}
         />
 
-        <Route path="/admin"
+        <Route
+          path="/admin"
           element={<ProtectedRoute><AdminPanel /></ProtectedRoute>}
         />
 
@@ -131,6 +145,7 @@ const AppContent = () => {
         isOpen={adminModalOpen}
         onClose={() => setAdminModalOpen(false)}
       />
+
     </>
   );
 };
@@ -152,7 +167,10 @@ function App() {
               style={{ minHeight: "100vh", background: "#0F0F1A" }}
             >
 
-              <AppInstallCard />
+              {/* Native PWA Install Button */}
+              <PWAInstallButton />
+
+              {/* Optional APK install popup */}
               <AppInstallPopup />
 
               <AppContent />
