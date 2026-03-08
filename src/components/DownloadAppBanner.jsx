@@ -3,7 +3,7 @@ import React from "react";
 const DownloadAppBanner = () => {
 
   const downloadApp = () => {
-    window.location.href = "/app/academe.apk";
+    window.location.href = "/app/AcadeMe.apk";
   };
 
   return (
