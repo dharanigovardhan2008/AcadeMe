@@ -1,185 +1,68 @@
 
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { DataProvider } from './context/DataContext';
-import ErrorBoundary from './components/ErrorBoundary';
-import useAnimationSystem from './hooks/useAnimationSystem';
+import React, { useState, useEffect } from "react";
 
-import AppInstallPopup from "./components/AppInstallPopup";
+const DownloadAppBanner = () => {
 
-import SplashScreen from './pages/SplashScreen';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import AdminModal from './components/AdminModal';
-import Dashboard from './pages/Dashboard';
-import CGPACalculator from './pages/CGPACalculator';
-import MandatoryCourses from './pages/MandatoryCourses';
-import AttendanceTracker from './pages/AttendanceTracker';
-import FacultyDirectory from './pages/FacultyDirectory';
-import ResourcesHub from './pages/ResourcesHub';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import AdminPanel from './pages/AdminPanel';
-import CompleteProfile from './pages/CompleteProfile';
-import FacultyReviews from './pages/FacultyReviews';
-import CommonCourses from './pages/CommonCourses';
-
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div style={{ color: "white", padding: "2rem", textAlign: "center" }}>
-        Loading...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
-  return children;
-};
-
-const AppContent = () => {
-
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
-
-  useAnimationSystem();
+  const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-
-    const handleKeyDown = (e) => {
-
-      if (e.ctrlKey && e.shiftKey && e.key === "A") {
-        e.preventDefault();
-        setAdminModalOpen(true);
-      }
-
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) setShowBanner(true);
   }, []);
 
+  const downloadApp = () => {
+
+    const link = document.createElement("a");
+    link.href = "/app/AcadeMe.apk";
+    link.setAttribute("download", "AcadeMe.apk");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+  };
+
+  if (!showBanner) return null;
+
   return (
-    <>
-      <Routes>
+    <div style={{
+      position:"fixed",
+      bottom:"20px",
+      left:"50%",
+      transform:"translateX(-50%)",
+      background:"#1a1b2e",
+      color:"white",
+      padding:"14px 20px",
+      borderRadius:"12px",
+      display:"flex",
+      alignItems:"center",
+      gap:"15px",
+      boxShadow:"0 10px 30px rgba(0,0,0,0.5)",
+      zIndex:9999
+    }}>
 
-        <Route path="/" element={<SplashScreen />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+      <div style={{fontSize:"14px"}}>
+        Install <b>AcadeMe App</b>
+      </div>
 
-        <Route
-          path="/complete-profile"
-          element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>}
-        />
+      <button
+        onClick={downloadApp}
+        style={{
+          background:"#4f46e5",
+          border:"none",
+          color:"white",
+          padding:"8px 14px",
+          borderRadius:"8px",
+          cursor:"pointer",
+          fontWeight:"600"
+        }}
+      >
+        Install
+      </button>
 
-        <Route
-          path="/dashboard"
-          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/calc"
-          element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/attendance"
-          element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/courses"
-          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/common-courses"
-          element={<ProtectedRoute><CommonCourses /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/faculty"
-          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/resources"
-          element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/profile"
-          element={<ProtectedRoute><Profile /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/settings"
-          element={<ProtectedRoute><Settings /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/reviews"
-          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/admin"
-          element={<ProtectedRoute><AdminPanel /></ProtectedRoute>}
-        />
-
-        <Route path="*" element={<Navigate to="/" />} />
-
-      </Routes>
-
-      <AdminModal
-        isOpen={adminModalOpen}
-        onClose={() => setAdminModalOpen(false)}
-      />
-    </>
+    </div>
   );
+
 };
 
-function App() {
-
-  return (
-
-    <Router>
-
-      <ErrorBoundary>
-
-        <AuthProvider>
-
-          <DataProvider>
-
-            <div
-              className="app-container"
-              style={{ minHeight: "100vh", background: "#0F0F1A" }}
-            >
-
-              <AppInstallPopup />
-
-              <AppContent />
-
-            </div>
-
-          </DataProvider>
-
-        </AuthProvider>
-
-      </ErrorBoundary>
-
-    </Router>
-
-  );
-
-}
-
-export default App;
+export default DownloadAppBanner;
 
