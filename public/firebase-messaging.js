@@ -1,4 +1,5 @@
 // src/firebase-messaging.js
+
 import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -10,121 +11,98 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (avoid duplicate init)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-/**
- * Request notification permission, register SW, get FCM token, and save to Firestore.
- * @param {string} userId - The authenticated user's UID
- * @returns {Promise<string|null>} FCM token or null
- */
+/* Request Notification Permission + Get Token */
 export async function requestNotificationPermission(userId) {
   try {
-    // Check if browser supports messaging
+
     const supported = await isSupported();
     if (!supported) {
-      console.warn("Firebase Messaging is not supported in this browser.");
+      console.warn("Messaging not supported in this browser");
       return null;
     }
 
-    // Request notification permission
     const permission = await Notification.requestPermission();
+
     if (permission !== "granted") {
-      console.warn("Notification permission denied.");
+      console.warn("Notification permission denied");
       return null;
     }
 
-    // Register service worker manually to ensure it loads from root
-    let swRegistration;
-    try {
-      swRegistration = await navigator.serviceWorker.register(
-        "/firebase-messaging-sw.js",
-        { scope: "/" }
-      );
-      await navigator.serviceWorker.ready;
-    } catch (swErr) {
-      console.error("Service worker registration failed:", swErr);
-      return null;
-    }
+    /* Register service worker */
+    const swRegistration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js"
+    );
+
+    await navigator.serviceWorker.ready;
 
     const messaging = getMessaging(app);
 
-    // Get FCM token
     const token = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
+      serviceWorkerRegistration: swRegistration
     });
 
     if (!token) {
-      console.warn("No FCM token received.");
+      console.warn("FCM token not generated");
       return null;
     }
 
     console.log("FCM Token:", token);
 
-    // Save token to Firestore under fcm_tokens/{userId}
+    /* Save token in Firestore */
     if (userId) {
       await setDoc(
         doc(db, "fcm_tokens", userId),
         {
-          token,
-          userId,
+          token: token,
           updatedAt: serverTimestamp(),
-          userAgent: navigator.userAgent,
           platform: navigator.platform,
+          userAgent: navigator.userAgent
         },
         { merge: true }
       );
-      console.log("FCM token saved to Firestore for user:", userId);
+
+      console.log("Token saved to Firestore");
     }
 
     return token;
-  } catch (err) {
-    console.error("Error requesting notification permission:", err);
+
+  } catch (error) {
+    console.error("Notification setup error:", error);
     return null;
   }
 }
 
-/**
- * Listen for foreground messages (app is open).
- * @param {function} callback - Called with the payload when a message arrives
- */
+/* Foreground Notification Handler */
 export async function onForegroundMessage(callback) {
+
   const supported = await isSupported();
   if (!supported) return;
 
   const messaging = getMessaging(app);
-  return onMessage(messaging, (payload) => {
-    console.log("Foreground message received:", payload);
-    callback(payload);
-  });
-}
 
-/**
- * Delete the FCM token for a user (called on sign-out or when disabling notifications).
- * @param {string} userId
- */
-export async function deleteFCMToken(userId) {
-  try {
-    const supported = await isSupported();
-    if (!supported) return;
+  onMessage(messaging, (payload) => {
 
-    const messaging = getMessaging(app);
-    const { deleteToken } = await import("firebase/messaging");
-    await deleteToken(messaging);
+    console.log("Foreground notification:", payload);
 
-    if (userId) {
-      const { deleteDoc } = await import("firebase/firestore");
-      await deleteDoc(doc(db, "fcm_tokens", userId));
-      console.log("FCM token deleted for user:", userId);
+    const notification = payload.notification;
+
+    if (notification) {
+      new Notification(notification.title, {
+        body: notification.body,
+        icon: notification.icon || "/icon-192.png"
+      });
     }
-  } catch (err) {
-    console.error("Error deleting FCM token:", err);
-  }
+
+    if (callback) callback(payload);
+
+  });
+
 }
 
 export { app, db };
