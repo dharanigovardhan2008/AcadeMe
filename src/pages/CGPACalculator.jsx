@@ -570,3 +570,4 @@ const CGPACalculator = () => {
 };
 
 export default CGPACalculator;
+
