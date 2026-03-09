@@ -178,14 +178,20 @@ export const DataProvider = ({ children }) => {
 
     const updateAttendance = async (id, total, attended) => {
         if (!user) return;
+
+        // ✅ Optimistic UI — update state instantly so button feels immediate
+        const previous = attendanceSubjects;
+        setAttendanceSubjects(prev => prev.map(s =>
+            s.id === id ? { ...s, total, attended } : s
+        ));
+
         try {
             await updateDoc(doc(db, "users", user.uid, "attendance", id), { total, attended });
-            setAttendanceSubjects(prev => prev.map(s =>
-                s.id === id ? { ...s, total, attended } : s
-            ));
             clearUserCache(user.uid);
         } catch (e) {
             console.error("Error updating attendance:", e);
+            // Revert UI if Firestore write fails
+            setAttendanceSubjects(previous);
         }
     };
 
