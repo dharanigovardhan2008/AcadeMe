@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Trash2, Calculator, Save, Share2, Plus } from 'lucide-react';
+import jsPDF from 'jspdf';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
@@ -10,6 +11,440 @@ import { useData } from '../context/DataContext';
 const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
 const GRADES = Object.keys(GRADE_POINTS);
 
+/* ─── helpers ─────────────────────────────────────────────── */
+const getGradeLetter = (cgpa) => {
+    if (cgpa >= 9) return 'S';
+    if (cgpa >= 8) return 'A';
+    if (cgpa >= 7) return 'B';
+    if (cgpa >= 6) return 'C';
+    if (cgpa >= 5) return 'D';
+    return 'F';
+};
+
+const getPerformanceLabel = (cgpa) => {
+    if (cgpa >= 9) return 'Outstanding Performance';
+    if (cgpa >= 8) return 'Excellent Work';
+    if (cgpa >= 7) return 'Good Performance';
+    if (cgpa >= 6) return 'Keep Improving';
+    return 'Needs Improvement';
+};
+
+const getAccentColor = (cgpa) => {
+    if (cgpa >= 8) return [34, 197, 94];
+    if (cgpa >= 6) return [234, 179, 8];
+    return [239, 68, 68];
+};
+
+const getGradeColor = (pts) => {
+    if (pts >= 9) return [34, 197, 94];
+    if (pts >= 7) return [59, 130, 246];
+    if (pts >= 5) return [234, 179, 8];
+    return [239, 68, 68];
+};
+
+/* ─── PDF generator ────────────────────────────────────────── */
+const generatePDF = (cgpaSubjects, calculatedCGPA) => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const cgpa = parseFloat(calculatedCGPA);
+    const now = new Date();
+    const accent = getAccentColor(cgpa);
+
+    const INDIGO     = [67, 56, 202];
+    const DARK       = [15, 23, 42];
+    const SLATE      = [30, 41, 59];
+    const LIGHT_SLATE= [71, 85, 105];
+    const MUTED      = [148, 163, 184];
+    const WHITE      = [255, 255, 255];
+    const LIGHT_BG   = [248, 250, 252];
+    const BORDER     = [226, 232, 240];
+
+    /* ── 1. HEADER ──────────────────────────────────────────── */
+    doc.setFillColor(...DARK);
+    doc.rect(0, 0, W, 72, 'F');
+
+    // Subtle diagonal texture
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.15);
+    doc.setGState(doc.GState({ opacity: 0.04 }));
+    for (let x = -20; x < W + 40; x += 8) doc.line(x, 0, x + 40, 72);
+    doc.setGState(doc.GState({ opacity: 1 }));
+
+    // Left accent bar
+    doc.setFillColor(...INDIGO);
+    doc.rect(0, 0, 5, 72, 'F');
+
+    // Logo badge
+    doc.setFillColor(99, 102, 241);
+    doc.roundedRect(12, 10, 32, 13, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...WHITE);
+    doc.text('AcadeMe', 28, 18.5, { align: 'center' });
+
+    // Title
+    doc.setFontSize(28);
+    doc.setTextColor(...WHITE);
+    doc.text('Academic Performance', 12, 42);
+    doc.setFontSize(13);
+    doc.setTextColor(165, 180, 252);
+    doc.text('CGPA Report  |  Semester Analysis', 12, 52);
+
+    // Date
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...MUTED);
+    const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    doc.text(`Generated: ${dateStr}`, 12, 63);
+
+    /* ── 2. CGPA HERO CIRCLE ────────────────────────────────── */
+    const cx = W - 34, cy = 36, r = 26;
+
+    doc.setFillColor(99, 102, 241);
+    doc.setGState(doc.GState({ opacity: 0.2 }));
+    doc.circle(cx, cy, r + 4, 'F');
+    doc.setGState(doc.GState({ opacity: 1 }));
+
+    doc.setFillColor(...WHITE);
+    doc.circle(cx, cy, r + 1, 'F');
+    doc.setFillColor(...accent);
+    doc.circle(cx, cy, r, 'F');
+    doc.setFillColor(...WHITE);
+    doc.circle(cx, cy, r - 5, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(...DARK);
+    doc.text(calculatedCGPA, cx, cy - 2, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...LIGHT_SLATE);
+    doc.text('out of 10', cx, cy + 5, { align: 'center' });
+
+    doc.setFillColor(...INDIGO);
+    doc.roundedRect(cx - 8, cy + r - 1, 16, 9, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...WHITE);
+    doc.text(`Grade ${getGradeLetter(cgpa)}`, cx, cy + r + 5, { align: 'center' });
+
+    /* ── 3. PROGRESS DIVIDER ────────────────────────────────── */
+    doc.setFillColor(...accent);
+    doc.rect(0, 72, W * (cgpa / 10), 3, 'F');
+    doc.setFillColor(...INDIGO);
+    doc.rect(W * (cgpa / 10), 72, W * (1 - cgpa / 10), 3, 'F');
+
+    /* ── 4. PERFORMANCE BANNER ──────────────────────────────── */
+    const bannerY = 80;
+    doc.setFillColor(...LIGHT_BG);
+    doc.rect(0, bannerY, W, 18, 'F');
+    doc.setFillColor(...accent);
+    doc.rect(0, bannerY, 4, 18, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...accent);
+    doc.text(getPerformanceLabel(cgpa).toUpperCase(), 12, bannerY + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...LIGHT_SLATE);
+    const totalPtsAll = cgpaSubjects.reduce((s, sub) => s + GRADE_POINTS[sub.grade || 'F'], 0);
+    doc.text(`Based on ${cgpaSubjects.length} subject${cgpaSubjects.length !== 1 ? 's' : ''}  |  Total Grade Points: ${totalPtsAll} / ${cgpaSubjects.length * 10}`, 12, bannerY + 14);
+
+    const pct = ((cgpa / 10) * 100).toFixed(1);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...INDIGO);
+    doc.text(`${pct}%  Equivalent`, W - 12, bannerY + 10, { align: 'right' });
+
+    /* ── 5. SUBJECT TABLE ───────────────────────────────────── */
+    let y = 106;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...INDIGO);
+    doc.text('SUBJECT BREAKDOWN', 12, y);
+    doc.setDrawColor(...INDIGO);
+    doc.setLineWidth(0.4);
+    doc.line(12, y + 1.5, 12 + doc.getTextWidth('SUBJECT BREAKDOWN'), y + 1.5);
+    y += 7;
+
+    const cols = {
+        no:     { x: 12,  w: 10, label: 'NO.'          },
+        name:   { x: 24,  w: 88, label: 'SUBJECT NAME' },
+        code:   { x: 114, w: 32, label: 'CODE'         },
+        grade:  { x: 148, w: 22, label: 'GRADE'        },
+        points: { x: 172, w: 26, label: 'POINTS'       },
+    };
+
+    // Header row
+    doc.setFillColor(...SLATE);
+    doc.roundedRect(10, y - 4, W - 20, 11, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text(cols.no.label,     cols.no.x,                              y + 3);
+    doc.text(cols.name.label,   cols.name.x,                            y + 3);
+    doc.text(cols.code.label,   cols.code.x   + cols.code.w / 2,        y + 3, { align: 'center' });
+    doc.text(cols.grade.label,  cols.grade.x  + cols.grade.w / 2,       y + 3, { align: 'center' });
+    doc.text(cols.points.label, cols.points.x + cols.points.w / 2,      y + 3, { align: 'center' });
+    y += 11;
+
+    cgpaSubjects.forEach((subject, i) => {
+        const rowH = 11;
+        const pts = GRADE_POINTS[subject.grade || 'F'];
+        const gc = getGradeColor(pts);
+
+        doc.setFillColor(i % 2 === 0 ? 255 : 248, i % 2 === 0 ? 255 : 250, i % 2 === 0 ? 255 : 252);
+        doc.rect(10, y - 3.5, W - 20, rowH, 'F');
+
+        doc.setFillColor(...gc);
+        doc.rect(10, y - 3.5, 3, rowH, 'F');
+
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        doc.line(10, y + rowH - 3.5, W - 10, y + rowH - 3.5);
+
+        // Index
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...LIGHT_SLATE);
+        doc.text(String(i + 1).padStart(2, '0'), cols.no.x, y + 3);
+
+        // Name
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...DARK);
+        doc.text(doc.splitTextToSize(subject.name || '—', cols.name.w - 2)[0], cols.name.x, y + 3);
+
+        // Code pill
+        const code = subject.code || '—';
+        const codeW = doc.getTextWidth(code) + 6;
+        doc.setFillColor(239, 246, 255);
+        doc.roundedRect(cols.code.x + cols.code.w / 2 - codeW / 2, y - 1.5, codeW, 7, 1.5, 1.5, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(37, 99, 235);
+        doc.text(code, cols.code.x + cols.code.w / 2, y + 3, { align: 'center' });
+
+        // Grade badge
+        doc.setFillColor(...gc);
+        doc.roundedRect(cols.grade.x + cols.grade.w / 2 - 6, y - 2, 12, 7.5, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...WHITE);
+        doc.text(subject.grade || 'F', cols.grade.x + cols.grade.w / 2, y + 3, { align: 'center' });
+
+        // Points with mini bar
+        const barW = 18;
+        const fillW = (pts / 10) * barW;
+        doc.setFillColor(226, 232, 240);
+        doc.roundedRect(cols.points.x + cols.points.w / 2 - barW / 2, y + 2.5, barW, 3, 1, 1, 'F');
+        doc.setFillColor(...gc);
+        doc.roundedRect(cols.points.x + cols.points.w / 2 - barW / 2, y + 2.5, fillW, 3, 1, 1, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...gc);
+        doc.text(`${pts}`, cols.points.x + cols.points.w / 2, y - 0.5, { align: 'center' });
+
+        y += rowH;
+    });
+
+    doc.setDrawColor(...SLATE);
+    doc.setLineWidth(0.5);
+    doc.line(10, y - 2.5, W - 10, y - 2.5);
+
+    /* ── 6. STATS CARDS ─────────────────────────────────────── */
+    y += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...INDIGO);
+    doc.text('PERFORMANCE SUMMARY', 12, y);
+    doc.setDrawColor(...INDIGO);
+    doc.setLineWidth(0.4);
+    doc.line(12, y + 1.5, 12 + doc.getTextWidth('PERFORMANCE SUMMARY'), y + 1.5);
+    y += 8;
+
+    const passed = cgpaSubjects.filter(s => GRADE_POINTS[s.grade || 'F'] >= 5).length;
+    const cards = [
+        { label: 'CGPA',      value: calculatedCGPA,                     sub: 'out of 10.00',              color: [...INDIGO]     },
+        { label: 'GRADE',     value: getGradeLetter(cgpa),               sub: 'Overall Grade',             color: [...accent]     },
+        { label: 'TOTAL PTS', value: `${totalPtsAll}`,                   sub: `of ${cgpaSubjects.length * 10} max`, color: [14, 165, 233] },
+        { label: 'PASSED',    value: `${passed}/${cgpaSubjects.length}`, sub: 'subjects cleared',          color: [34, 197, 94]  },
+    ];
+
+    const cardW2 = (W - 20 - 9) / 4;
+    cards.forEach((card, i) => {
+        const cx2 = 10 + i * (cardW2 + 3);
+
+        // Shadow
+        doc.setFillColor(210, 215, 230);
+        doc.roundedRect(cx2 + 0.8, y + 0.8, cardW2, 26, 3, 3, 'F');
+
+        // Card
+        doc.setFillColor(...WHITE);
+        doc.roundedRect(cx2, y, cardW2, 26, 3, 3, 'F');
+
+        // Top bar
+        doc.setFillColor(...card.color);
+        doc.roundedRect(cx2, y, cardW2, 5, 3, 3, 'F');
+        doc.rect(cx2, y + 2, cardW2, 3, 'F');
+
+        // Label
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
+        doc.setTextColor(...MUTED);
+        doc.text(card.label, cx2 + cardW2 / 2, y + 8, { align: 'center' });
+
+        // Value
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        doc.setTextColor(...card.color);
+        doc.text(card.value, cx2 + cardW2 / 2, y + 17, { align: 'center' });
+
+        // Sub
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        doc.setTextColor(...MUTED);
+        doc.text(card.sub, cx2 + cardW2 / 2, y + 23, { align: 'center' });
+    });
+
+    y += 34;
+
+    /* ── 7. BEST / WORST STRIP ──────────────────────────────── */
+    const highest = [...cgpaSubjects].sort((a, b) => GRADE_POINTS[b.grade] - GRADE_POINTS[a.grade])[0];
+    const lowest  = [...cgpaSubjects].sort((a, b) => GRADE_POINTS[a.grade] - GRADE_POINTS[b.grade])[0];
+
+    if (highest && lowest) {
+        const halfW = (W - 23) / 2;
+
+        // Best
+        doc.setFillColor(240, 253, 244);
+        doc.roundedRect(10, y, halfW, 20, 3, 3, 'F');
+        doc.setFillColor(34, 197, 94);
+        doc.roundedRect(10, y, 4, 20, 3, 3, 'F');
+        doc.rect(12, y, 2, 20, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(22, 101, 52);
+        doc.text('BEST SUBJECT', 17, y + 7);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...DARK);
+        doc.text(doc.splitTextToSize(highest.name, halfW - 10)[0], 17, y + 14);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(34, 197, 94);
+        doc.text(`Grade ${highest.grade}  |  ${GRADE_POINTS[highest.grade]} pts`, halfW + 6, y + 14, { align: 'right' });
+
+        // Lowest
+        const rx = 10 + halfW + 3;
+        doc.setFillColor(255, 241, 242);
+        doc.roundedRect(rx, y, halfW, 20, 3, 3, 'F');
+        doc.setFillColor(239, 68, 68);
+        doc.roundedRect(rx, y, 4, 20, 3, 3, 'F');
+        doc.rect(rx + 2, y, 2, 20, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(153, 27, 27);
+        doc.text('NEEDS ATTENTION', rx + 7, y + 7);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...DARK);
+        doc.text(doc.splitTextToSize(lowest.name, halfW - 10)[0], rx + 7, y + 14);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(239, 68, 68);
+        doc.text(`Grade ${lowest.grade}  |  ${GRADE_POINTS[lowest.grade]} pts`, rx + halfW - 5, y + 14, { align: 'right' });
+
+        y += 26;
+    }
+
+    /* ── 8. GRADE SCALE VISUAL ──────────────────────────────── */
+    y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...INDIGO);
+    doc.text('GRADE SCALE REFERENCE', 12, y);
+    doc.setDrawColor(...INDIGO);
+    doc.setLineWidth(0.4);
+    doc.line(12, y + 1.5, 12 + doc.getTextWidth('GRADE SCALE REFERENCE'), y + 1.5);
+    y += 10;
+
+    const scaleItems = [
+        { g: 'S', p: 10, color: [34, 197, 94]  },
+        { g: 'A', p: 9,  color: [59, 130, 246] },
+        { g: 'B', p: 8,  color: [99, 102, 241] },
+        { g: 'C', p: 7,  color: [234, 179, 8]  },
+        { g: 'D', p: 6,  color: [249, 115, 22] },
+        { g: 'E', p: 5,  color: [239, 68, 68]  },
+        { g: 'F', p: 0,  color: [100, 116, 139]},
+    ];
+    const itemW = (W - 20 - 6 * 2) / 7;
+    const myGrade = getGradeLetter(cgpa);
+
+    scaleItems.forEach((item, i) => {
+        const sx = 10 + i * (itemW + 2);
+        const isMyGrade = myGrade === item.g;
+
+        if (isMyGrade) {
+            doc.setFillColor(...item.color);
+            doc.roundedRect(sx, y - 4, itemW, 18, 2, 2, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(...WHITE);
+            doc.text(item.g, sx + itemW / 2, y + 5, { align: 'center' });
+            doc.setFontSize(6.5);
+            doc.text(`${item.p} pts`, sx + itemW / 2, y + 11, { align: 'center' });
+            // "YOUR GRADE" arrow label above
+            doc.setFontSize(5.5);
+            doc.setTextColor(...item.color);
+            doc.text('YOUR GRADE', sx + itemW / 2, y - 6, { align: 'center' });
+        } else {
+            doc.setFillColor(...item.color);
+            doc.setGState(doc.GState({ opacity: 0.18 }));
+            doc.roundedRect(sx, y, itemW, 12, 2, 2, 'F');
+            doc.setGState(doc.GState({ opacity: 1 }));
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(...item.color);
+            doc.text(item.g, sx + itemW / 2, y + 6, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6);
+            doc.setTextColor(...MUTED);
+            doc.text(`${item.p}`, sx + itemW / 2, y + 10, { align: 'center' });
+        }
+    });
+
+    /* ── 9. FOOTER ──────────────────────────────────────────── */
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(10, H - 18, W - 10, H - 18);
+
+    doc.setFillColor(...DARK);
+    doc.rect(0, H - 16, W, 16, 'F');
+    doc.setFillColor(...INDIGO);
+    doc.rect(0, H - 16, 5, 16, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(165, 180, 252);
+    doc.text('AcadeMe', 12, H - 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text('Academic Performance Report  |  Confidential', W / 2, H - 7, { align: 'center' });
+    doc.text('Page 1 of 1', W - 12, H - 7, { align: 'right' });
+
+    const fname = `AcadeMe_CGPA_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`;
+    doc.save(fname);
+};
+
+/* ─── React Component ──────────────────────────────────────── */
 const CGPACalculator = () => {
     const { cgpaSubjects, courses, addSubjectCGPA, removeSubjectCGPA, updateSubjectCGPA } = useData();
     const [selectedElectiveId, setSelectedElectiveId] = useState('');
@@ -20,11 +455,7 @@ const CGPACalculator = () => {
         if (!selectedElectiveId) return;
         const course = courses.find(c => c.id === selectedElectiveId);
         if (course) {
-            addSubjectCGPA({
-                name: course.name,
-                code: course.code,
-                grade: 'A'
-            });
+            addSubjectCGPA({ name: course.name, code: course.code, grade: 'A' });
             setSelectedElectiveId('');
             setShowResult(false);
         }
@@ -33,285 +464,20 @@ const CGPACalculator = () => {
     const calculate = () => {
         if (!cgpaSubjects.length) return;
         const total = cgpaSubjects.reduce((sum, s) => sum + GRADE_POINTS[s.grade || 'F'], 0);
-        const result = (total / cgpaSubjects.length).toFixed(2);
-        setCalculatedCGPA(result);
+        setCalculatedCGPA((total / cgpaSubjects.length).toFixed(2));
         setShowResult(true);
     };
 
     const getMessage = (cgpa) => {
-        if (cgpa >= 9) return "Outstanding Performance!";
-        if (cgpa >= 8) return "Excellent Work!";
-        if (cgpa >= 7) return "Good Performance!";
-        if (cgpa >= 6) return "Keep Improving!";
-        return "You Can Do Better!";
+        if (cgpa >= 9) return '🏆 Outstanding Performance!';
+        if (cgpa >= 8) return '⭐ Excellent Work!';
+        if (cgpa >= 7) return '👍 Good Performance!';
+        if (cgpa >= 6) return '📈 Keep Improving!';
+        return '💪 You Can Do Better!';
     };
-
-    const getEmoji = (cgpa) => {
-        if (cgpa >= 9) return "Trophy";
-        if (cgpa >= 8) return "Star";
-        if (cgpa >= 7) return "Thumbs Up";
-        if (cgpa >= 6) return "Chart";
-        return "Muscle";
-    };
-
-    const getGrade = (cgpa) => {
-        if (cgpa >= 9) return "S";
-        if (cgpa >= 8) return "A";
-        if (cgpa >= 7) return "B";
-        if (cgpa >= 6) return "C";
-        if (cgpa >= 5) return "D";
-        return "F";
-    };
-
-    // ── SAVE PDF ──────────────────────────────────────────────────────────────
-    const loadJsPDF = () =>
-        new Promise((resolve, reject) => {
-            if (window.jspdf) return resolve(window.jspdf.jsPDF);
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            script.onload = () => resolve(window.jspdf.jsPDF);
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-
-    const handleSavePDF = async () => {
-        const jsPDF = await loadJsPDF();
-
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageW = doc.internal.pageSize.getWidth();
-        const pageH = doc.internal.pageSize.getHeight();
-
-        // ── HEADER BACKGROUND ─────────────────────────────────────────────────
-        doc.setFillColor(15, 23, 42);          // dark navy
-        doc.rect(0, 0, pageW, 55, 'F');
-
-        // Accent bar
-        doc.setFillColor(99, 102, 241);        // indigo
-        doc.rect(0, 55, pageW, 3, 'F');
-
-        // App name
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(148, 163, 184);       // slate-400
-        doc.text('AcadeMe', 14, 14);
-
-        // Main title
-        doc.setFontSize(26);
-        doc.setTextColor(255, 255, 255);
-        doc.text('CGPA Report', 14, 30);
-
-        // Subtitle / date
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(148, 163, 184);
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-        doc.text(`Generated on ${dateStr}`, 14, 40);
-        doc.text(`Total Subjects: ${cgpaSubjects.length}`, 14, 48);
-
-        // ── CGPA SCORE BADGE (top-right) ──────────────────────────────────────
-        const cgpaNum = parseFloat(calculatedCGPA);
-        const badgeX = pageW - 50;
-        const badgeY = 12;
-
-        // Badge circle background
-        doc.setFillColor(99, 102, 241);
-        doc.circle(badgeX + 15, badgeY + 18, 18, 'F');
-
-        // CGPA value
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`${calculatedCGPA}`, badgeX + 15, badgeY + 16, { align: 'center' });
-
-        // "CGPA" label
-        doc.setFontSize(8);
-        doc.setTextColor(199, 210, 254);      // indigo-200
-        doc.text('CGPA', badgeX + 15, badgeY + 24, { align: 'center' });
-
-        // Grade letter
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Grade: ${getGrade(cgpaNum)}`, badgeX + 15, badgeY + 33, { align: 'center' });
-
-        // ── PERFORMANCE MESSAGE ───────────────────────────────────────────────
-        let msgY = 72;
-        const msgColor = cgpaNum >= 7 ? [52, 211, 153] : cgpaNum >= 5 ? [251, 191, 36] : [248, 113, 113];
-        doc.setFillColor(...msgColor);
-        doc.roundedRect(14, msgY - 6, pageW - 28, 14, 3, 3, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42);
-        doc.text(getMessage(cgpaNum), pageW / 2, msgY + 2, { align: 'center' });
-
-        // ── SUBJECT TABLE ─────────────────────────────────────────────────────
-        let tableY = 96;
-
-        // Table header
-        doc.setFillColor(30, 41, 59);          // slate-800
-        doc.rect(14, tableY - 6, pageW - 28, 10, 'F');
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(148, 163, 184);
-        doc.text('#', 18, tableY);
-        doc.text('Subject Name', 28, tableY);
-        doc.text('Code', pageW - 65, tableY);
-        doc.text('Grade', pageW - 42, tableY);
-        doc.text('Points', pageW - 24, tableY);
-
-        tableY += 6;
-
-        // Table rows
-        cgpaSubjects.forEach((subject, i) => {
-            const rowY = tableY + i * 12;
-
-            // Alternate row shading
-            if (i % 2 === 0) {
-                doc.setFillColor(248, 250, 252);
-            } else {
-                doc.setFillColor(241, 245, 249);
-            }
-            doc.rect(14, rowY - 5, pageW - 28, 12, 'F');
-
-            // Row border
-            doc.setDrawColor(226, 232, 240);
-            doc.rect(14, rowY - 5, pageW - 28, 12, 'S');
-
-            const pts = GRADE_POINTS[subject.grade || 'F'];
-            const gradeColor = pts >= 8 ? [22, 163, 74] : pts >= 6 ? [234, 179, 8] : [220, 38, 38];
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(30, 41, 59);
-            doc.text(`${i + 1}`, 18, rowY + 2);
-
-            // Truncate long subject names
-            const maxNameWidth = pageW - 28 - 75;
-            const nameTxt = doc.splitTextToSize(subject.name || '—', maxNameWidth)[0];
-            doc.text(nameTxt, 28, rowY + 2);
-            doc.text(subject.code || '—', pageW - 65, rowY + 2);
-
-            // Grade pill
-            doc.setFillColor(...gradeColor);
-            doc.roundedRect(pageW - 46, rowY - 3, 12, 8, 2, 2, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(8);
-            doc.text(subject.grade || 'F', pageW - 40, rowY + 2, { align: 'center' });
-
-            // Points
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.setTextColor(99, 102, 241);
-            doc.text(`${pts}`, pageW - 22, rowY + 2, { align: 'center' });
-        });
-
-        // ── SUMMARY STATS BOX ─────────────────────────────────────────────────
-        let summaryY = tableY + cgpaSubjects.length * 12 + 14;
-
-        // Make sure it doesn't overflow
-        if (summaryY > pageH - 60) {
-            doc.addPage();
-            summaryY = 20;
-        }
-
-        const totalPoints = cgpaSubjects.reduce((s, sub) => s + GRADE_POINTS[sub.grade || 'F'], 0);
-        const highest = cgpaSubjects.reduce((best, sub) =>
-            GRADE_POINTS[sub.grade] > GRADE_POINTS[best.grade] ? sub : best, cgpaSubjects[0]);
-        const lowest = cgpaSubjects.reduce((worst, sub) =>
-            GRADE_POINTS[sub.grade] < GRADE_POINTS[worst.grade] ? sub : worst, cgpaSubjects[0]);
-
-        // Stats header
-        doc.setFillColor(30, 41, 59);
-        doc.roundedRect(14, summaryY, pageW - 28, 8, 2, 2, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(148, 163, 184);
-        doc.text('SUMMARY', 18, summaryY + 5.5);
-
-        summaryY += 12;
-
-        // 3-column stat cards
-        const cardW = (pageW - 28 - 8) / 3;
-        const stats = [
-            { label: 'Final CGPA', value: calculatedCGPA, color: [99, 102, 241] },
-            { label: 'Total Points', value: `${totalPoints} / ${cgpaSubjects.length * 10}`, color: [52, 211, 153] },
-            { label: 'Overall Grade', value: getGrade(cgpaNum), color: [251, 191, 36] },
-        ];
-
-        stats.forEach((stat, i) => {
-            const cardX = 14 + i * (cardW + 4);
-            doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(...stat.color);
-            doc.setLineWidth(0.5);
-            doc.roundedRect(cardX, summaryY, cardW, 20, 3, 3, 'FD');
-
-            // Colored top accent
-            doc.setFillColor(...stat.color);
-            doc.roundedRect(cardX, summaryY, cardW, 4, 2, 2, 'F');
-            doc.rect(cardX, summaryY + 2, cardW, 2, 'F');
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(...stat.color);
-            doc.text(String(stat.value), cardX + cardW / 2, summaryY + 13, { align: 'center' });
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            doc.setTextColor(100, 116, 139);
-            doc.text(stat.label, cardX + cardW / 2, summaryY + 18, { align: 'center' });
-        });
-
-        summaryY += 28;
-
-        // Best / Lowest subject info
-        if (highest && lowest) {
-            doc.setFillColor(240, 253, 244);
-            doc.setDrawColor(134, 239, 172);
-            doc.setLineWidth(0.3);
-            doc.roundedRect(14, summaryY, (pageW - 32) / 2, 16, 2, 2, 'FD');
-
-            doc.setFillColor(255, 241, 242);
-            doc.setDrawColor(252, 165, 165);
-            doc.roundedRect(14 + (pageW - 32) / 2 + 4, summaryY, (pageW - 32) / 2, 16, 2, 2, 'FD');
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.setTextColor(22, 163, 74);
-            doc.text('Best Subject', 18, summaryY + 6);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(30, 41, 59);
-            const bestTxt = doc.splitTextToSize(`${highest.name} (${highest.grade})`, (pageW - 32) / 2 - 6)[0];
-            doc.text(bestTxt, 18, summaryY + 12);
-
-            const rx = 14 + (pageW - 32) / 2 + 8;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.setTextColor(220, 38, 38);
-            doc.text('Needs Attention', rx, summaryY + 6);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(30, 41, 59);
-            const worstTxt = doc.splitTextToSize(`${lowest.name} (${lowest.grade})`, (pageW - 32) / 2 - 6)[0];
-            doc.text(worstTxt, rx, summaryY + 12);
-        }
-
-        // ── FOOTER ────────────────────────────────────────────────────────────
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, pageH - 14, pageW, 14, 'F');
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Generated by AcadeMe  •  Keep working hard!', pageW / 2, pageH - 5, { align: 'center' });
-
-        doc.save(`CGPA_Report_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`);
-    };
-    // ── END SAVE PDF ──────────────────────────────────────────────────────────
 
     const handleShare = async () => {
-        const text = `My CGPA: ${calculatedCGPA} | Grade: ${getGrade(parseFloat(calculatedCGPA))} | Subjects: ${cgpaSubjects.length} | ${getMessage(parseFloat(calculatedCGPA))} — via AcadeMe`;
+        const text = `My CGPA: ${calculatedCGPA} | Grade: ${getGradeLetter(parseFloat(calculatedCGPA))} | ${getPerformanceLabel(parseFloat(calculatedCGPA))} — via AcadeMe`;
         if (navigator.share) {
             await navigator.share({ title: 'My CGPA Result', text });
         } else {
@@ -336,7 +502,6 @@ const CGPACalculator = () => {
                         <p style={{ color: 'var(--text-secondary)' }}>Calculate your academic performance</p>
                     </div>
                 </div>
-
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px' }}>
                     <h3 style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>📋 Grade Points Reference</h3>
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -353,7 +518,6 @@ const CGPACalculator = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h3 style={{ fontSize: '1.2rem', fontWeight: '600' }}>Your Subjects</h3>
                         </div>
-
                         {cgpaSubjects.length === 0 ? (
                             <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
                                 No subjects added yet. Go to 'My Courses' to add mandatory subjects or add an elective below.
@@ -368,50 +532,36 @@ const CGPACalculator = () => {
                                     <span style={{ fontWeight: '500' }}>{subject.name}</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                         <div style={{ width: '100px' }}>
-                                            <GlassDropdown
-                                                options={GRADES}
-                                                value={subject.grade}
-                                                onChange={(g) => updateSubjectCGPA(subject.id, g)}
-                                            />
+                                            <GlassDropdown options={GRADES} value={subject.grade} onChange={(g) => updateSubjectCGPA(subject.id, g)} />
                                         </div>
-                                        <button
-                                            onClick={() => removeSubjectCGPA(subject.id)}
-                                            style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', opacity: 0.7 }}
-                                        >
+                                        <button onClick={() => removeSubjectCGPA(subject.id)}
+                                            style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', opacity: 0.7 }}>
                                             <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>
                             ))
                         )}
-
                         <div style={{
-                            display: 'flex', alignItems: 'center', gap: '1rem',
-                            padding: '1rem', background: 'rgba(59, 130, 246, 0.05)',
-                            borderRadius: '8px', border: '1px dashed rgba(59, 130, 246, 0.3)',
-                            marginTop: '1.5rem'
+                            display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem',
+                            background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px',
+                            border: '1px dashed rgba(59, 130, 246, 0.3)', marginTop: '1.5rem'
                         }}>
                             <div style={{ flex: 1 }}>
                                 <GlassDropdown
                                     options={availableElectives.map(c => c.name)}
                                     value={selectedElectiveId ? courses.find(c => c.id === selectedElectiveId)?.name : ''}
-                                    onChange={(name) => {
-                                        const c = courses.find(x => x.name === name);
-                                        if (c) setSelectedElectiveId(c.id);
-                                    }}
+                                    onChange={(name) => { const c = courses.find(x => x.name === name); if (c) setSelectedElectiveId(c.id); }}
                                     placeholder="Add Elective from Course List..."
                                 />
                             </div>
-                            <button
-                                onClick={handleAddElective}
-                                disabled={!selectedElectiveId}
+                            <button onClick={handleAddElective} disabled={!selectedElectiveId}
                                 style={{
                                     background: 'var(--primary)', border: 'none', color: 'white',
                                     width: '40px', height: '40px', borderRadius: '8px',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                                    opacity: !selectedElectiveId ? 0.5 : 1
-                                }}
-                            >
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', opacity: !selectedElectiveId ? 0.5 : 1
+                                }}>
                                 <Plus size={20} />
                             </button>
                         </div>
@@ -423,8 +573,7 @@ const CGPACalculator = () => {
                         <div style={{
                             width: '150px', height: '150px', borderRadius: '50%',
                             background: `radial-gradient(closest-side, #0F0F1A 79%, transparent 80% 100%), conic-gradient(${calculatedCGPA >= 5 ? '#34D399' : '#F87171'} ${showResult ? calculatedCGPA * 10 : 0}%, rgba(255,255,255,0.1) 0)`,
-                            margin: '0 auto 1.5rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                             <div>
                                 <div style={{ fontSize: '3rem', fontWeight: 'bold' }}>{showResult ? calculatedCGPA : '?'}</div>
@@ -441,26 +590,20 @@ const CGPACalculator = () => {
                             </div>
                         )}
 
-                        <GlassButton
-                            variant="gradient"
-                            style={{ width: '100%', justifyContent: 'center', marginBottom: '1rem' }}
-                            onClick={calculate}
-                        >
+                        <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center', marginBottom: '1rem' }} onClick={calculate}>
                             Calculate CGPA
                         </GlassButton>
 
                         {showResult && (
                             <div style={{ display: 'flex', gap: '1rem' }}>
                                 <GlassButton
-                                    onClick={handleSavePDF}
-                                    style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}
-                                >
+                                    onClick={() => generatePDF(cgpaSubjects, calculatedCGPA)}
+                                    style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}>
                                     <Save size={16} /> Save PDF
                                 </GlassButton>
                                 <GlassButton
                                     onClick={handleShare}
-                                    style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}
-                                >
+                                    style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}>
                                     <Share2 size={16} /> Share
                                 </GlassButton>
                             </div>
