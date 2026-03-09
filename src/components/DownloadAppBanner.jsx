@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import logo from "../assets/logo.jpg";
 
-const APK_URL = "https://drive.google.com/uc?export=download&id=1VLiFhunuvjc01BatpyqMs5V1SfKESE9Y";
+const APK_URL = "https://drive.google.com/uc?export=download&confirm=t&id=1VLiFhunuvjc01BatpyqMs5V1SfKESE9Y";
 
 const DownloadAppBanner = () => {
   const [showBanner, setShowBanner]         = useState(false);
