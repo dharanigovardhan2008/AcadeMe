@@ -39,99 +39,105 @@ const Settings = () => {
 
     const toggle = (key) => setSettings({ ...settings, [key]: !settings[key] });
 
+    // ─── FIXED: Unified permission flow for both Browser and TWA/APK ───
     const handlePushNotifToggle = async (value) => {
+
+        // ── TURN OFF ──────────────────────────────────────────────────
         if (!value) {
-            setSettings({ ...settings, pushNotifs: false });
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    // Clear token in Firestore so notify.py stops sending to this device
+                    await setDoc(doc(db, 'users', user.uid),
+                        { fcmToken: null, notificationsEnabled: false }, { merge: true });
+                    await setDoc(doc(db, 'fcm_tokens', user.uid),
+                        { token: null, updatedAt: new Date().toISOString() }, { merge: true });
+                }
+            } catch (e) {
+                console.error('Error disabling notifications:', e);
+            }
+            setSettings(prev => ({ ...prev, pushNotifs: false }));
             setNotifStatus(null);
             return;
         }
 
+        // ── TURN ON ───────────────────────────────────────────────────
         setLoading(true);
         setNotifStatus(null);
 
         try {
             const user = auth.currentUser;
-            if (!user) { setNotifStatus('error'); setLoading(false); return; }
-
-            // ✅ Detect TWA/APK
-            const isTWA = document.referrer.includes('android-app://')
-                || window.matchMedia('(display-mode: standalone)').matches;
-
-            if (isTWA) {
-                const permission = Notification.permission;
-
-                if (permission === 'denied') {
-                    setNotifStatus('denied');
-                    setLoading(false);
-                    return;
-                }
-
-                if (permission === 'granted') {
-                    try {
-                        const swReg = await navigator.serviceWorker.register('/sw.js');
-                        await navigator.serviceWorker.ready;
-                        const messaging = getMessaging();
-                        const token = await getToken(messaging, {
-                            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-                            serviceWorkerRegistration: swReg,
-                        });
-                        if (token) {
-                            await setDoc(doc(db, 'users', user.uid),
-                                { fcmToken: token, notificationsEnabled: true }, { merge: true });
-                            await setDoc(doc(db, 'fcm_tokens', user.uid),
-                                { token, userId: user.uid, updatedAt: new Date().toISOString() }, { merge: true });
-                            setSettings({ ...settings, pushNotifs: true });
-                            setNotifStatus('success');
-                        } else {
-                            setNotifStatus('denied');
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        setNotifStatus('error');
-                    }
-                    setLoading(false);
-                    return;
-                }
-
-                // permission === 'default' in TWA → show Android guide
-                setNotifStatus('twa_guide');
+            if (!user) {
+                setNotifStatus('error');
                 setLoading(false);
                 return;
             }
 
-            // ✅ Normal browser flow
+            // Step 1: Check if FCM is supported on this browser/device
+            // Catches Firefox, old Safari, some Android WebViews
             const supported = await isSupported();
-            if (!supported) { setNotifStatus('unsupported'); setLoading(false); return; }
+            if (!supported) {
+                setNotifStatus('unsupported');
+                setLoading(false);
+                return;
+            }
 
+            // Step 2: Request permission — ONE call works for BOTH browser AND TWA/APK
+            // In a TWA on Android this triggers the native system permission dialog
+            // Previously the code was skipping this in TWA and jumping straight to
+            // showing the manual guide — which meant the dialog NEVER appeared
             const permission = await Notification.requestPermission();
-            if (permission !== 'granted') { setNotifStatus('denied'); setLoading(false); return; }
 
+            if (permission === 'denied') {
+                // User has previously denied — Android won't show dialog again
+                // Guide them to manually enable in Android Settings
+                setNotifStatus('denied');
+                setLoading(false);
+                return;
+            }
+
+            if (permission !== 'granted') {
+                // User dismissed the dialog without choosing — do nothing silently
+                setSettings(prev => ({ ...prev, pushNotifs: false }));
+                setNotifStatus(null);
+                setLoading(false);
+                return;
+            }
+
+            // Step 3: Permission granted — register service worker and get FCM token
             const swReg = await navigator.serviceWorker.register('/sw.js');
             await navigator.serviceWorker.ready;
+
             const messaging = getMessaging();
             const token = await getToken(messaging, {
                 vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
                 serviceWorkerRegistration: swReg,
             });
 
-            if (!token) { setNotifStatus('error'); setLoading(false); return; }
+            if (!token) {
+                setNotifStatus('error');
+                setLoading(false);
+                return;
+            }
 
+            // Step 4: Save token to Firestore — notify.py reads this to send notifications
             await setDoc(doc(db, 'users', user.uid),
                 { fcmToken: token, notificationsEnabled: true }, { merge: true });
             await setDoc(doc(db, 'fcm_tokens', user.uid),
                 { token, userId: user.uid, updatedAt: new Date().toISOString() }, { merge: true });
 
-            setSettings({ ...settings, pushNotifs: true });
+            setSettings(prev => ({ ...prev, pushNotifs: true }));
             setNotifStatus('success');
 
         } catch (err) {
-            console.error(err);
+            console.error('Error enabling notifications:', err);
             setNotifStatus('error');
         }
 
         setLoading(false);
     };
 
+    // Load saved notification state from Firestore on mount
     useEffect(() => {
         const loadNotificationState = async () => {
             try {
@@ -198,24 +204,18 @@ const Settings = () => {
                                     <p style={{ fontSize: '0.8rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <XCircle size={12} /> Permission blocked.
                                     </p>
-                                    <p style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '4px' }}>
-                                        Go to Android Settings → Apps → AcadeMe → Notifications → Allow
-                                    </p>
-                                </div>
-                            )}
-
-                            {notifStatus === 'twa_guide' && (
-                                <div style={{ marginTop: '6px', padding: '10px', background: 'rgba(255,193,7,0.1)', borderRadius: '8px', border: '1px solid rgba(255,193,7,0.3)' }}>
-                                    <p style={{ fontSize: '0.8rem', color: '#FFC107', fontWeight: '600', marginBottom: '4px' }}>
-                                        ⚙️ Enable in Android Settings:
-                                    </p>
-                                    <p style={{ fontSize: '0.75rem', color: '#aaa', lineHeight: '1.6' }}>
-                                        1. Open Android <b style={{ color: 'white' }}>Settings</b><br />
-                                        2. Go to <b style={{ color: 'white' }}>Apps → AcadeMe</b><br />
-                                        3. Tap <b style={{ color: 'white' }}>Notifications</b><br />
-                                        4. Turn on <b style={{ color: 'white' }}>Allow Notifications</b><br />
-                                        5. Come back and toggle again ✅
-                                    </p>
+                                    <div style={{ marginTop: '6px', padding: '10px', background: 'rgba(255,193,7,0.1)', borderRadius: '8px', border: '1px solid rgba(255,193,7,0.3)' }}>
+                                        <p style={{ fontSize: '0.8rem', color: '#FFC107', fontWeight: '600', marginBottom: '4px' }}>
+                                            ⚙️ Enable manually in Android Settings:
+                                        </p>
+                                        <p style={{ fontSize: '0.75rem', color: '#aaa', lineHeight: '1.6' }}>
+                                            1. Open Android <b style={{ color: 'white' }}>Settings</b><br />
+                                            2. Go to <b style={{ color: 'white' }}>Apps → AcadeMe</b><br />
+                                            3. Tap <b style={{ color: 'white' }}>Notifications</b><br />
+                                            4. Turn on <b style={{ color: 'white' }}>Allow Notifications</b><br />
+                                            5. Come back and toggle again ✅
+                                        </p>
+                                    </div>
                                 </div>
                             )}
 
