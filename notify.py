@@ -22,15 +22,20 @@ last_update_id = None
 
 def send_notifications(title, body):
     try:
-        # ✅ Read from fcm_tokens collection (where firebase-messaging.js saves them)
-        tokens_ref = db.collection('fcm_tokens')
-        all_tokens = tokens_ref.stream()
-
         tokens = []
-        for doc in all_tokens:
-            data = doc.to_dict()
-            token = data.get('token')
+
+        # ✅ Read from fcm_tokens collection
+        for doc in db.collection('fcm_tokens').stream():
+            token = doc.to_dict().get('token')
             if token:
+                tokens.append(token)
+
+        # ✅ Also read from users collection (fallback)
+        for user in db.collection('users').stream():
+            data = user.to_dict()
+            token = data.get('fcmToken')
+            enabled = data.get('notificationsEnabled', False)
+            if token and enabled and token not in tokens:
                 tokens.append(token)
 
         if not tokens:
@@ -65,13 +70,12 @@ def watch_updates():
     global last_update_id
     print("Watcher thread started!")
 
-    # ✅ Set last_update_id on startup without sending notification
+    # ✅ Skip existing updates on startup
     try:
-        updates_ref = db.collection('updates')
-        all_updates = list(updates_ref.stream())
+        all_updates = list(db.collection('updates').stream())
         if all_updates:
             all_updates.sort(
-                key=lambda x: x.to_dict().get('createdAt', ''),
+                key=lambda x: x.to_dict().get('date', ''),
                 reverse=True
             )
             last_update_id = all_updates[0].id
@@ -81,12 +85,11 @@ def watch_updates():
 
     while True:
         try:
-            updates_ref = db.collection('updates')
-            all_updates = list(updates_ref.stream())
+            all_updates = list(db.collection('updates').stream())
 
             if all_updates:
                 all_updates.sort(
-                    key=lambda x: x.to_dict().get('createdAt', ''),
+                    key=lambda x: x.to_dict().get('date', ''),
                     reverse=True
                 )
                 latest = all_updates[0]
@@ -94,10 +97,8 @@ def watch_updates():
                 if latest.id != last_update_id:
                     last_update_id = latest.id
                     data = latest.to_dict()
-
                     title = data.get('title', 'New Update!')
                     body = data.get('message', 'Check AcadeMe for updates!')
-
                     print(f"New update detected: {title}")
                     send_notifications(title, body)
 
