@@ -64,10 +64,18 @@ const CGPACalculator = () => {
     };
 
     // ── SAVE PDF ──────────────────────────────────────────────────────────────
+    const loadJsPDF = () =>
+        new Promise((resolve, reject) => {
+            if (window.jspdf) return resolve(window.jspdf.jsPDF);
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = () => resolve(window.jspdf.jsPDF);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
     const handleSavePDF = async () => {
-        // Dynamically import jsPDF so it's only loaded when needed
-        const { default: jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
-            .catch(() => import('jspdf'));
+        const jsPDF = await loadJsPDF();
 
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pageW = doc.internal.pageSize.getWidth();
