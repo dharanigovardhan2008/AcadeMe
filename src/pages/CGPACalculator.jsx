@@ -30,376 +30,324 @@ const rr = (doc, x, y, w, h, r, style='F') => doc.roundedRect(x, y, w, h, r, r, 
    Uses a canvas to render rich gradient header, then
    precise jsPDF drawing for all data sections.
 ═════════════════════════════════════════════════════════════ */
-const generatePDF = async (cgpaSubjects, calculatedCGPA, user) => {
-  const doc   = new jsPDF({ unit:'mm', format:'a4' });
-  const PW    = 210, PH = 297;
-  const cgpa  = parseFloat(calculatedCGPA);
-  const now   = new Date();
-  const acc   = accentRGB(cgpa);
-  const grade = getGradeLetter(cgpa);
+const generatePDF = (cgpaSubjects, calculatedCGPA, user) => {
+  try {
+    const doc  = new jsPDF({ unit: 'mm', format: 'a4' });
+    const PW   = 210, PH = 297;
+    const cgpa = parseFloat(calculatedCGPA);
+    const now  = new Date();
+    const acc  = accentRGB(cgpa);
+    const grade = getGradeLetter(cgpa);
 
-  /* ── PALETTE ──────────────────────────────────────────────── */
-  const BG    = [11, 15, 28];
-  const HDR   = [14, 20, 40];
-  const CARD  = [20, 29, 55];
-  const CARD2 = [24, 35, 64];
-  const DIV   = [35, 50, 85];
-  const IND   = [99, 102, 241];
-  const INDL  = [165, 180, 252];
-  const WH    = [255,255,255];
-  const T1    = [226,232,240];
-  const T2    = [148,163,184];
-  const T3    = [71, 85,105];
+    const BG   = [11,15,28];
+    const HDR  = [14,20,40];
+    const CARD = [20,29,55];
+    const CARD2= [24,35,64];
+    const DIV  = [35,50,85];
+    const IND  = [99,102,241];
+    const INDL = [165,180,252];
+    const WH   = [255,255,255];
+    const T1   = [226,232,240];
+    const T2   = [148,163,184];
+    const T3   = [71,85,105];
 
-  /* ── PAGE BACKGROUND ─────────────────────────────────────── */
-  doc.setFillColor(...BG);
-  doc.rect(0, 0, PW, PH, 'F');
+    const ds = now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    const name   = user?.name   || 'Student';
+    const regNo  = user?.regNo  || '—';
+    const branch = user?.branch || '—';
+    const yr     = user?.year   || '—';
 
-  /* ── subtle dot-grid texture (3 faint dots per row) ─────── */
-  doc.setFillColor(...DIV);
-  doc.setGState(doc.GState({opacity:0.25}));
-  for(let r=8;r<PH;r+=10) for(let c=8;c<PW;c+=10) doc.circle(c,r,0.35,'F');
-  doc.setGState(doc.GState({opacity:1}));
+    // ── PAGE BG ────────────────────────────────────────────────
+    doc.setFillColor(...BG);
+    doc.rect(0, 0, PW, PH, 'F');
 
-  /* ══════════════════════════════════════════════════════════
-     SECTION 1 ── HEADER  (0 → 75mm)
-  ══════════════════════════════════════════════════════════ */
-  /* gradient illusion: 3 overlapping rects from dark→slightly lighter */
-  [[HDR,0],[  [16,23,46],25],[[18,26,50],50]].forEach(([c,y])=>{
-    doc.setFillColor(...c); doc.rect(0,y,PW,26,'F');
-  });
-  /* hard bottom edge */
-  doc.setFillColor(...BG); doc.rect(0,74,PW,2,'F');
+    // ── HEADER BG ──────────────────────────────────────────────
+    doc.setFillColor(...HDR);
+    doc.rect(0, 0, PW, 75, 'F');
+    doc.setFillColor(16,23,46);
+    doc.rect(0, 25, PW, 26, 'F');
+    doc.setFillColor(18,26,50);
+    doc.rect(0, 50, PW, 26, 'F');
 
-  /* left accent pillar */
-  doc.setFillColor(...IND); doc.rect(0,0,5,75,'F');
+    // left accent bar
+    doc.setFillColor(...IND);
+    doc.rect(0, 0, 5, 75, 'F');
 
-  /* indigo glow top-right */
-  doc.setFillColor(...IND);
-  doc.setGState(doc.GState({opacity:0.08})); doc.circle(PW+5,0,55,'F');
-  doc.setGState(doc.GState({opacity:0.04})); doc.circle(PW+5,0,80,'F');
-  doc.setGState(doc.GState({opacity:1}));
+    // ── LOGO ───────────────────────────────────────────────────
+    try { doc.addImage(LOGO_B64, 'JPEG', 10, 9, 20, 20, '', 'FAST'); } catch(e) {}
 
-  /* ── Logo ────────────────────────────────────────────────── */
-  try { doc.addImage(LOGO_B64,'JPEG',10,9,20,20,'','FAST'); } catch(e){}
+    // App name + tagline
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...WH);
+    doc.text('AcadeMe', 34, 18);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
+    doc.text('Academic Performance Tracker', 34, 25);
 
-  /* App name */
-  doc.setFont('helvetica','bold'); doc.setFontSize(17);
-  doc.setTextColor(...WH);
-  doc.text('AcadeMe', 34, 18);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.setTextColor(...INDL);
-  doc.text('Academic Performance Tracker', 34, 25);
+    // vertical divider
+    doc.setDrawColor(...DIV); doc.setLineWidth(0.3);
+    doc.line(105, 8, 105, 36);
 
-  /* vertical rule between logo area and report info */
-  doc.setDrawColor(...DIV); doc.setLineWidth(0.3);
-  doc.line(105,8,105,36);
+    // report title
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...WH);
+    doc.text('CGPA REPORT', 112, 17);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...T2);
+    doc.text('Date: ' + ds, 112, 24);
+    doc.text('Semester Analysis  ·  Confidential', 112, 30);
 
-  /* Report label */
-  doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.setTextColor(...WH);
-  doc.text('CGPA REPORT', 112,17);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.setTextColor(...T2);
-  const ds = now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  doc.text(`Date: ${ds}`, 112, 24);
-  doc.text('Semester Analysis  ·  Confidential', 112, 30);
+    // separator
+    doc.setDrawColor(...DIV); doc.setLineWidth(0.25);
+    doc.line(10, 40, PW-10, 40);
 
-  /* ── thin separator ──────────────────────────────────────── */
-  doc.setDrawColor(...DIV); doc.setLineWidth(0.25);
-  doc.line(10,40,PW-10,40);
+    // student info
+    const fields = [
+      {lbl:'STUDENT NAME', val:name.toUpperCase(),           x:10},
+      {lbl:'REG. NUMBER',  val:String(regNo).toUpperCase(),  x:72},
+      {lbl:'BRANCH',       val:String(branch).toUpperCase(), x:134},
+      {lbl:'YEAR',         val:String(yr),                   x:183},
+    ];
+    fields.forEach(f => {
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T3);
+      doc.text(f.lbl, f.x, 48);
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...T1);
+      doc.text(f.val, f.x, 56);
+    });
 
-  /* ── Student info band ───────────────────────────────────── */
-  const name   = user?.name   || 'Student';
-  const regNo  = user?.regNo  || '—';
-  const branch = user?.branch || '—';
-  const yr     = user?.year   || '—';
+    // accent underline on name
+    doc.setDrawColor(...acc); doc.setLineWidth(0.5);
+    const nameW = doc.getTextWidth(name.toUpperCase()) * 0.9;
+    doc.line(10, 58, 10 + nameW, 58);
 
-  [
-    {lbl:'STUDENT NAME', val:name.toUpperCase(),           x:10},
-    {lbl:'REG. NUMBER',  val:String(regNo).toUpperCase(),  x:72},
-    {lbl:'BRANCH',       val:String(branch).toUpperCase(), x:134},
-    {lbl:'YEAR',         val:String(yr),                   x:183},
-  ].forEach(f=>{
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T3);
-    doc.text(f.lbl, f.x, 48);
-    doc.setFont('helvetica','bold');   doc.setFontSize(8.5); doc.setTextColor(...T1);
-    doc.text(f.val, f.x, 56);
-  });
+    // progress bar at bottom of header
+    const fillW = PW * (cgpa / 10);
+    doc.setFillColor(...acc);
+    doc.rect(0, 73, fillW, 2, 'F');
+    doc.setFillColor(...IND);
+    doc.rect(fillW, 73, PW - fillW, 2, 'F');
 
-  /* accent underline on name */
-  doc.setDrawColor(...acc); doc.setLineWidth(0.5);
-  doc.line(10, 58, 10+doc.getTextWidth(name.toUpperCase())*0.9, 58);
+    // ══ CGPA HERO CARD ════════════════════════════════════════
+    let y = 78;
+    doc.setFillColor(...CARD);
+    rr(doc, 10, y, PW-20, 46, 4);
+    doc.setFillColor(...acc);
+    doc.rect(10, y, 5, 46, 'F');
 
-  /* bottom border of header */
-  doc.setFillColor(...acc[0],acc[1],acc[2]);
-  doc.setFillColor(...acc);
-  doc.rect(0,73,PW*(cgpa/10),2,'F');
-  doc.setFillColor(...IND);
-  doc.rect(PW*(cgpa/10),73,PW*(1-cgpa/10),2,'F');
+    // big CGPA number
+    doc.setFont('helvetica','bold'); doc.setFontSize(42); doc.setTextColor(...acc);
+    doc.text(String(calculatedCGPA), 54, y+30, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...T2);
+    doc.text('out of 10.00', 54, y+38, {align:'center'});
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(...T3);
+    doc.text('YOUR CGPA', 54, y+7, {align:'center'});
 
-  /* ══════════════════════════════════════════════════════════
-     SECTION 2 ── CGPA HERO CARD  (78 → 128mm)
-  ══════════════════════════════════════════════════════════ */
-  let y = 78;
+    // divider
+    doc.setDrawColor(...DIV); doc.setLineWidth(0.3);
+    doc.line(84, y+7, 84, y+40);
 
-  /* card */
-  doc.setFillColor(...CARD);
-  rr(doc, 10, y, PW-20, 46, 4);
+    // performance
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...acc);
+    doc.text(getPerf(cgpa), 92, y+18);
 
-  /* left accent bar */
-  doc.setFillColor(...acc);
-  rr(doc, 10, y, 5, 46, 2);
-  doc.rect(13, y, 2, 46,'F');
+    // grade pill
+    doc.setFillColor(...IND);
+    rr(doc, 92, y+22, 32, 11, 3);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...WH);
+    doc.text('GRADE  ' + grade, 108, y+30, {align:'center'});
 
-  /* big CGPA digit */
-  doc.setFont('helvetica','bold'); doc.setFontSize(42);
-  doc.setTextColor(...acc);
-  doc.text(calculatedCGPA, 54, y+30, {align:'center'});
+    // percentage
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T2);
+    doc.text(((cgpa/10)*100).toFixed(1) + '%  Percentage Equivalent', 92, y+41);
 
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  doc.setTextColor(...T2);
-  doc.text('out of 10.00', 54, y+38, {align:'center'});
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
-  doc.setTextColor(...T3);
-  doc.text('YOUR CGPA', 54, y+7, {align:'center'});
-
-  /* vertical rule */
-  doc.setDrawColor(...DIV); doc.setLineWidth(0.3);
-  doc.line(84, y+7, 84, y+40);
-
-  /* performance text */
-  doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.setTextColor(...acc);
-  doc.text(getPerf(cgpa), 92, y+18);
-
-  /* grade pill */
-  doc.setFillColor(...IND);
-  rr(doc, 92, y+22, 32, 11, 3);
-  doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.setTextColor(...WH);
-  doc.text(`GRADE  ${grade}`, 108, y+30, {align:'center'});
-
-  /* pct */
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
-  doc.setTextColor(...T2);
-  doc.text(`${((cgpa/10)*100).toFixed(1)}%  Percentage Equivalent`, 92, y+41);
-
-  /* progress bar */
-  y += 46;
-  doc.setFillColor(...DIV); rr(doc,10,y,PW-20,4,2);
-  doc.setFillColor(...acc); rr(doc,10,y,(PW-20)*(cgpa/10),4,2);
-  doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
-  doc.text('0',10,y+8); doc.text('5.0',(PW)/2,y+8,{align:'center'}); doc.text('10',PW-10,y+8,{align:'right'});
-  y += 13;
-
-  /* ══════════════════════════════════════════════════════════
-     SECTION 3 ── STAT CARDS  (y → y+26)
-  ══════════════════════════════════════════════════════════ */
-  const totalPts = cgpaSubjects.reduce((s,sub)=>s+GRADE_POINTS[sub.grade||'F'],0);
-  const passed   = cgpaSubjects.filter(s=>GRADE_POINTS[s.grade||'F']>=5).length;
-  const highest  = [...cgpaSubjects].sort((a,b)=>GRADE_POINTS[b.grade]-GRADE_POINTS[a.grade])[0];
-  const lowest   = [...cgpaSubjects].sort((a,b)=>GRADE_POINTS[a.grade]-GRADE_POINTS[b.grade])[0];
-
-  const statCards = [
-    {lbl:'SUBJECTS',   val:String(cgpaSubjects.length),         clr:IND},
-    {lbl:'TOTAL PTS',  val:`${totalPts}/${cgpaSubjects.length*10}`, clr:[14,165,233]},
-    {lbl:'PASSED',     val:`${passed}/${cgpaSubjects.length}`,  clr:[52,211,153]},
-    {lbl:'PERCENTAGE', val:`${((cgpa/10)*100).toFixed(1)}%`,    clr:[...acc]},
-  ];
-  const sw = (PW-20-9)/4;
-  statCards.forEach((sc,i)=>{
-    const sx = 10+i*(sw+3);
-    doc.setFillColor(...CARD2); rr(doc,sx,y,sw,24,3);
-    doc.setFillColor(...sc.clr); rr(doc,sx,y,sw,4,2); doc.rect(sx,y+2,sw,2,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...sc.clr);
-    doc.text(sc.val, sx+sw/2, y+16, {align:'center'});
+    // progress bar
+    y += 46;
+    doc.setFillColor(...DIV); rr(doc, 10, y, PW-20, 4, 2);
+    doc.setFillColor(...acc); rr(doc, 10, y, (PW-20)*(cgpa/10), 4, 2);
     doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
-    doc.text(sc.lbl, sx+sw/2, y+22, {align:'center'});
-  });
-  y += 30;
+    doc.text('0', 10, y+8);
+    doc.text('5.0', PW/2, y+8, {align:'center'});
+    doc.text('10', PW-10, y+8, {align:'right'});
+    y += 13;
 
-  /* ══════════════════════════════════════════════════════════
-     SECTION 4 ── SUBJECT TABLE
-  ══════════════════════════════════════════════════════════ */
-  /* section heading */
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
-  doc.text('SUBJECT BREAKDOWN', 10, y);
-  doc.setDrawColor(...IND); doc.setLineWidth(0.4);
-  doc.line(10,y+1.2, 10+doc.getTextWidth('SUBJECT BREAKDOWN'), y+1.2);
-  y += 6;
-
-  /* column layout */
-  const C = { no:{x:10,w:9}, name:{x:21,w:84}, code:{x:107,w:28}, grade:{x:137,w:20}, pts:{x:159,w:14}, bar:{x:175,w:25} };
-
-  /* header row */
-  doc.setFillColor(...IND); doc.setGState(doc.GState({opacity:0.2}));
-  rr(doc,10,y,PW-20,9,2);
-  doc.setGState(doc.GState({opacity:1}));
-  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...INDL);
-  doc.text('#',        C.no.x+2,   y+5.8);
-  doc.text('SUBJECT',  C.name.x,   y+5.8);
-  doc.text('CODE',     C.code.x+C.code.w/2,   y+5.8, {align:'center'});
-  doc.text('GRADE',    C.grade.x+C.grade.w/2, y+5.8, {align:'center'});
-  doc.text('PTS',      C.pts.x+C.pts.w/2,     y+5.8, {align:'center'});
-  doc.text('SCORE BAR',C.bar.x+C.bar.w/2,     y+5.8, {align:'center'});
-  y += 9;
-
-  const RH = 10;
-  cgpaSubjects.forEach((sub,i)=>{
-    const pts = GRADE_POINTS[sub.grade||'F'];
-    const gc  = gradeRGB(pts);
-    const ry  = y + i*RH;
-
-    /* row bg */
-    doc.setFillColor(...(i%2===0?CARD:CARD2));
-    doc.rect(10,ry,PW-20,RH,'F');
-
-    /* left grade-colour strip */
-    doc.setFillColor(...gc); doc.rect(10,ry,3,RH,'F');
-
-    /* bottom border */
-    doc.setDrawColor(...DIV); doc.setLineWidth(0.12);
-    doc.line(10,ry+RH,PW-10,ry+RH);
-
-    /* index */
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T3);
-    doc.text(String(i+1).padStart(2,'0'), C.no.x+2, ry+6.5);
-
-    /* name */
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
-    doc.text(doc.splitTextToSize(sub.name||'—',C.name.w-2)[0], C.name.x, ry+6.5);
-
-    /* code pill */
-    const code=sub.code||'—', cw=doc.getTextWidth(code)+5;
-    doc.setFillColor(...IND); doc.setGState(doc.GState({opacity:0.22}));
-    rr(doc, C.code.x+C.code.w/2-cw/2, ry+1.8, cw, 6, 1.5);
-    doc.setGState(doc.GState({opacity:1}));
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...INDL);
-    doc.text(code, C.code.x+C.code.w/2, ry+6.3, {align:'center'});
-
-    /* grade badge */
-    doc.setFillColor(...gc);
-    rr(doc, C.grade.x+C.grade.w/2-6.5, ry+1.8, 13, 7, 1.8);
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...BG);
-    doc.text(sub.grade||'F', C.grade.x+C.grade.w/2, ry+6.8, {align:'center'});
-
-    /* pts */
-    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...gc);
-    doc.text(String(pts), C.pts.x+C.pts.w/2, ry+6.5, {align:'center'});
-
-    /* score bar */
-    const bx=C.bar.x, bw=C.bar.w, fill=(pts/10)*bw;
-    doc.setFillColor(...DIV); rr(doc,bx,ry+3.5,bw,3,1.2);
-    doc.setFillColor(...gc);  rr(doc,bx,ry+3.5,fill,3,1.2);
-    doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
-    doc.text(`${pts}/10`, bx+bw+1, ry+6.5);
-  });
-
-  y += cgpaSubjects.length*RH;
-
-  /* table bottom rule */
-  doc.setDrawColor(...IND); doc.setGState(doc.GState({opacity:0.3}));
-  doc.setLineWidth(0.5); doc.line(10,y,PW-10,y);
-  doc.setGState(doc.GState({opacity:1}));
-  y += 9;
-
-  /* ══════════════════════════════════════════════════════════
-     SECTION 5 ── BEST / WORST + REMARK
-  ══════════════════════════════════════════════════════════ */
-  if(highest && lowest){
-    const hw=(PW-20-4)/2;
-
-    /* best */
-    doc.setFillColor(...CARD); rr(doc,10,y,hw,20,3);
-    doc.setFillColor(52,211,153); rr(doc,10,y,4,20,2); doc.rect(12,y,2,20,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(52,211,153);
-    doc.text('BEST SUBJECT',17,y+6);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
-    doc.text(doc.splitTextToSize(highest.name,hw-12)[0],17,y+13);
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(52,211,153);
-    doc.text(`Grade ${highest.grade}  ·  ${GRADE_POINTS[highest.grade]} pts`,10+hw-2,y+16,{align:'right'});
-
-    /* worst */
-    const rx=10+hw+4;
-    doc.setFillColor(...CARD); rr(doc,rx,y,hw,20,3);
-    doc.setFillColor(248,113,113); rr(doc,rx,y,4,20,2); doc.rect(rx+2,y,2,20,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(248,113,113);
-    doc.text('NEEDS ATTENTION',rx+7,y+6);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
-    doc.text(doc.splitTextToSize(lowest.name,hw-12)[0],rx+7,y+13);
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(248,113,113);
-    doc.text(`Grade ${lowest.grade}  ·  ${GRADE_POINTS[lowest.grade]} pts`,rx+hw-2,y+16,{align:'right'});
-    y += 26;
-  }
-
-  /* remark */
-  doc.setFillColor(...CARD); rr(doc,10,y,PW-20,15,3);
-  doc.setFillColor(...acc); rr(doc,10,y,4,15,2); doc.rect(12,y,2,15,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(...acc);
-  doc.text('REMARK',17,y+6);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T2);
-  doc.text(getRemark(cgpa),17,y+12);
-  y += 21;
-
-  /* ══════════════════════════════════════════════════════════
-     SECTION 6 ── GRADE SCALE
-  ══════════════════════════════════════════════════════════ */
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
-  doc.text('GRADE SCALE REFERENCE',10,y);
-  doc.setDrawColor(...IND); doc.setLineWidth(0.4);
-  doc.line(10,y+1.5,10+doc.getTextWidth('GRADE SCALE REFERENCE'),y+1.5);
-  y += 8;
-
-  const scl=[
-    {g:'S',p:10,c:[52,211,153]},{g:'A',p:9,c:[99,102,241]},{g:'B',p:8,c:[59,130,246]},
-    {g:'C',p:7,c:[250,204,21]},{g:'D',p:6,c:[249,115,22]},{g:'E',p:5,c:[239,68,68]},{g:'F',p:0,c:[100,116,139]}
-  ];
-  const tw=(PW-20-12)/7;
-  scl.forEach((it,i)=>{
-    const tx=10+i*(tw+2), isMe=grade===it.g;
-    if(isMe){
-      /* highlight tile with glow */
-      doc.setFillColor(...it.c); doc.setGState(doc.GState({opacity:0.18}));
-      rr(doc,tx-1,y-6,tw+2,26,3);
-      doc.setGState(doc.GState({opacity:1}));
-      doc.setFillColor(...it.c); rr(doc,tx,y-4,tw,22,3);
-      doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...BG);
-      doc.text(it.g,tx+tw/2,y+8,{align:'center'});
-      doc.setFontSize(6); doc.text(`${it.p} pts`,tx+tw/2,y+14,{align:'center'});
-      doc.setFontSize(5.5); doc.setTextColor(...it.c);
-      doc.text('▲ YOU',tx+tw/2,y-7,{align:'center'});
-    } else {
-      doc.setFillColor(...CARD2); rr(doc,tx,y,tw,15,2);
-      doc.setFillColor(...it.c); doc.setGState(doc.GState({opacity:0.12}));
-      rr(doc,tx,y,tw,15,2);
-      doc.setGState(doc.GState({opacity:1}));
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...it.c);
-      doc.text(it.g,tx+tw/2,y+8,{align:'center'});
+    // ══ STAT CARDS ═════════════════════════════════════════════
+    const totalPts = cgpaSubjects.reduce((s,sub) => s + GRADE_POINTS[sub.grade||'F'], 0);
+    const passed   = cgpaSubjects.filter(s => GRADE_POINTS[s.grade||'F'] >= 5).length;
+    const statCards = [
+      {lbl:'SUBJECTS',   val:String(cgpaSubjects.length),              clr:IND},
+      {lbl:'TOTAL PTS',  val:totalPts+'/'+cgpaSubjects.length*10,      clr:[14,165,233]},
+      {lbl:'PASSED',     val:passed+'/'+cgpaSubjects.length,           clr:[52,211,153]},
+      {lbl:'PERCENTAGE', val:((cgpa/10)*100).toFixed(1)+'%',           clr:acc},
+    ];
+    const sw = (PW - 20 - 9) / 4;
+    statCards.forEach((sc, i) => {
+      const sx = 10 + i*(sw+3);
+      doc.setFillColor(...CARD2); rr(doc, sx, y, sw, 24, 3);
+      doc.setFillColor(...sc.clr); doc.rect(sx, y, sw, 4, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...sc.clr);
+      doc.text(sc.val, sx+sw/2, y+16, {align:'center'});
       doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
-      doc.text(`${it.p}`,tx+tw/2,y+13,{align:'center'});
+      doc.text(sc.lbl, sx+sw/2, y+22, {align:'center'});
+    });
+    y += 30;
+
+    // ══ SUBJECT TABLE ══════════════════════════════════════════
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
+    doc.text('SUBJECT BREAKDOWN', 10, y);
+    doc.setDrawColor(...IND); doc.setLineWidth(0.4);
+    doc.line(10, y+1.5, 10+doc.getTextWidth('SUBJECT BREAKDOWN'), y+1.5);
+    y += 6;
+
+    // table header
+    doc.setFillColor(...IND); doc.rect(10, y, PW-20, 9, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...WH);
+    doc.text('#',         13,  y+5.8);
+    doc.text('SUBJECT',   22,  y+5.8);
+    doc.text('CODE',      121, y+5.8, {align:'center'});
+    doc.text('GRADE',     147, y+5.8, {align:'center'});
+    doc.text('PTS',       162, y+5.8, {align:'center'});
+    doc.text('SCORE BAR', 188, y+5.8, {align:'center'});
+    y += 9;
+
+    const RH = 10;
+    cgpaSubjects.forEach((sub, i) => {
+      const pts = GRADE_POINTS[sub.grade||'F'];
+      const gc  = gradeRGB(pts);
+      const ry  = y + i*RH;
+
+      doc.setFillColor(...(i%2===0 ? CARD : CARD2));
+      doc.rect(10, ry, PW-20, RH, 'F');
+      doc.setFillColor(...gc);
+      doc.rect(10, ry, 3, RH, 'F');
+      doc.setDrawColor(...DIV); doc.setLineWidth(0.12);
+      doc.line(10, ry+RH, PW-10, ry+RH);
+
+      // row number
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T3);
+      doc.text(String(i+1).padStart(2,'0'), 13, ry+6.5);
+
+      // subject name
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
+      doc.text(doc.splitTextToSize(sub.name||'—', 82)[0], 22, ry+6.5);
+
+      // code pill bg
+      const code = sub.code || '—';
+      const cpw  = doc.getTextWidth(code) + 5;
+      doc.setFillColor(...IND);
+      rr(doc, 121 - cpw/2, ry+2, cpw, 6, 1.5);
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...WH);
+      doc.text(code, 121, ry+6.3, {align:'center'});
+
+      // grade badge
+      doc.setFillColor(...gc);
+      rr(doc, 147-6.5, ry+1.8, 13, 7, 1.8);
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...BG);
+      doc.text(sub.grade||'F', 147, ry+6.8, {align:'center'});
+
+      // points
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...gc);
+      doc.text(String(pts), 162, ry+6.5, {align:'center'});
+
+      // score bar
+      doc.setFillColor(...DIV); rr(doc, 175, ry+3.5, 25, 3, 1.2);
+      doc.setFillColor(...gc);  rr(doc, 175, ry+3.5, (pts/10)*25, 3, 1.2);
+      doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
+      doc.text(pts+'/10', 201, ry+6.5);
+    });
+
+    y += cgpaSubjects.length * RH;
+    doc.setDrawColor(...IND); doc.setLineWidth(0.5);
+    doc.line(10, y, PW-10, y);
+    y += 9;
+
+    // ══ BEST / WORST ═══════════════════════════════════════════
+    const sorted  = [...cgpaSubjects].sort((a,b) => GRADE_POINTS[b.grade||'F'] - GRADE_POINTS[a.grade||'F']);
+    const highest = sorted[0];
+    const lowest  = sorted[sorted.length-1];
+
+    if (highest && lowest) {
+      const hw = (PW - 24) / 2;
+      doc.setFillColor(...CARD); rr(doc, 10, y, hw, 20, 3);
+      doc.setFillColor(52,211,153); doc.rect(10, y, 4, 20, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(52,211,153);
+      doc.text('BEST SUBJECT', 17, y+6);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
+      doc.text(doc.splitTextToSize(highest.name||'—', hw-12)[0], 17, y+13);
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(52,211,153);
+      doc.text('Grade '+highest.grade+' · '+GRADE_POINTS[highest.grade||'F']+' pts', 10+hw-2, y+16, {align:'right'});
+
+      const rx = 10 + hw + 4;
+      doc.setFillColor(...CARD); rr(doc, rx, y, hw, 20, 3);
+      doc.setFillColor(248,113,113); doc.rect(rx, y, 4, 20, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(248,113,113);
+      doc.text('NEEDS ATTENTION', rx+7, y+6);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T1);
+      doc.text(doc.splitTextToSize(lowest.name||'—', hw-12)[0], rx+7, y+13);
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(248,113,113);
+      doc.text('Grade '+lowest.grade+' · '+GRADE_POINTS[lowest.grade||'F']+' pts', rx+hw-2, y+16, {align:'right'});
+      y += 26;
     }
-  });
 
-  /* ══════════════════════════════════════════════════════════
-     FOOTER
-  ══════════════════════════════════════════════════════════ */
-  doc.setDrawColor(...DIV); doc.setLineWidth(0.25); doc.line(0,PH-17,PW,PH-17);
-  doc.setFillColor(...HDR); doc.rect(0,PH-16,PW,16,'F');
-  doc.setFillColor(...IND); doc.rect(0,PH-16,5,16,'F');
+    // ══ REMARK ═════════════════════════════════════════════════
+    doc.setFillColor(...CARD); rr(doc, 10, y, PW-20, 15, 3);
+    doc.setFillColor(...acc); doc.rect(10, y, 4, 15, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(...acc);
+    doc.text('REMARK', 17, y+6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...T2);
+    doc.text(getRemark(cgpa), 17, y+12);
+    y += 21;
 
-  try { doc.addImage(LOGO_B64,'JPEG',7,PH-13,8,8,'','FAST'); } catch(e){}
+    // ══ GRADE SCALE ════════════════════════════════════════════
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
+    doc.text('GRADE SCALE REFERENCE', 10, y);
+    doc.setDrawColor(...IND); doc.setLineWidth(0.4);
+    doc.line(10, y+1.5, 10+doc.getTextWidth('GRADE SCALE REFERENCE'), y+1.5);
+    y += 8;
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
-  doc.text('AcadeMe',18,PH-7);
-  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T2);
-  doc.text(`${name.toUpperCase()}  ·  ${regNo}  ·  ${branch}  ·  Year ${yr}`, PW/2, PH-7, {align:'center'});
-  doc.text(`Page 1 of 1  ·  ${ds}`, PW-10, PH-7, {align:'right'});
+    const scl = [
+      {g:'S',p:10,c:[52,211,153]},{g:'A',p:9,c:[99,102,241]},{g:'B',p:8,c:[59,130,246]},
+      {g:'C',p:7,c:[250,204,21]},{g:'D',p:6,c:[249,115,22]},{g:'E',p:5,c:[239,68,68]},{g:'F',p:0,c:[100,116,139]}
+    ];
+    const tw = (PW - 20 - 12) / 7;
+    scl.forEach((it, i) => {
+      const tx   = 10 + i*(tw+2);
+      const isMe = grade === it.g;
+      if (isMe) {
+        doc.setFillColor(...it.c); rr(doc, tx, y-4, tw, 22, 3);
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...BG);
+        doc.text(it.g, tx+tw/2, y+8, {align:'center'});
+        doc.setFontSize(6); doc.text(it.p+' pts', tx+tw/2, y+14, {align:'center'});
+        doc.setFontSize(5.5); doc.setTextColor(...it.c);
+        doc.text('▲ YOU', tx+tw/2, y-5, {align:'center'});
+      } else {
+        doc.setFillColor(...CARD2); rr(doc, tx, y, tw, 15, 2);
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...it.c);
+        doc.text(it.g, tx+tw/2, y+8, {align:'center'});
+        doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(...T3);
+        doc.text(String(it.p), tx+tw/2, y+13, {align:'center'});
+      }
+    });
 
-  /* ── SAVE ─────────────────────────────────────────────── */
-  doc.save(`AcadeMe_CGPA_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${(name||'student').replace(/\s+/g,'_')}.pdf`);
+    // ══ FOOTER ═════════════════════════════════════════════════
+    doc.setDrawColor(...DIV); doc.setLineWidth(0.25);
+    doc.line(0, PH-17, PW, PH-17);
+    doc.setFillColor(...HDR); doc.rect(0, PH-16, PW, 16, 'F');
+    doc.setFillColor(...IND); doc.rect(0, PH-16, 5, 16, 'F');
+    try { doc.addImage(LOGO_B64, 'JPEG', 7, PH-13, 8, 8, '', 'FAST'); } catch(e) {}
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...INDL);
+    doc.text('AcadeMe', 18, PH-7);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...T2);
+    doc.text(name.toUpperCase()+'  ·  '+regNo+'  ·  '+branch+'  ·  Year '+yr, PW/2, PH-7, {align:'center'});
+    doc.text('Page 1 of 1  ·  '+ds, PW-10, PH-7, {align:'right'});
+
+    // ── SAVE ───────────────────────────────────────────────────
+    const safeName = (name||'student').replace(/\s+/g,'_');
+    const dateStr  = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+    doc.save('AcadeMe_CGPA_'+dateStr+'_'+safeName+'.pdf');
+
+  } catch(err) {
+    console.error('PDF generation failed:', err);
+    alert('PDF generation failed: ' + err.message);
+  }
 };
+
+
 
 /* ═════════════════════════════════════════════════════════════
    REACT COMPONENT
@@ -570,4 +518,3 @@ const CGPACalculator = () => {
 };
 
 export default CGPACalculator;
-
