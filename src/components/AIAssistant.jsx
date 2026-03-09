@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Bot, Sparkles, Loader2, Minimize2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Minimize2 } from 'lucide-react';
 import GlassCard from './GlassCard';
 import ReactMarkdown from 'react-markdown';
 
-// 🔴 PASTE YOUR *NEW* API KEY HERE 🔴
-const API_KEY = "AIzaSyDscBJQGxCYdmY8KMynOecn-StyALMHef0"; 
+// ✅ Bug #1 Fixed — API key moved to environment variable
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 const AIAssistant = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +24,7 @@ const AIAssistant = () => {
     }, [messages, isOpen]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() || loading) return;
 
         const userMessage = { role: 'user', text: input };
         setMessages(prev => [...prev, userMessage]);
@@ -32,89 +32,112 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
-            // DIRECT FETCH to the Free Tier Endpoint
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: input }]
-                    }]
-                })
-            });
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: input }] }]
+                    })
+                }
+            );
 
             const data = await response.json();
 
-            // Check if Google sent an error back
             if (!response.ok) {
                 console.error("API Error:", data);
                 throw new Error(data.error?.message || "Connection failed");
             }
 
-            // Extract text
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            
+
             if (text) {
-                setMessages(prev => [...prev, { role: 'model', text: text }]);
+                setMessages(prev => [...prev, { role: 'model', text }]);
             } else {
                 setMessages(prev => [...prev, { role: 'model', text: "⚠️ I didn't get a response. Please try asking differently." }]);
             }
 
         } catch (error) {
             console.error("Chat Error:", error);
-            setMessages(prev => [...prev, { role: 'model', text: "⚠️ Connection Error. Please ensure you created a NEW Project in Google AI Studio." }]);
+            setMessages(prev => [...prev, { role: 'model', text: "⚠️ Connection Error. Please try again later." }]);
         }
+
         setLoading(false);
     };
 
     return (
         <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            
+
             {/* CHAT WINDOW */}
             {isOpen && (
                 <div style={{ marginBottom: '15px', width: '350px', height: '500px', maxWidth: 'calc(100vw - 60px)' }}>
-                    <GlassCard style={{ 
-                        padding: '0', height: '100%', display: 'flex', flexDirection: 'column', 
-                        background: 'rgba(15, 15, 25, 0.95)', backdropFilter: 'blur(20px)', 
-                        border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' 
+                    <GlassCard style={{
+                        padding: '0', height: '100%', display: 'flex', flexDirection: 'column',
+                        background: 'rgba(15, 15, 25, 0.95)', backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
                     }}>
-                        
+
                         {/* HEADER */}
-                        <div style={{ padding: '15px', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ padding: '15px', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '12px 12px 0 0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'white' }}>
-                                <Bot size={20} /> <span style={{ fontWeight: 'bold' }}>AcadeMe AI</span>
+                                <Bot size={20} />
+                                <span style={{ fontWeight: 'bold' }}>AcadeMe AI</span>
                             </div>
-                            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><Minimize2 size={18} /></button>
+                            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                <Minimize2 size={18} />
+                            </button>
                         </div>
 
                         {/* MESSAGES */}
                         <div style={{ flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {messages.map((msg, idx) => (
-                                <div key={idx} style={{ 
-                                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '10px 14px', borderRadius: '12px', fontSize: '0.9rem', lineHeight: '1.5', 
-                                    background: msg.role === 'user' ? '#3B82F6' : 'rgba(255,255,255,0.1)', color: 'white' 
+                                <div key={idx} style={{
+                                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                    maxWidth: '85%', padding: '10px 14px', borderRadius: '12px',
+                                    fontSize: '0.9rem', lineHeight: '1.5',
+                                    background: msg.role === 'user' ? '#3B82F6' : 'rgba(255,255,255,0.1)',
+                                    color: 'white'
                                 }}>
-                                    {/* Tries to render Markdown, falls back to text if library missing */}
-                                    {typeof ReactMarkdown !== 'undefined' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
+                                    <ReactMarkdown>{msg.text}</ReactMarkdown>
                                 </div>
                             ))}
-                            {loading && <div style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: '10px' }}>Thinking...</div>}
+                            {loading && (
+                                <div style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>Thinking</span>
+                                    <span style={{ animation: 'pulse 1s infinite' }}>...</span>
+                                </div>
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
 
                         {/* INPUT */}
                         <div style={{ padding: '15px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '10px' }}>
-                            <input type="text" placeholder="Ask anything..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} style={{ flex: 1, padding: '10px', borderRadius: '20px', border: 'none', background: 'rgba(255,255,255,0.1)', color: 'white', outline: 'none' }} />
-                            <button onClick={handleSend} style={{ background: '#3B82F6', borderRadius: '50%', width: '40px', height: '40px', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Send size={18} /></button>
+                            <input
+                                type="text"
+                                placeholder="Ask anything..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                                style={{ flex: 1, padding: '10px', borderRadius: '20px', border: 'none', background: 'rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={loading || !input.trim()}
+                                style={{ background: loading ? 'rgba(59,130,246,0.5)' : '#3B82F6', borderRadius: '50%', width: '40px', height: '40px', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+                            >
+                                <Send size={18} />
+                            </button>
                         </div>
                     </GlassCard>
                 </div>
             )}
 
-            {/* BUTTON */}
-            <button onClick={() => setIsOpen(!isOpen)} style={{ width: '60px', height: '60px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* TOGGLE BUTTON */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                style={{ width: '60px', height: '60px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.5)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s' }}
+            >
                 {isOpen ? <X size={28} /> : <MessageSquare size={28} />}
             </button>
         </div>
