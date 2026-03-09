@@ -6,8 +6,8 @@ import { DataProvider } from "./context/DataContext";
 
 import ErrorBoundary from "./components/ErrorBoundary";
 import useAnimationSystem from "./hooks/useAnimationSystem";
-import DownloadAppBanner from "./components/DownloadAppBanner";
 
+import DownloadAppBanner from "./components/DownloadAppBanner";
 import SplashScreen from "./pages/SplashScreen";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -23,65 +23,30 @@ import AdminPanel from "./pages/AdminPanel";
 import CompleteProfile from "./pages/CompleteProfile";
 import FacultyReviews from "./pages/FacultyReviews";
 import CommonCourses from "./pages/CommonCourses";
+
 import AdminModal from "./components/AdminModal";
 
-// ─── Loading Screen (shown while Firebase checks auth) ───────────────────────
-const LoadingScreen = () => (
-  <div style={{
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center",
-    minHeight: "100vh", background: "#0F0F1A", gap: "1.5rem"
-  }}>
-    {/* Glowing blobs */}
-    <div style={{
-      position: "absolute", top: "25%", left: "25%",
-      width: 300, height: 300, borderRadius: "50%",
-      background: "rgba(59,130,246,0.15)", filter: "blur(80px)", pointerEvents: "none"
-    }} />
-    <div style={{
-      position: "absolute", bottom: "25%", right: "25%",
-      width: 300, height: 300, borderRadius: "50%",
-      background: "rgba(139,92,246,0.15)", filter: "blur(80px)", pointerEvents: "none"
-    }} />
-
-    {/* Spinner */}
-    <div style={{
-      width: 48, height: 48,
-      border: "4px solid rgba(255,255,255,0.08)",
-      borderTopColor: "#60A5FA",
-      borderRadius: "50%",
-      animation: "spin 0.8s linear infinite",
-      zIndex: 10
-    }} />
-    <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.9rem", zIndex: 10 }}>
-      Loading AcadeMe...
-    </p>
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
-);
-
-// ─── Protected Route ──────────────────────────────────────────────────────────
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  const [timedOut, setTimedOut] = useState(false);
 
-  // Safety valve — if Firebase hangs for 8s, stop loading and redirect to login
-  useEffect(() => {
-    if (!loading) return;
-    const id = setTimeout(() => setTimedOut(true), 8000);
-    return () => clearTimeout(id);
-  }, [loading]);
+  if (loading) {
+    return (
+      <div style={{ color: "white", padding: "2rem", textAlign: "center" }}>
+        Loading...
+      </div>
+    );
+  }
 
-  if (timedOut) return <Navigate to="/login" />;
-  if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
 
   return children;
 };
 
-// ─── App Content ─────────────────────────────────────────────────────────────
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+
   useAnimationSystem();
 
   useEffect(() => {
@@ -102,36 +67,94 @@ const AppContent = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
-        <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/calc"             element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>} />
-        <Route path="/attendance"       element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>} />
-        <Route path="/courses"          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>} />
-        <Route path="/common-courses"   element={<ProtectedRoute><CommonCourses /></ProtectedRoute>} />
-        <Route path="/faculty"          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
-        <Route path="/resources"        element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>} />
-        <Route path="/profile"          element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/settings"         element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/reviews"          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>} />
-        <Route path="/admin"            element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+        <Route
+          path="/complete-profile"
+          element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>}
+        />
 
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route
+          path="/dashboard"
+          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/calc"
+          element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/attendance"
+          element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/courses"
+          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/common-courses"
+          element={<ProtectedRoute><CommonCourses /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/faculty"
+          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/resources"
+          element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/profile"
+          element={<ProtectedRoute><Profile /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/settings"
+          element={<ProtectedRoute><Settings /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/reviews"
+          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/admin"
+          element={<ProtectedRoute><AdminPanel /></ProtectedRoute>}
+        />
+
+        {/* ✅ Bug #38 Fixed — was Navigate to="/" causing infinite loop on unknown routes */}
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
 
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      <AdminModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+      />
     </>
   );
 };
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AuthProvider>
           <DataProvider>
-            <div className="app-container" style={{ minHeight: "100vh", background: "#0F0F1A" }}>
+            <div
+              className="app-container"
+              style={{
+                minHeight: "100vh",
+                background: "#0F0F1A"
+              }}
+            >
+              {/* APK INSTALL BANNER */}
               <DownloadAppBanner />
+
               <AppContent />
             </div>
           </DataProvider>
