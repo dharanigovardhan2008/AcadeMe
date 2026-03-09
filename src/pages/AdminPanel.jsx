@@ -10,7 +10,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// --- USER MANAGEMENT (Your Original Code) ---
+// --- USER MANAGEMENT ---
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -40,9 +40,7 @@ const UserManagement = () => {
     const toggleBlockUser = async (userId, isBlocked) => {
         try {
             const userRef = doc(db, "users", userId);
-            await updateDoc(userRef, {
-                isBlocked: !isBlocked
-            });
+            await updateDoc(userRef, { isBlocked: !isBlocked });
             setUsers(users.map(user =>
                 user.id === userId ? { ...user, isBlocked: !isBlocked } : user
             ));
@@ -65,12 +63,11 @@ const UserManagement = () => {
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!selectedUserForMessage || !messageText.trim()) return;
-
         try {
             await addDoc(collection(db, "notifications"), {
                 userId: selectedUserForMessage.uid,
                 userName: selectedUserForMessage.name,
-                adminId: 'admin', 
+                adminId: 'admin',
                 message: messageText,
                 type: 'admin_message',
                 read: false,
@@ -94,7 +91,6 @@ const UserManagement = () => {
                 <h3 style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>User Management</h3>
                 <GlassButton onClick={fetchUsers}><Layers size={16} /> Refresh</GlassButton>
             </div>
-
             <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white' }}>
                     <thead>
@@ -111,9 +107,9 @@ const UserManagement = () => {
                             <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '1rem' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                        <img 
-                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=32`} 
-                                            alt={user.name} 
+                                        <img
+                                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&color=fff&size=32`}
+                                            alt={user.name}
                                             style={{ borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }}
                                         />
                                         <div>
@@ -122,9 +118,7 @@ const UserManagement = () => {
                                         </div>
                                     </div>
                                 </td>
-                                <td style={{ padding: '1rem' }}>
-                                    {user.regNo || <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>N/A</span>}
-                                </td>
+                                <td style={{ padding: '1rem' }}>{user.regNo || <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>N/A</span>}</td>
                                 <td style={{ padding: '1rem' }}>{user.branch}</td>
                                 <td style={{ padding: '1rem' }}>
                                     <Badge variant={user.isBlocked ? "destructive" : "success"}>
@@ -145,7 +139,13 @@ const UserManagement = () => {
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <GlassCard style={{ width: '400px', padding: '1.5rem' }}>
                         <h3 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>Send Message to {selectedUserForMessage.name}</h3>
-                        <form onSubmit={handleSendMessage}><textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type your message here..." style={{ width: '100%', minHeight: '100px', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', marginBottom: '1rem' }} required /><div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}><GlassButton type="button" onClick={() => setShowMessageModal(false)} style={{ background: 'rgba(255,255,255,0.1)' }}>Cancel</GlassButton><GlassButton type="submit" variant="gradient">Send</GlassButton></div></form>
+                        <form onSubmit={handleSendMessage}>
+                            <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type your message here..." style={{ width: '100%', minHeight: '100px', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', marginBottom: '1rem' }} required />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                <GlassButton type="button" onClick={() => setShowMessageModal(false)} style={{ background: 'rgba(255,255,255,0.1)' }}>Cancel</GlassButton>
+                                <GlassButton type="submit" variant="gradient">Send</GlassButton>
+                            </div>
+                        </form>
                     </GlassCard>
                 </div>
             )}
@@ -153,7 +153,7 @@ const UserManagement = () => {
     );
 };
 
-// --- FACULTY MANAGEMENT (Your Original Code) ---
+// --- FACULTY MANAGEMENT ---
 const FacultyManagement = () => {
     const { faculty } = useData();
     const [newFaculty, setNewFaculty] = useState({ name: '', designation: '', mobile: '', branch: 'CSE' });
@@ -164,7 +164,7 @@ const FacultyManagement = () => {
         setLoading(true);
         try {
             await addDoc(collection(db, "faculty"), newFaculty);
-            setNewFaculty({ name: '', designation: '', mobile: '', branch: 'CSE' }); 
+            setNewFaculty({ name: '', designation: '', mobile: '', branch: 'CSE' });
             alert("Faculty added successfully!");
         } catch (error) {
             console.error("Error adding faculty: ", error);
@@ -191,9 +191,9 @@ const FacultyManagement = () => {
             <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                 <h4 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>Add New Faculty</h4>
                 <form onSubmit={handleAddFaculty} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'end' }}>
-                    <input required type="text" placeholder="Name" value={newFaculty.name} onChange={(e) => setNewFaculty({ ...newFaculty, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }} />
-                    <input required type="text" placeholder="Designation" value={newFaculty.designation} onChange={(e) => setNewFaculty({ ...newFaculty, designation: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }} />
-                    <input required type="tel" placeholder="Mobile" value={newFaculty.mobile} onChange={(e) => setNewFaculty({ ...newFaculty, mobile: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }} />
+                    <input required type="text" placeholder="Name" value={newFaculty.name} onChange={(e) => setNewFaculty({ ...newFaculty, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
+                    <input required type="text" placeholder="Designation" value={newFaculty.designation} onChange={(e) => setNewFaculty({ ...newFaculty, designation: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
+                    <input required type="tel" placeholder="Mobile" value={newFaculty.mobile} onChange={(e) => setNewFaculty({ ...newFaculty, mobile: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }} />
                     <select value={newFaculty.branch} onChange={(e) => setNewFaculty({ ...newFaculty, branch: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}>{['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT', 'AIML', 'AIDS'].map(b => (<option key={b} value={b} style={{ background: '#333' }}>{b}</option>))}</select>
                     <GlassButton type="submit" disabled={loading} variant="gradient" style={{ justifyContent: 'center', height: '42px' }}>{loading ? 'Adding...' : 'Add Faculty'}</GlassButton>
                 </form>
@@ -208,7 +208,7 @@ const FacultyManagement = () => {
     );
 };
 
-// --- RESOURCES MANAGEMENT (Your Code) ---
+// --- RESOURCES MANAGEMENT ---
 const ResourcesManagement = () => {
     const [resources, setResources] = useState([]);
     const [newResource, setNewResource] = useState({ title: '', type: 'concept-map', url: '', branches: [] });
@@ -232,7 +232,11 @@ const ResourcesManagement = () => {
     const handleBranchChange = (branch) => {
         setNewResource(prev => {
             const currentBranches = prev.branches;
-            if (currentBranches.includes(branch)) { return { ...prev, branches: currentBranches.filter(b => b !== branch) }; } else { return { ...prev, branches: [...currentBranches, branch] }; }
+            if (currentBranches.includes(branch)) {
+                return { ...prev, branches: currentBranches.filter(b => b !== branch) };
+            } else {
+                return { ...prev, branches: [...currentBranches, branch] };
+            }
         });
     };
 
@@ -274,10 +278,10 @@ const ResourcesManagement = () => {
     );
 };
 
-// --- UPDATES MANAGEMENT (UPDATED: Added Link + Delete) ---
+// --- UPDATES MANAGEMENT ---
 const UpdatesManagement = () => {
     const [updates, setUpdates] = useState([]);
-    const [newUpdate, setNewUpdate] = useState({ title: '', message: '', link: '' }); // Added 'link'
+    const [newUpdate, setNewUpdate] = useState({ title: '', message: '', link: '' });
 
     const fetchUpdates = async () => {
         try {
@@ -294,9 +298,15 @@ const UpdatesManagement = () => {
     const postUpdate = async (e) => {
         e.preventDefault();
         try {
-            await addDoc(collection(db, "updates"), { ...newUpdate, date: new Date().toISOString() });
-            setNewUpdate({ title: '', message: '', link: '' }); 
-            fetchUpdates(); 
+            // ✅ Save both date AND createdAt so notify.py can find it
+            const now = new Date().toISOString();
+            await addDoc(collection(db, "updates"), {
+                ...newUpdate,
+                date: now,
+                createdAt: now
+            });
+            setNewUpdate({ title: '', message: '', link: '' });
+            fetchUpdates();
             alert("Update Posted!");
         } catch (error) { console.error(error); }
     };
@@ -310,23 +320,20 @@ const UpdatesManagement = () => {
 
     return (
         <GlassCard>
-            <h3 style={{marginBottom:'1rem'}}>System Updates</h3>
-            <form onSubmit={postUpdate} style={{display:'grid', gap:'1rem', marginBottom:'2rem'}}>
-                <input placeholder="Title" value={newUpdate.title} onChange={e=>setNewUpdate({...newUpdate, title:e.target.value})} style={{padding:'10px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', color:'white', borderRadius:'8px'}} required />
-                <textarea placeholder="Message" value={newUpdate.message} onChange={e=>setNewUpdate({...newUpdate, message:e.target.value})} style={{padding:'10px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', color:'white', borderRadius:'8px', minHeight:'80px'}} />
-                
-                {/* NEW LINK INPUT */}
-                <div style={{position:'relative'}}>
-                    <LinkIcon size={16} style={{position:'absolute', left:'10px', top:'12px', color:'#aaa'}} />
-                    <input 
-                        type="url" 
-                        placeholder="Resource Link (Optional)" 
-                        value={newUpdate.link} 
-                        onChange={e=>setNewUpdate({...newUpdate, link:e.target.value})} 
-                        style={{width:'100%', padding:'10px 10px 10px 35px', background:'rgba(0,0,0,0.2)', border:'1px solid rgba(255,255,255,0.1)', color:'white', borderRadius:'8px', outline:'none'}} 
+            <h3 style={{ marginBottom: '1rem' }}>System Updates</h3>
+            <form onSubmit={postUpdate} style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
+                <input placeholder="Title" value={newUpdate.title} onChange={e => setNewUpdate({ ...newUpdate, title: e.target.value })} style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px' }} required />
+                <textarea placeholder="Message" value={newUpdate.message} onChange={e => setNewUpdate({ ...newUpdate, message: e.target.value })} style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', minHeight: '80px' }} />
+                <div style={{ position: 'relative' }}>
+                    <LinkIcon size={16} style={{ position: 'absolute', left: '10px', top: '12px', color: '#aaa' }} />
+                    <input
+                        type="url"
+                        placeholder="Resource Link (Optional)"
+                        value={newUpdate.link}
+                        onChange={e => setNewUpdate({ ...newUpdate, link: e.target.value })}
+                        style={{ width: '100%', padding: '10px 10px 10px 35px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', outline: 'none' }}
                     />
                 </div>
-
                 <GlassButton type="submit" variant="gradient">Post Update</GlassButton>
             </form>
 
@@ -341,15 +348,12 @@ const UpdatesManagement = () => {
                                 </span>
                             </div>
                             <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)' }}>{u.message}</p>
-                            
-                            {/* LINK DISPLAY */}
                             {u.link && (
-                                <a href={u.link} target="_blank" rel="noreferrer" style={{ fontSize:'0.85rem', color:'var(--primary)', marginTop:'5px', display:'flex', alignItems:'center', gap:'5px' }}>
-                                    <ExternalLink size={14}/> View Resource
+                                <a href={u.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.85rem', color: 'var(--primary)', marginTop: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <ExternalLink size={14} /> View Resource
                                 </a>
                             )}
                         </div>
-                        
                         <GlassButton onClick={() => handleDeleteUpdate(u.id)} style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.1)' }}>
                             <Trash2 size={16} />
                         </GlassButton>
@@ -360,7 +364,7 @@ const UpdatesManagement = () => {
     );
 };
 
-// --- REVIEWS MANAGEMENT (Shows Student Name + Real Fetch) ---
+// --- REVIEWS MANAGEMENT ---
 const ReviewsManagement = () => {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -368,7 +372,6 @@ const ReviewsManagement = () => {
     const fetchReviews = async () => {
         setLoading(true);
         try {
-            // Updated collection name
             const q = query(collection(db, "facultyReviews"), orderBy("createdAt", "desc"));
             const list = [];
             const snapshot = await getDocs(q);
@@ -395,7 +398,6 @@ const ReviewsManagement = () => {
                 <h3 style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>Student Reviews & Feedback</h3>
                 <GlassButton onClick={fetchReviews}><Layers size={16} /> Refresh</GlassButton>
             </div>
-
             <div style={{ display: 'grid', gap: '1rem' }}>
                 {loading ? <p style={{ color: 'var(--text-secondary)' }}>Loading...</p> : reviews.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No reviews.</p> : reviews.map(r => (
                     <div key={r.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -409,8 +411,6 @@ const ReviewsManagement = () => {
                                 <span style={{ fontSize: '0.75rem', color: '#aaa' }}>{new Date(r.createdAt).toLocaleDateString()}</span>
                             </div>
                         </div>
-
-                        {/* STUDENT NAME SHOWN HERE */}
                         <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '8px', borderRadius: '8px', marginBottom: '10px', borderLeft: '3px solid #EC4899' }}>
                             <p style={{ fontSize: '0.8rem', color: '#EC4899', fontWeight: 'bold', marginBottom: '2px' }}>Posted By:</p>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9rem' }}>
@@ -418,9 +418,7 @@ const ReviewsManagement = () => {
                                 <span style={{ color: '#aaa', fontSize: '0.8rem' }}>({r.reviewerEmail})</span>
                             </div>
                         </div>
-
                         <p style={{ fontSize: '0.9rem', color: '#ddd', fontStyle: 'italic', marginBottom: '10px' }}>"{r.feedback}"</p>
-
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                             <GlassButton onClick={() => handleDeleteReview(r.id)} style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#EF4444' }}><Trash2 size={16} /> Delete</GlassButton>
                         </div>
@@ -431,6 +429,7 @@ const ReviewsManagement = () => {
     );
 };
 
+// --- MESSAGES TAB ---
 const MessagesTab = () => {
     const [allMessages, setAllMessages] = useState([]);
     const [loadingMessages, setLoadingMessages] = useState(true);
@@ -457,7 +456,7 @@ const MessagesTab = () => {
                 {loadingMessages ? <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>Loading...</p> : allMessages.map(msg => (
                     <div key={msg.id} style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(msg.userName || 'User')}&background=random&color=fff&size=32`} alt={msg.userName} style={{ borderRadius: '50%' }} />
                                 <div><h4 style={{ fontWeight: 'bold' }}>To: {msg.userName || 'Unknown User'}</h4><span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(msg.createdAt).toLocaleString()}</span></div>
                             </div>
@@ -473,18 +472,16 @@ const MessagesTab = () => {
 
 // --- MAIN ADMIN PANEL ---
 const AdminPanel = () => {
-    const { user, loading: authLoading } = useAuth(); 
-    const navigate = useNavigate(); 
+    const { user, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
-    
-    // REAL STATS STATE
     const [stats, setStats] = useState({ users: 0, faculty: 0, reviews: 0, resources: 0 });
     const [recentUsers, setRecentUsers] = useState([]);
 
     useEffect(() => {
         if (!authLoading) {
             if (!user || user.role !== 'admin') {
-                navigate('/dashboard'); 
+                navigate('/dashboard');
             }
         }
     }, [user, authLoading, navigate]);
@@ -492,23 +489,19 @@ const AdminPanel = () => {
     useEffect(() => {
         const getStats = async () => {
             try {
-                // Fetch REAL counts
                 const u = await getDocs(collection(db, "users"));
                 const f = await getDocs(collection(db, "faculty"));
                 const r = await getDocs(collection(db, "facultyReviews"));
                 const res = await getDocs(collection(db, "resources"));
-                
                 setStats({ users: u.size, faculty: f.size, reviews: r.size, resources: res.size });
-
-                // Fetch Recent Users
                 const qUsers = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(5));
                 const snapUsers = await getDocs(qUsers);
                 const recent = [];
                 snapUsers.forEach((doc) => recent.push({ id: doc.id, ...doc.data() }));
                 setRecentUsers(recent);
-            } catch(e) { console.error(e); }
+            } catch (e) { console.error(e); }
         };
-        if(user?.role === 'admin') getStats();
+        if (user?.role === 'admin') getStats();
     }, [user]);
 
     const STATS_DATA = [
@@ -523,7 +516,7 @@ const AdminPanel = () => {
         { id: 'user management', label: 'User Management', icon: Users },
         { id: 'faculty', label: 'Faculty', icon: Users },
         { id: 'resources', label: 'Resources', icon: BookOpen },
-        { id: 'reviews', label: 'Reviews', icon: MessageCircle }, 
+        { id: 'reviews', label: 'Reviews', icon: MessageCircle },
         { id: 'messages', label: 'Messages', icon: Send },
         { id: 'updates', label: 'Updates', icon: Bell },
     ];
@@ -545,7 +538,6 @@ const AdminPanel = () => {
                 </div>
             </GlassCard>
 
-            {/* OVERVIEW TAB (Your UI + Real Data) */}
             {activeTab === 'overview' && (
                 <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -560,7 +552,6 @@ const AdminPanel = () => {
                             </GlassCard>
                         ))}
                     </div>
-
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
                         <GlassCard>
                             <h3 style={{ marginBottom: '1.5rem', fontWeight: 'bold' }}>Recent Signups</h3>
@@ -576,7 +567,6 @@ const AdminPanel = () => {
                                 ))}
                             </div>
                         </GlassCard>
-
                         <GlassCard>
                             <h3 style={{ marginBottom: '1.5rem', fontWeight: 'bold' }}>Quick Actions</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -589,7 +579,6 @@ const AdminPanel = () => {
                 </>
             )}
 
-            {/* Other Tabs */}
             {activeTab === 'user management' && <UserManagement />}
             {activeTab === 'faculty' && <FacultyManagement />}
             {activeTab === 'resources' && <ResourcesManagement />}
@@ -598,6 +587,6 @@ const AdminPanel = () => {
             {activeTab === 'messages' && <MessagesTab />}
         </DashboardLayout>
     );
-}; 
+};
 
 export default AdminPanel;
