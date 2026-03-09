@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { Calendar, Plus, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react'; // Added Trash2
+import { Calendar, Plus, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
-// --- NEW IMPORTS FOR DELETE FUNCTION ---
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 const AttendanceTracker = () => {
     const { attendanceSubjects, updateAttendance, addAttendanceSubject, courses } = useData();
-    const { user } = useAuth(); // Needed for deletion
+    const { user } = useAuth();
     const [newSubject, setNewSubject] = useState({ name: '', total: '', attended: '' });
     const [calcData, setCalcData] = useState({ selectedCourseName: '' });
 
@@ -31,18 +30,12 @@ const AttendanceTracker = () => {
         }
     };
 
-    // --- NEW: DELETE FUNCTION ---
+    // ✅ Bug #11 Fixed — was updating a non-existent array field on users doc
+    // Attendance is stored as subcollection docs, so must use deleteDoc on the subcollection
     const handleDeleteSubject = async (subjectToDelete) => {
         if (window.confirm(`Are you sure you want to delete ${subjectToDelete.name}?`)) {
             try {
-                // Filter out the subject
-                const updatedList = attendanceSubjects.filter(s => s.name !== subjectToDelete.name);
-                
-                // Update Firestore directly
-                const userRef = doc(db, "users", user.uid);
-                await updateDoc(userRef, {
-                    attendanceSubjects: updatedList
-                });
+                await deleteDoc(doc(db, "users", user.uid, "attendance", subjectToDelete.id));
             } catch (error) {
                 console.error("Error deleting course:", error);
                 alert("Failed to delete course.");
@@ -113,16 +106,15 @@ const AttendanceTracker = () => {
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                 <h3 style={{ fontWeight: '600', fontSize: '1.1rem', margin: 0 }}>{subject.name}</h3>
-                                
-                                {/* --- PERCENTAGE & DELETE BUTTON --- */}
+
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <span style={{
                                         fontSize: '1.2rem',
                                         fontWeight: 'bold',
                                         color: isSafe ? '#34D399' : '#F87171'
                                     }}>{percentage}%</span>
-                                    
-                                    <button 
+
+                                    <button
                                         onClick={() => handleDeleteSubject(subject)}
                                         style={{
                                             background: 'rgba(239, 68, 68, 0.15)', border: 'none', borderRadius: '8px',
@@ -141,32 +133,25 @@ const AttendanceTracker = () => {
                                 <span>{statusMsg}</span>
                             </div>
 
-                            {/* Mint-Emerald Gradient Progress Bar */}
+                            {/* Progress Bar */}
                             <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.5rem' }}>
                                 <div style={{
                                     height: '100%',
                                     width: `${percentage}%`,
-                                    background: isSafe ? 'linear-gradient(90deg, #34D399 0%, #10B981 100%)' : 'linear-gradient(90deg, #F87171 0%, #EF4444 100%)', // Mint gradient
+                                    background: isSafe ? 'linear-gradient(90deg, #34D399 0%, #10B981 100%)' : 'linear-gradient(90deg, #F87171 0%, #EF4444 100%)',
                                     borderRadius: '10px',
                                     boxShadow: isSafe ? '0 0 10px rgba(16, 185, 129, 0.3)' : '0 0 10px rgba(239, 68, 68, 0.3)',
                                     transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
                                 }}></div>
                             </div>
 
-                            {/* Minimalist Action Buttons */}
                             <div style={{ display: 'flex', gap: '0.8rem', justifyContent: 'flex-end' }}>
                                 <button
                                     onClick={() => updateAttendance(subject.id, parseInt(subject.total) + 1, parseInt(subject.attended) + 1)}
                                     style={{
-                                        background: 'rgba(16, 185, 129, 0.1)',
-                                        color: '#34D399',
-                                        border: 'none',
-                                        padding: '8px 16px',
-                                        borderRadius: '12px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.85rem',
-                                        fontWeight: '500',
-                                        transition: 'background 0.2s'
+                                        background: 'rgba(16, 185, 129, 0.1)', color: '#34D399', border: 'none',
+                                        padding: '8px 16px', borderRadius: '12px', cursor: 'pointer',
+                                        fontSize: '0.85rem', fontWeight: '500', transition: 'background 0.2s'
                                     }}
                                 >
                                     + Present
@@ -174,15 +159,9 @@ const AttendanceTracker = () => {
                                 <button
                                     onClick={() => updateAttendance(subject.id, parseInt(subject.total) + 1, parseInt(subject.attended))}
                                     style={{
-                                        background: 'rgba(239, 68, 68, 0.1)',
-                                        color: '#F87171',
-                                        border: 'none',
-                                        padding: '8px 16px',
-                                        borderRadius: '12px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.85rem',
-                                        fontWeight: '500',
-                                        transition: 'background 0.2s'
+                                        background: 'rgba(239, 68, 68, 0.1)', color: '#F87171', border: 'none',
+                                        padding: '8px 16px', borderRadius: '12px', cursor: 'pointer',
+                                        fontSize: '0.85rem', fontWeight: '500', transition: 'background 0.2s'
                                     }}
                                 >
                                     + Absent
@@ -194,13 +173,10 @@ const AttendanceTracker = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                {/* Floating Add Subject Card */}
+                {/* Add Subject Card */}
                 <div style={{
-                    background: 'rgba(20, 20, 35, 0.6)',
-                    backdropFilter: 'blur(20px)',
-                    borderRadius: '24px',
-                    padding: '2rem',
-                    border: '0.5px solid rgba(255,255,255,0.05)'
+                    background: 'rgba(20, 20, 35, 0.6)', backdropFilter: 'blur(20px)',
+                    borderRadius: '24px', padding: '2rem', border: '0.5px solid rgba(255,255,255,0.05)'
                 }}>
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}><Plus size={20} /> Add Subject</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -208,10 +184,7 @@ const AttendanceTracker = () => {
                             placeholder="Subject Name"
                             value={newSubject.name}
                             onChange={e => setNewSubject({ ...newSubject, name: e.target.value })}
-                            style={{
-                                background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '12px', padding: '12px', color: 'white', outline: 'none'
-                            }}
+                            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', outline: 'none' }}
                         />
                         <div style={{ display: 'flex', gap: '1rem' }}>
                             <input
@@ -219,33 +192,24 @@ const AttendanceTracker = () => {
                                 placeholder="Total"
                                 value={newSubject.total}
                                 onChange={e => setNewSubject({ ...newSubject, total: e.target.value })}
-                                style={{
-                                    flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: '12px', padding: '12px', color: 'white', outline: 'none'
-                                }}
+                                style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', outline: 'none' }}
                             />
                             <input
                                 type="number"
                                 placeholder="Attended"
                                 value={newSubject.attended}
                                 onChange={e => setNewSubject({ ...newSubject, attended: e.target.value })}
-                                style={{
-                                    flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: '12px', padding: '12px', color: 'white', outline: 'none'
-                                }}
+                                style={{ flex: 1, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', color: 'white', outline: 'none' }}
                             />
                         </div>
                         <GlassButton onClick={handleAddSubject} variant="gradient" style={{ justifyContent: 'center', borderRadius: '12px', padding: '12px' }}>Add Subject</GlassButton>
                     </div>
                 </div>
 
-                {/* Mark Active Session - Floating Action */}
+                {/* Quick Mark Card */}
                 <div style={{
-                    background: 'rgba(20, 20, 35, 0.6)',
-                    backdropFilter: 'blur(20px)',
-                    borderRadius: '24px',
-                    padding: '2rem',
-                    border: '0.5px solid rgba(255,255,255,0.05)'
+                    background: 'rgba(20, 20, 35, 0.6)', backdropFilter: 'blur(20px)',
+                    borderRadius: '24px', padding: '2rem', border: '0.5px solid rgba(255,255,255,0.05)'
                 }}>
                     <h3 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'white' }}><CheckCircle size={20} /> Quick Mark</h3>
                     <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>Select active session from your branch</p>
@@ -264,19 +228,11 @@ const AttendanceTracker = () => {
                                 disabled={!calcData.selectedCourseName}
                                 onClick={() => {
                                     if (!calcData.selectedCourseName) return;
-
-                                    // Check if exists in attendanceSubjects
                                     const existing = attendanceSubjects.find(s => s.name === calcData.selectedCourseName);
-
                                     if (existing) {
                                         updateAttendance(existing.id, parseInt(existing.total) + 1, parseInt(existing.attended) + 1);
                                     } else {
-                                        // Create new
-                                        addAttendanceSubject({
-                                            name: calcData.selectedCourseName,
-                                            total: 1,
-                                            attended: 1
-                                        });
+                                        addAttendanceSubject({ name: calcData.selectedCourseName, total: 1, attended: 1 });
                                         alert(`Added ${calcData.selectedCourseName} to your list!`);
                                     }
                                 }}
@@ -292,25 +248,18 @@ const AttendanceTracker = () => {
                                 disabled={!calcData.selectedCourseName}
                                 onClick={() => {
                                     if (!calcData.selectedCourseName) return;
-
-                                    // Check if exists in attendanceSubjects
                                     const existing = attendanceSubjects.find(s => s.name === calcData.selectedCourseName);
-
                                     if (existing) {
                                         updateAttendance(existing.id, parseInt(existing.total) + 1, parseInt(existing.attended));
                                     } else {
-                                        // Create new
-                                        addAttendanceSubject({
-                                            name: calcData.selectedCourseName,
-                                            total: 1,
-                                            attended: 0
-                                        });
+                                        addAttendanceSubject({ name: calcData.selectedCourseName, total: 1, attended: 0 });
                                         alert(`Added ${calcData.selectedCourseName} to your list!`);
                                     }
                                 }}
                                 style={{
-                                    background: 'rgba(239, 68, 68, 0.2)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.3)',
-                                    padding: '12px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600',
+                                    background: 'rgba(239, 68, 68, 0.2)', color: '#F87171',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px',
+                                    borderRadius: '12px', cursor: 'pointer', fontWeight: '600',
                                     opacity: !calcData.selectedCourseName ? 0.5 : 1
                                 }}
                             >
