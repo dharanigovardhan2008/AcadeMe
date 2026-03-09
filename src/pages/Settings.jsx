@@ -53,58 +53,73 @@ const Settings = () => {
             const user = auth.currentUser;
             if (!user) { setNotifStatus('error'); setLoading(false); return; }
 
-            // ✅ Check if notifications are supported
+            // ✅ Detect TWA/APK
+            const isTWA = document.referrer.includes('android-app://')
+                || window.matchMedia('(display-mode: standalone)').matches;
+
+            if (isTWA) {
+                const permission = Notification.permission;
+
+                if (permission === 'denied') {
+                    setNotifStatus('denied');
+                    setLoading(false);
+                    return;
+                }
+
+                if (permission === 'granted') {
+                    try {
+                        const swReg = await navigator.serviceWorker.register('/sw.js');
+                        await navigator.serviceWorker.ready;
+                        const messaging = getMessaging();
+                        const token = await getToken(messaging, {
+                            vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                            serviceWorkerRegistration: swReg,
+                        });
+                        if (token) {
+                            await setDoc(doc(db, 'users', user.uid),
+                                { fcmToken: token, notificationsEnabled: true }, { merge: true });
+                            await setDoc(doc(db, 'fcm_tokens', user.uid),
+                                { token, userId: user.uid, updatedAt: new Date().toISOString() }, { merge: true });
+                            setSettings({ ...settings, pushNotifs: true });
+                            setNotifStatus('success');
+                        } else {
+                            setNotifStatus('denied');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        setNotifStatus('error');
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                // permission === 'default' in TWA → show Android guide
+                setNotifStatus('twa_guide');
+                setLoading(false);
+                return;
+            }
+
+            // ✅ Normal browser flow
             const supported = await isSupported();
-            if (!supported) {
-                setNotifStatus('unsupported');
-                setLoading(false);
-                return;
-            }
+            if (!supported) { setNotifStatus('unsupported'); setLoading(false); return; }
 
-            // ✅ Check current permission state
-            const currentPermission = Notification.permission;
-
-            if (currentPermission === 'denied') {
-                setNotifStatus('denied');
-                setLoading(false);
-                return;
-            }
-
-            // ✅ Request permission
             const permission = await Notification.requestPermission();
+            if (permission !== 'granted') { setNotifStatus('denied'); setLoading(false); return; }
 
-            if (permission !== 'granted') {
-                setNotifStatus('denied');
-                setLoading(false);
-                return;
-            }
-
-            // ✅ Register service worker
             const swReg = await navigator.serviceWorker.register('/sw.js');
             await navigator.serviceWorker.ready;
-
-            // ✅ Get FCM token
             const messaging = getMessaging();
             const token = await getToken(messaging, {
                 vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
                 serviceWorkerRegistration: swReg,
             });
 
-            if (!token) {
-                setNotifStatus('error');
-                setLoading(false);
-                return;
-            }
+            if (!token) { setNotifStatus('error'); setLoading(false); return; }
 
-            // ✅ Save token to BOTH collections so notify.py finds it
             await setDoc(doc(db, 'users', user.uid),
-                { fcmToken: token, notificationsEnabled: true },
-                { merge: true }
-            );
+                { fcmToken: token, notificationsEnabled: true }, { merge: true });
             await setDoc(doc(db, 'fcm_tokens', user.uid),
-                { token, userId: user.uid, updatedAt: new Date().toISOString() },
-                { merge: true }
-            );
+                { token, userId: user.uid, updatedAt: new Date().toISOString() }, { merge: true });
 
             setSettings({ ...settings, pushNotifs: true });
             setNotifStatus('success');
@@ -160,20 +175,24 @@ const Settings = () => {
                     </h3>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div>
+                        <div style={{ flex: 1, marginRight: '1rem' }}>
                             <p style={{ fontWeight: '500' }}>Push Notifications</p>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Get notified when admin posts updates</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Get notified when admin posts updates
+                            </p>
 
                             {loading && (
                                 <p style={{ fontSize: '0.8rem', color: '#f7971e', marginTop: '4px' }}>
                                     ⏳ Enabling notifications...
                                 </p>
                             )}
+
                             {notifStatus === 'success' && (
                                 <p style={{ fontSize: '0.8rem', color: '#43e97b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <CheckCircle size={12} /> Notifications enabled successfully!
                                 </p>
                             )}
+
                             {notifStatus === 'denied' && (
                                 <div style={{ marginTop: '6px' }}>
                                     <p style={{ fontSize: '0.8rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -184,11 +203,28 @@ const Settings = () => {
                                     </p>
                                 </div>
                             )}
+
+                            {notifStatus === 'twa_guide' && (
+                                <div style={{ marginTop: '6px', padding: '10px', background: 'rgba(255,193,7,0.1)', borderRadius: '8px', border: '1px solid rgba(255,193,7,0.3)' }}>
+                                    <p style={{ fontSize: '0.8rem', color: '#FFC107', fontWeight: '600', marginBottom: '4px' }}>
+                                        ⚙️ Enable in Android Settings:
+                                    </p>
+                                    <p style={{ fontSize: '0.75rem', color: '#aaa', lineHeight: '1.6' }}>
+                                        1. Open Android <b style={{ color: 'white' }}>Settings</b><br />
+                                        2. Go to <b style={{ color: 'white' }}>Apps → AcadeMe</b><br />
+                                        3. Tap <b style={{ color: 'white' }}>Notifications</b><br />
+                                        4. Turn on <b style={{ color: 'white' }}>Allow Notifications</b><br />
+                                        5. Come back and toggle again ✅
+                                    </p>
+                                </div>
+                            )}
+
                             {notifStatus === 'unsupported' && (
                                 <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <XCircle size={12} /> Notifications not supported on this device.
                                 </p>
                             )}
+
                             {notifStatus === 'error' && (
                                 <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <XCircle size={12} /> Something went wrong. Please try again.
