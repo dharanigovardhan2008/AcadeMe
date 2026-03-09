@@ -3,8 +3,9 @@ import { Moon, Bell, Database, CheckCircle, XCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import DashboardLayout from '../components/DashboardLayout';
-import { auth, requestNotificationPermission, db } from '../firebase';
-import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from '../firebase';
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
 const Toggle = ({ value, onChange }) => (
     <div
@@ -24,7 +25,6 @@ const Toggle = ({ value, onChange }) => (
 );
 
 const Settings = () => {
-
     const [settings, setSettings] = useState({
         darkMode: true,
         pushNotifs: false,
@@ -40,67 +40,97 @@ const Settings = () => {
     const toggle = (key) => setSettings({ ...settings, [key]: !settings[key] });
 
     const handlePushNotifToggle = async (value) => {
-        if (value) {
-            setLoading(true);
-            setNotifStatus(null);
-            try {
-                const user = auth.currentUser;
-                if (!user) {
-                    setNotifStatus('error');
-                    setLoading(false);
-                    return;
-                }
-
-                const token = await requestNotificationPermission(user.uid);
-
-                if (token) {
-                    setSettings({ ...settings, pushNotifs: true });
-                    setNotifStatus('success');
-                } else {
-                    setNotifStatus('error');
-                }
-
-            } catch (err) {
-                console.error(err);
-                setNotifStatus('error');
-            }
-            setLoading(false);
-        } else {
+        if (!value) {
             setSettings({ ...settings, pushNotifs: false });
             setNotifStatus(null);
+            return;
         }
+
+        setLoading(true);
+        setNotifStatus(null);
+
+        try {
+            const user = auth.currentUser;
+            if (!user) { setNotifStatus('error'); setLoading(false); return; }
+
+            // ✅ Check if notifications are supported
+            const supported = await isSupported();
+            if (!supported) {
+                setNotifStatus('unsupported');
+                setLoading(false);
+                return;
+            }
+
+            // ✅ Check current permission state
+            const currentPermission = Notification.permission;
+
+            if (currentPermission === 'denied') {
+                setNotifStatus('denied');
+                setLoading(false);
+                return;
+            }
+
+            // ✅ Request permission
+            const permission = await Notification.requestPermission();
+
+            if (permission !== 'granted') {
+                setNotifStatus('denied');
+                setLoading(false);
+                return;
+            }
+
+            // ✅ Register service worker
+            const swReg = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+
+            // ✅ Get FCM token
+            const messaging = getMessaging();
+            const token = await getToken(messaging, {
+                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                serviceWorkerRegistration: swReg,
+            });
+
+            if (!token) {
+                setNotifStatus('error');
+                setLoading(false);
+                return;
+            }
+
+            // ✅ Save token to BOTH collections so notify.py finds it
+            await setDoc(doc(db, 'users', user.uid),
+                { fcmToken: token, notificationsEnabled: true },
+                { merge: true }
+            );
+            await setDoc(doc(db, 'fcm_tokens', user.uid),
+                { token, userId: user.uid, updatedAt: new Date().toISOString() },
+                { merge: true }
+            );
+
+            setSettings({ ...settings, pushNotifs: true });
+            setNotifStatus('success');
+
+        } catch (err) {
+            console.error(err);
+            setNotifStatus('error');
+        }
+
+        setLoading(false);
     };
 
-    /* 🔧 LOAD NOTIFICATION STATE FROM FIRESTORE */
     useEffect(() => {
-
         const loadNotificationState = async () => {
             try {
-
                 const user = auth.currentUser;
                 if (!user) return;
-
-                const docRef = doc(db, "users", user.uid);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-
-                    if (data.notificationsEnabled === true) {
-                        setSettings(prev => ({
-                            ...prev,
-                            pushNotifs: true
-                        }));
-                    }
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists() && docSnap.data().notificationsEnabled === true) {
+                    setSettings(prev => ({ ...prev, pushNotifs: true }));
                 }
-
             } catch (error) {
                 console.error("Error loading notification state:", error);
             }
         };
-
         loadNotificationState();
-
     }, []);
 
     return (
@@ -115,7 +145,6 @@ const Settings = () => {
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Moon size={20} /> Appearance
                     </h3>
-
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div>
                             <p style={{ fontWeight: '500' }}>Dark Mode</p>
@@ -133,29 +162,39 @@ const Settings = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <div>
                             <p style={{ fontWeight: '500' }}>Push Notifications</p>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                Get notified when admin posts updates
-                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Get notified when admin posts updates</p>
 
                             {loading && (
                                 <p style={{ fontSize: '0.8rem', color: '#f7971e', marginTop: '4px' }}>
                                     ⏳ Enabling notifications...
                                 </p>
                             )}
-
                             {notifStatus === 'success' && (
                                 <p style={{ fontSize: '0.8rem', color: '#43e97b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <CheckCircle size={12} /> Notifications enabled successfully!
                                 </p>
                             )}
-
+                            {notifStatus === 'denied' && (
+                                <div style={{ marginTop: '6px' }}>
+                                    <p style={{ fontSize: '0.8rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <XCircle size={12} /> Permission blocked.
+                                    </p>
+                                    <p style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '4px' }}>
+                                        Go to Android Settings → Apps → AcadeMe → Notifications → Allow
+                                    </p>
+                                </div>
+                            )}
+                            {notifStatus === 'unsupported' && (
+                                <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <XCircle size={12} /> Notifications not supported on this device.
+                                </p>
+                            )}
                             {notifStatus === 'error' && (
                                 <p style={{ fontSize: '0.8rem', color: '#EF4444', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <XCircle size={12} /> Failed. Please allow notifications in browser settings.
+                                    <XCircle size={12} /> Something went wrong. Please try again.
                                 </p>
                             )}
                         </div>
-
                         <Toggle value={settings.pushNotifs} onChange={handlePushNotifToggle} />
                     </div>
 
@@ -168,14 +207,12 @@ const Settings = () => {
                         <p>Attendance Alerts</p>
                         <Toggle value={settings.attendanceAlerts} onChange={() => toggle('attendanceAlerts')} />
                     </div>
-
                 </GlassCard>
 
                 <GlassCard className="mb-6">
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Database size={20} /> Data & Storage
                     </h3>
-
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <GlassButton style={{ flex: 1, justifyContent: 'center' }}>Export My Data</GlassButton>
                         <GlassButton style={{ flex: 1, justifyContent: 'center', color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)' }}>Clear Cache</GlassButton>
