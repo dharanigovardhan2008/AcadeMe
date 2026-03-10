@@ -364,4 +364,4 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
-
+                                
