@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { BookOpen, CheckCircle, ChevronDown, Check } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
@@ -19,7 +20,6 @@ const gradeColor = (g) => {
     return 'rgba(255,255,255,0.15)';
 };
 
-// Small dropdown that uses position:fixed so it always shows above cards
 const GradeDropdown = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [menuPos, setMenuPos] = useState({});
@@ -66,6 +66,8 @@ const GradeDropdown = ({ value, onChange }) => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     userSelect: 'none',
+                    boxSizing: 'border-box',
+                    width: '100%',
                 }}
             >
                 <span style={{ fontSize: '0.9rem' }}>{value || 'Grade --'}</span>
@@ -89,32 +91,38 @@ const GradeDropdown = ({ value, onChange }) => {
                     boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
                     zIndex: 99999,
                     padding: '6px',
-                }}>
+                }} className="custom-scrollbar">
                     {GRADES.map((grade) => (
                         <div
                             key={grade}
                             onClick={() => { onChange(grade); setIsOpen(false); }}
-                            onMouseEnter={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)'}
-                            onMouseLeave={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.15)' : 'transparent'}
+                            className="dropdown-item"
                             style={{
                                 padding: '10px 12px',
                                 borderRadius: '8px',
                                 cursor: 'pointer',
-                                color: value === grade ? 'var(--primary, #3B82F6)' : 'rgba(255,255,255,0.8)',
+                                color: value === grade ? 'var(--primary)' : 'rgba(255,255,255,0.8)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
+                                transition: 'all 0.2s',
                                 marginBottom: '2px',
-                                background: value === grade ? 'rgba(59,130,246,0.15)' : 'transparent',
-                                fontSize: '0.95rem',
+                                background: value === grade ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                                fontSize: '0.95rem'
                             }}
                         >
                             <span>{grade}</span>
-                            {value === grade && <Check size={16} color="var(--primary, #3B82F6)" />}
+                            {value === grade && <Check size={16} color="var(--primary)" />}
                         </div>
                     ))}
                 </div>
             )}
+            <style>{`
+                .dropdown-item:hover {
+                    background: rgba(255, 255, 255, 0.05) !important;
+                    color: white !important;
+                }
+            `}</style>
         </div>
     );
 };
@@ -143,6 +151,16 @@ const MandatoryCourses = () => {
     return (
         <DashboardLayout>
             <style>{`
+                .mc-page {
+                    width: 100%;
+                    max-width: 100%;
+                    overflow-x: hidden;
+                    box-sizing: border-box;
+                    padding: 0 1rem 2rem;
+                }
+                @media (min-width: 768px) {
+                    .mc-page { padding: 0 1.5rem 2rem; }
+                }
                 .mc-header {
                     display: flex;
                     align-items: center;
@@ -179,6 +197,7 @@ const MandatoryCourses = () => {
                     transition: border-color 0.3s ease;
                     box-sizing: border-box;
                     width: 100%;
+                    min-width: 0;
                 }
                 .mc-course-left {
                     display: flex;
@@ -251,104 +270,102 @@ const MandatoryCourses = () => {
                 }
             `}</style>
 
-            {/* Header */}
-            <div className="mc-header">
-                <h1 className="mc-title">
-                    <BookOpen size={24} color="#60A5FA" /> My Courses
-                </h1>
+            <div className="mc-page">
+                <div className="mc-header">
+                    <h1 className="mc-title">
+                        <BookOpen size={24} color="#60A5FA" /> My Courses
+                    </h1>
+                    {courses.length > 0 && (
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '20px' }}>
+                            {gradeStats.graded}/{gradeStats.total} graded
+                        </span>
+                    )}
+                </div>
+
                 {courses.length > 0 && (
-                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '20px' }}>
-                        {gradeStats.graded}/{gradeStats.total} graded
-                    </span>
-                )}
-            </div>
-
-            {/* Progress bar */}
-            {courses.length > 0 && (
-                <GlassCard className="mc-progress-card">
-                    <div className="mc-progress-label">
-                        <span style={{ color: 'var(--text-secondary)' }}>Grade Progress</span>
-                        <span style={{ fontWeight: '600' }}>{gradeStats.graded} / {gradeStats.total}</span>
-                    </div>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                            height: '100%',
-                            width: `${gradeStats.total ? (gradeStats.graded / gradeStats.total) * 100 : 0}%`,
-                            background: 'linear-gradient(90deg, #3B82F6, #34D399)',
-                            borderRadius: '3px',
-                            transition: 'width 0.4s ease',
-                        }} />
-                    </div>
-                </GlassCard>
-            )}
-
-            {/* Course list */}
-            <div style={{ display: 'grid', gap: '0.65rem' }}>
-                {courses.length === 0 ? (
-                    <GlassCard>
-                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                            <BookOpen size={40} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                            <p style={{ fontWeight: '600', marginBottom: '4px' }}>No courses found for <strong style={{ color: 'white' }}>{user?.branch || 'your branch'}</strong></p>
-                            <p style={{ fontSize: '0.85rem' }}>Your admin hasn't added any courses yet.</p>
+                    <GlassCard className="mc-progress-card">
+                        <div className="mc-progress-label">
+                            <span style={{ color: 'var(--text-secondary)' }}>Grade Progress</span>
+                            <span style={{ fontWeight: '600' }}>{gradeStats.graded} / {gradeStats.total}</span>
+                        </div>
+                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%',
+                                width: `${gradeStats.total ? (gradeStats.graded / gradeStats.total) * 100 : 0}%`,
+                                background: 'linear-gradient(90deg, #3B82F6, #34D399)',
+                                borderRadius: '3px',
+                                transition: 'width 0.4s ease',
+                            }} />
                         </div>
                     </GlassCard>
-                ) : (
-                    courses.map((course, index) => {
-                        const existing = cgpaSubjects.find(s => s.code === course.code || s.name === course.name);
-                        const currentGrade = existing?.grade || '';
-                        const color = gradeColor(currentGrade);
-
-                        return (
-                            <GlassCard
-                                key={course.id || course.code}
-                                className="mc-course-card"
-                                style={{
-                                    borderLeft: `4px solid ${color}`,
-                                    position: 'relative',
-                                    zIndex: courses.length - index,
-                                }}
-                            >
-                                <div className="mc-course-left">
-                                    <div
-                                        className="mc-grade-dot"
-                                        style={{
-                                            background: currentGrade ? `${color}22` : 'rgba(255,255,255,0.05)',
-                                            borderColor: color,
-                                            color: color,
-                                        }}
-                                    >
-                                        {currentGrade || '—'}
-                                    </div>
-                                    <div className="mc-course-text">
-                                        <p className="mc-course-name">{course.name}</p>
-                                        <p className="mc-course-code">
-                                            {course.code}
-                                            {currentGrade && (
-                                                <span style={{ marginLeft: '6px', color }}>
-                                                    • {GRADE_POINTS[currentGrade]} pts
-                                                </span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mc-course-right">
-                                    {currentGrade && <CheckCircle className="mc-check-icon" size={14} color="#34D399" />}
-                                    <div className="mc-dropdown-wrap">
-                                        <GradeDropdown
-                                            value={currentGrade}
-                                            onChange={(g) => handleGradeChange(course, g)}
-                                        />
-                                    </div>
-                                </div>
-                            </GlassCard>
-                        );
-                    })
                 )}
+
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
+                    {courses.length === 0 ? (
+                        <GlassCard>
+                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                                <BookOpen size={40} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                                <p style={{ fontWeight: '600', marginBottom: '4px' }}>No courses found for <strong style={{ color: 'white' }}>{user?.branch || 'your branch'}</strong></p>
+                                <p style={{ fontSize: '0.85rem' }}>Your admin hasn't added any courses yet.</p>
+                            </div>
+                        </GlassCard>
+                    ) : (
+                        courses.map((course, index) => {
+                            const existing = cgpaSubjects.find(s => s.code === course.code || s.name === course.name);
+                            const currentGrade = existing?.grade || '';
+                            const color = gradeColor(currentGrade);
+
+                            return (
+                                <GlassCard
+                                    key={course.id || course.code}
+                                    className="mc-course-card"
+                                    style={{
+                                        borderLeft: `4px solid ${color}`,
+                                        position: 'relative',
+                                        zIndex: courses.length - index,
+                                    }}
+                                >
+                                    <div className="mc-course-left">
+                                        <div
+                                            className="mc-grade-dot"
+                                            style={{
+                                                background: currentGrade ? `${color}22` : 'rgba(255,255,255,0.05)',
+                                                borderColor: color,
+                                                color: color,
+                                            }}
+                                        >
+                                            {currentGrade || '—'}
+                                        </div>
+                                        <div className="mc-course-text">
+                                            <p className="mc-course-name">{course.name}</p>
+                                            <p className="mc-course-code">
+                                                {course.code}
+                                                {currentGrade && (
+                                                    <span style={{ marginLeft: '6px', color }}>
+                                                        • {GRADE_POINTS[currentGrade]} pts
+                                                    </span>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mc-course-right">
+                                        {currentGrade && <CheckCircle className="mc-check-icon" size={14} color="#34D399" />}
+                                        <div className="mc-dropdown-wrap">
+                                            <GradeDropdown
+                                                value={currentGrade}
+                                                onChange={(g) => handleGradeChange(course, g)}
+                                            />
+                                        </div>
+                                    </div>
+                                </GlassCard>
+                            );
+                        })
+                    )}
+                </div>
             </div>
         </DashboardLayout>
     );
 };
 
 export default MandatoryCourses;
-
