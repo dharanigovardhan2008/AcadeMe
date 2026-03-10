@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle } from 'lucide-react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { BookOpen, CheckCircle, ChevronDown, Check } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
-import GlassDropdown from '../components/GlassDropdown';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +17,117 @@ const gradeColor = (g) => {
     if (g === 'D' || g === 'E') return '#FB923C';
     if (g === 'F') return '#F87171';
     return 'rgba(255,255,255,0.15)';
+};
+
+// Inline dropdown that uses position:fixed to escape overflow:hidden on GlassCard
+const GradeDropdown = ({ value, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({});
+    const triggerRef = useRef(null);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleToggle = () => {
+        if (!isOpen && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const menuHeight = GRADES.length * 44 + 12;
+            if (spaceBelow < menuHeight) {
+                setMenuPos({ bottom: window.innerHeight - rect.top + 6, top: 'auto', left: rect.left, width: rect.width });
+            } else {
+                setMenuPos({ top: rect.bottom + 6, bottom: 'auto', left: rect.left, width: rect.width });
+            }
+        }
+        setIsOpen(prev => !prev);
+    };
+
+    return (
+        <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+            {/* Trigger button */}
+            <div
+                ref={triggerRef}
+                onClick={handleToggle}
+                style={{
+                    padding: '9px 10px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: value ? 'white' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    userSelect: 'none',
+                }}
+            >
+                <span style={{ fontSize: '0.9rem' }}>{value || 'Grade --'}</span>
+                <ChevronDown
+                    size={15}
+                    style={{
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
+                        transition: 'transform 0.3s',
+                        color: 'var(--text-secondary)',
+                        flexShrink: 0,
+                    }}
+                />
+            </div>
+
+            {/* Fixed-position glass menu — escapes overflow:hidden */}
+            {isOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: menuPos.top ?? 'auto',
+                    bottom: menuPos.bottom ?? 'auto',
+                    left: menuPos.left,
+                    width: menuPos.width,
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    background: 'rgba(15, 15, 26, 0.97)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    zIndex: 99999,
+                    padding: '6px',
+                }}>
+                    {GRADES.map((grade) => (
+                        <div
+                            key={grade}
+                            onClick={() => { onChange(grade); setIsOpen(false); }}
+                            style={{
+                                padding: '10px 12px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                color: value === grade ? 'var(--primary, #3B82F6)' : 'rgba(255,255,255,0.8)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: '2px',
+                                background: value === grade ? 'rgba(59,130,246,0.15)' : 'transparent',
+                                fontSize: '0.95rem',
+                                transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.15)' : 'transparent'}
+                        >
+                            <span>{grade}</span>
+                            {value === grade && <Check size={16} color="var(--primary, #3B82F6)" />}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
 const MandatoryCourses = () => {
@@ -78,7 +188,7 @@ const MandatoryCourses = () => {
                     gap: 0.75rem;
                     padding: 0.9rem 1.1rem;
                     transition: border-color 0.3s ease;
-                    overflow: hidden;
+                    overflow: visible;
                     box-sizing: border-box;
                     width: 100%;
                 }
@@ -103,10 +213,7 @@ const MandatoryCourses = () => {
                     border-width: 2px;
                     border-style: solid;
                 }
-                .mc-course-text {
-                    min-width: 0;
-                    overflow: hidden;
-                }
+                .mc-course-text { min-width: 0; overflow: hidden; }
                 .mc-course-name {
                     font-weight: 600;
                     font-size: 0.95rem;
@@ -129,18 +236,8 @@ const MandatoryCourses = () => {
                     gap: 6px;
                     flex-shrink: 0;
                 }
-                .mc-dropdown-wrap {
-                    width: 120px;
-                }
-                /* Override GlassDropdown trigger padding to be compact */
-                .mc-dropdown-wrap .glass-dropdown-container > div:first-child {
-                    padding: 9px 10px !important;
-                    border-radius: 10px !important;
-                    border-color: rgba(255,255,255,0.12) !important;
-                    box-shadow: none !important;
-                }
+                .mc-dropdown-wrap { width: 120px; }
 
-                /* ── Mobile ── */
                 @media (max-width: 480px) {
                     .mc-title { font-size: 1.3rem; }
                     .mc-progress-card { padding: 0.75rem 0.9rem; }
@@ -151,21 +248,13 @@ const MandatoryCourses = () => {
                     .mc-course-name { font-size: 0.82rem; }
                     .mc-course-code { font-size: 0.7rem; }
                     .mc-dropdown-wrap { width: 100px; }
-                    .mc-dropdown-wrap .glass-dropdown-container > div:first-child {
-                        padding: 8px 8px !important;
-                        font-size: 0.82rem !important;
-                    }
                     .mc-check-icon { display: none; }
                 }
-
-                /* ── Tablet ── */
                 @media (min-width: 481px) and (max-width: 768px) {
                     .mc-title { font-size: 1.55rem; }
                     .mc-course-name { font-size: 0.88rem; }
                     .mc-dropdown-wrap { width: 110px; }
                 }
-
-                /* ── Desktop wide ── */
                 @media (min-width: 1024px) {
                     .mc-title { font-size: 2rem; }
                     .mc-grade-dot { width: 40px; height: 40px; font-size: 0.88rem; }
@@ -229,6 +318,7 @@ const MandatoryCourses = () => {
                                     borderLeft: `4px solid ${color}`,
                                     position: 'relative',
                                     zIndex: courses.length - index,
+                                    overflow: 'visible',
                                 }}
                             >
                                 <div className="mc-course-left">
@@ -247,7 +337,7 @@ const MandatoryCourses = () => {
                                         <p className="mc-course-code">
                                             {course.code}
                                             {currentGrade && (
-                                                <span style={{ marginLeft: '6px', color: color }}>
+                                                <span style={{ marginLeft: '6px', color }}>
                                                     • {GRADE_POINTS[currentGrade]} pts
                                                 </span>
                                             )}
@@ -258,11 +348,9 @@ const MandatoryCourses = () => {
                                 <div className="mc-course-right">
                                     {currentGrade && <CheckCircle className="mc-check-icon" size={14} color="#34D399" />}
                                     <div className="mc-dropdown-wrap">
-                                        <GlassDropdown
-                                            options={GRADES}
+                                        <GradeDropdown
                                             value={currentGrade}
                                             onChange={(g) => handleGradeChange(course, g)}
-                                            placeholder="Grade --"
                                         />
                                     </div>
                                 </div>
