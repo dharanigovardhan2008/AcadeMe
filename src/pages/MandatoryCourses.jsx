@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle, Info } from 'lucide-react';
+import { BookOpen, CheckCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassDropdown from '../components/GlassDropdown';
 import DashboardLayout from '../components/DashboardLayout';
@@ -9,23 +9,21 @@ import { useAuth } from '../context/AuthContext';
 const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
 const GRADES = Object.keys(GRADE_POINTS);
 
-// Grade colour coding
 const gradeColor = (g) => {
-    if (!g) return 'rgba(255,255,255,0.1)';
+    if (!g) return 'rgba(255,255,255,0.15)';
     if (g === 'S') return '#34D399';
     if (g === 'A') return '#60A5FA';
     if (g === 'B') return '#818CF8';
     if (g === 'C') return '#FBBF24';
     if (g === 'D' || g === 'E') return '#FB923C';
     if (g === 'F') return '#F87171';
-    return 'rgba(255,255,255,0.1)';
+    return 'rgba(255,255,255,0.15)';
 };
 
 const MandatoryCourses = () => {
     const { courses, cgpaSubjects, addSubjectCGPA, updateSubjectCGPA } = useData();
     const { user } = useAuth();
 
-    // Grade stats summary
     const gradeStats = useMemo(() => {
         const graded = courses.filter(c => {
             const ex = cgpaSubjects.find(s => s.code === c.code || s.name === c.name);
@@ -45,43 +43,152 @@ const MandatoryCourses = () => {
 
     return (
         <DashboardLayout>
+            <style>{`
+                .mc-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 0.75rem;
+                    margin-bottom: 1.25rem;
+                }
+                .mc-title {
+                    font-size: 1.8rem;
+                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin: 0;
+                }
+                .mc-progress-card {
+                    margin-bottom: 1.25rem;
+                    padding: 0.9rem 1.2rem;
+                }
+                .mc-progress-label {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 8px;
+                    font-size: 0.9rem;
+                }
+                .mc-course-card {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 0.75rem;
+                    padding: 0.9rem 1.1rem;
+                    transition: border-color 0.3s ease;
+                }
+                .mc-course-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex: 1;
+                    min-width: 0;
+                }
+                .mc-grade-dot {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    font-weight: bold;
+                    font-size: 0.82rem;
+                    border-width: 2px;
+                    border-style: solid;
+                }
+                .mc-course-name {
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    margin: 0;
+                }
+                .mc-course-code {
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                    margin: 2px 0 0;
+                }
+                .mc-course-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-shrink: 0;
+                }
+                .mc-dropdown-wrap {
+                    width: 130px;
+                }
+
+                /* ── Mobile ── */
+                @media (max-width: 480px) {
+                    .mc-title { font-size: 1.3rem; }
+                    .mc-progress-card { padding: 0.75rem 0.9rem; }
+                    .mc-progress-label { font-size: 0.78rem; }
+                    .mc-course-card { padding: 0.7rem 0.85rem; gap: 0.5rem; }
+                    .mc-grade-dot { width: 30px; height: 30px; font-size: 0.72rem; }
+                    .mc-course-name { font-size: 0.82rem; }
+                    .mc-course-code { font-size: 0.7rem; }
+                    .mc-dropdown-wrap { width: 105px; }
+                }
+
+                /* ── Tablet ── */
+                @media (min-width: 481px) and (max-width: 768px) {
+                    .mc-title { font-size: 1.55rem; }
+                    .mc-course-name { font-size: 0.88rem; }
+                    .mc-dropdown-wrap { width: 118px; }
+                }
+
+                /* ── Desktop wide ── */
+                @media (min-width: 1024px) {
+                    .mc-title { font-size: 2rem; }
+                    .mc-grade-dot { width: 40px; height: 40px; font-size: 0.88rem; }
+                    .mc-course-name { font-size: 1rem; }
+                    .mc-dropdown-wrap { width: 145px; }
+                }
+            `}</style>
+
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <BookOpen size={28} color="#60A5FA" /> My Courses
+            <div className="mc-header">
+                <h1 className="mc-title">
+                    <BookOpen size={24} color="#60A5FA" /> My Courses
                 </h1>
-                <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Mandatory subjects for <strong style={{ color: 'white' }}>{user?.branch || '...'}</strong> branch — assign grades to track your CGPA
-                </p>
+                {courses.length > 0 && (
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '20px' }}>
+                        {gradeStats.graded}/{gradeStats.total} graded
+                    </span>
+                )}
             </div>
 
             {/* Progress bar */}
             {courses.length > 0 && (
-                <GlassCard style={{ marginBottom: '1.5rem', padding: '1rem 1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Grade Progress</span>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>{gradeStats.graded} / {gradeStats.total} subjects graded</span>
+                <GlassCard className="mc-progress-card">
+                    <div className="mc-progress-label">
+                        <span style={{ color: 'var(--text-secondary)' }}>Grade Progress</span>
+                        <span style={{ fontWeight: '600' }}>{gradeStats.graded} / {gradeStats.total}</span>
                     </div>
                     <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${gradeStats.total ? (gradeStats.graded / gradeStats.total) * 100 : 0}%`, background: 'linear-gradient(90deg, #3B82F6, #34D399)', borderRadius: '3px', transition: 'width 0.4s ease' }} />
+                        <div style={{
+                            height: '100%',
+                            width: `${gradeStats.total ? (gradeStats.graded / gradeStats.total) * 100 : 0}%`,
+                            background: 'linear-gradient(90deg, #3B82F6, #34D399)',
+                            borderRadius: '3px',
+                            transition: 'width 0.4s ease',
+                        }} />
                     </div>
                 </GlassCard>
             )}
 
-            {/* Info banner */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem', padding: '10px 16px', background: 'rgba(59,130,246,0.08)', borderRadius: '10px', border: '1px solid rgba(59,130,246,0.2)', fontSize: '0.85rem', color: '#93C5FD' }}>
-                <Info size={16} />
-                Courses are set by your admin for the <strong>{user?.branch}</strong> branch. Grades you assign here sync with your CGPA Calculator.
-            </div>
-
             {/* Course list */}
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gap: '0.65rem' }}>
                 {courses.length === 0 ? (
                     <GlassCard>
                         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                             <BookOpen size={40} style={{ opacity: 0.3, marginBottom: '1rem' }} />
                             <p style={{ fontWeight: '600', marginBottom: '4px' }}>No courses found for <strong style={{ color: 'white' }}>{user?.branch || 'your branch'}</strong></p>
-                            <p style={{ fontSize: '0.85rem' }}>Your admin hasn't added any courses for this branch yet.</p>
+                            <p style={{ fontSize: '0.85rem' }}>Your admin hasn't added any courses yet.</p>
                         </div>
                     </GlassCard>
                 ) : (
@@ -91,39 +198,49 @@ const MandatoryCourses = () => {
                         const color = gradeColor(currentGrade);
 
                         return (
-                            <GlassCard key={course.id || course.code} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                borderLeft: `4px solid ${color}`,
-                                position: 'relative',
-                                zIndex: courses.length - index,
-                                transition: 'border-color 0.3s ease',
-                                gap: '1rem',
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                                    {/* Grade dot */}
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: currentGrade ? `${color}22` : 'rgba(255,255,255,0.05)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 'bold', fontSize: '0.85rem', color: color }}>
+                            <GlassCard
+                                key={course.id || course.code}
+                                className="mc-course-card"
+                                style={{
+                                    borderLeft: `4px solid ${color}`,
+                                    position: 'relative',
+                                    zIndex: courses.length - index,
+                                }}
+                            >
+                                <div className="mc-course-left">
+                                    <div
+                                        className="mc-grade-dot"
+                                        style={{
+                                            background: currentGrade ? `${color}22` : 'rgba(255,255,255,0.05)',
+                                            borderColor: color,
+                                            color: color,
+                                        }}
+                                    >
                                         {currentGrade || '—'}
                                     </div>
                                     <div style={{ minWidth: 0 }}>
-                                        <h3 style={{ fontWeight: '600', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{course.name}</h3>
-                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                        <p className="mc-course-name">{course.name}</p>
+                                        <p className="mc-course-code">
                                             {course.code}
-                                            {currentGrade && <span style={{ marginLeft: '8px', color: color }}>• {GRADE_POINTS[currentGrade]} pts</span>}
+                                            {currentGrade && (
+                                                <span style={{ marginLeft: '6px', color: color }}>
+                                                    • {GRADE_POINTS[currentGrade]} pts
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
-                                {currentGrade && (
-                                    <CheckCircle size={16} color="#34D399" style={{ flexShrink: 0 }} />
-                                )}
-                                <div style={{ width: '150px', flexShrink: 0 }}>
-                                    <GlassDropdown
-                                        options={GRADES}
-                                        value={currentGrade}
-                                        onChange={(g) => handleGradeChange(course, g)}
-                                        placeholder="Grade --"
-                                    />
+
+                                <div className="mc-course-right">
+                                    {currentGrade && <CheckCircle size={14} color="#34D399" />}
+                                    <div className="mc-dropdown-wrap">
+                                        <GlassDropdown
+                                            options={GRADES}
+                                            value={currentGrade}
+                                            onChange={(g) => handleGradeChange(course, g)}
+                                            placeholder="Grade --"
+                                        />
+                                    </div>
                                 </div>
                             </GlassCard>
                         );
