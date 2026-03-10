@@ -142,21 +142,17 @@ const MandatoryCourses = () => {
                     .mc-progress-card { padding: 0.75rem 0.9rem; }
                     .mc-progress-label { font-size: 0.78rem; }
                     .mc-course-card {
+                        flex-direction: row;
+                        align-items: center;
                         padding: 0.65rem 0.75rem;
                         gap: 0.5rem;
-                        flex-direction: column;
-                        align-items: stretch;
                     }
-                    .mc-course-left { gap: 8px; }
+                    .mc-course-left { gap: 7px; flex: 1; min-width: 0; overflow: hidden; }
                     .mc-grade-dot { width: 28px; height: 28px; font-size: 0.68rem; }
-                    .mc-course-name { font-size: 0.8rem; }
-                    .mc-course-code { font-size: 0.68rem; }
-                    .mc-course-right {
-                        width: 100%;
-                        justify-content: flex-end;
-                    }
-                    .mc-dropdown-wrap { width: 100%; }
-                    /* hide check icon on tiny screens to save space */
+                    .mc-course-name { font-size: 0.78rem; }
+                    .mc-course-code { font-size: 0.67rem; }
+                    .mc-course-right { flex-shrink: 0; flex-grow: 0; width: auto; }
+                    .mc-dropdown-wrap { width: 90px; min-width: 90px; max-width: 90px; }
                     .mc-check-icon { display: none; }
                 }
 
@@ -278,3 +274,4 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
+
