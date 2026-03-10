@@ -19,7 +19,7 @@ const gradeColor = (g) => {
     return 'rgba(255,255,255,0.15)';
 };
 
-// Inline dropdown that uses position:fixed to escape overflow:hidden on GlassCard
+// Small dropdown that uses position:fixed so it always shows above cards
 const GradeDropdown = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [menuPos, setMenuPos] = useState({});
@@ -52,7 +52,6 @@ const GradeDropdown = ({ value, onChange }) => {
 
     return (
         <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-            {/* Trigger button */}
             <div
                 ref={triggerRef}
                 onClick={handleToggle}
@@ -70,18 +69,9 @@ const GradeDropdown = ({ value, onChange }) => {
                 }}
             >
                 <span style={{ fontSize: '0.9rem' }}>{value || 'Grade --'}</span>
-                <ChevronDown
-                    size={15}
-                    style={{
-                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
-                        transition: 'transform 0.3s',
-                        color: 'var(--text-secondary)',
-                        flexShrink: 0,
-                    }}
-                />
+                <ChevronDown size={15} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s', color: 'var(--text-secondary)', flexShrink: 0 }} />
             </div>
 
-            {/* Fixed-position glass menu — escapes overflow:hidden */}
             {isOpen && (
                 <div style={{
                     position: 'fixed',
@@ -104,6 +94,8 @@ const GradeDropdown = ({ value, onChange }) => {
                         <div
                             key={grade}
                             onClick={() => { onChange(grade); setIsOpen(false); }}
+                            onMouseEnter={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.15)' : 'transparent'}
                             style={{
                                 padding: '10px 12px',
                                 borderRadius: '8px',
@@ -115,10 +107,7 @@ const GradeDropdown = ({ value, onChange }) => {
                                 marginBottom: '2px',
                                 background: value === grade ? 'rgba(59,130,246,0.15)' : 'transparent',
                                 fontSize: '0.95rem',
-                                transition: 'background 0.15s',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)'}
-                            onMouseLeave={e => e.currentTarget.style.background = value === grade ? 'rgba(59,130,246,0.15)' : 'transparent'}
                         >
                             <span>{grade}</span>
                             {value === grade && <Check size={16} color="var(--primary, #3B82F6)" />}
@@ -188,7 +177,6 @@ const MandatoryCourses = () => {
                     gap: 0.75rem;
                     padding: 0.9rem 1.1rem;
                     transition: border-color 0.3s ease;
-                    overflow: visible;
                     box-sizing: border-box;
                     width: 100%;
                 }
@@ -318,7 +306,6 @@ const MandatoryCourses = () => {
                                     borderLeft: `4px solid ${color}`,
                                     position: 'relative',
                                     zIndex: courses.length - index,
-                                    overflow: 'visible',
                                 }}
                             >
                                 <div className="mc-course-left">
@@ -364,4 +351,3 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
-                                            
