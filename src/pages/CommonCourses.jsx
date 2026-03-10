@@ -1,77 +1,85 @@
-import React, { useState, useEffect } from 'react';
-import { Layers, CheckCircle, Search, BookOpen, RefreshCcw, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Layers, CheckCircle, Search, RefreshCcw, CheckSquare, Square } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import DashboardLayout from '../components/DashboardLayout';
 import { db } from '../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
+const DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'AIDS', 'BT', 'BME'];
+
 const CommonCourses = () => {
     const [dept1, setDept1] = useState('CSE');
     const [dept2, setDept2] = useState('IT');
     const [commonList, setCommonList] = useState([]);
-    
-    // Stores which courses are marked as completed
     const [checkedCourses, setCheckedCourses] = useState({});
-
-    const [allCourses, setAllCourses] = useState([]); 
+    const [allCourses, setAllCourses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searching, setSearching] = useState(false); // ✅ separate state for find button
 
-    const DEPARTMENTS = ['CSE', 'IT', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'AIDS', 'BT', 'BME'];
-
-    // 1. Fetch Courses
+    // ✅ Fetch once on mount — no re-fetch on every button click
     useEffect(() => {
         const fetchCourses = async () => {
             setLoading(true);
             try {
-                const querySnapshot = await getDocs(collection(db, "courses")); 
-                const coursesData = [];
-                querySnapshot.forEach((doc) => {
-                    coursesData.push(doc.data()); 
-                });
+                const querySnapshot = await getDocs(collection(db, "courses"));
+                const coursesData = querySnapshot.docs.map(doc => doc.data());
                 setAllCourses(coursesData);
-                setLoading(false);
             } catch (error) {
                 console.error("Error fetching courses:", error);
+            } finally {
                 setLoading(false);
             }
         };
         fetchCourses();
     }, []);
 
-    // 2. Find Common
-    const findCommon = () => {
+    // ✅ useCallback — stable reference, no re-create on every render
+    const findCommon = useCallback(() => {
         if (dept1 === dept2) {
             alert("Please select two different departments.");
             return;
         }
+        // ✅ Bug #20 — guard: don't run if courses haven't loaded yet
+        if (loading || !allCourses.length) {
+            alert("Courses are still loading. Please wait.");
+            return;
+        }
 
-        const list1 = allCourses
-            .filter(c => (c.branch === dept1 || c.department === dept1))
-            .map(c => c.name.toLowerCase().trim());
+        setSearching(true);
 
-        const list2 = allCourses
-            .filter(c => (c.branch === dept2 || c.department === dept2))
-            .map(c => c.name.toLowerCase().trim());
+        const normalize = (name) => name.toLowerCase().trim();
 
-        const common = list1.filter(courseName => list2.includes(courseName));
-        
-        const uniqueCommon = [...new Set(common)].map(name => 
-            name.charAt(0).toUpperCase() + name.slice(1)
+        const list1 = new Set(
+            allCourses
+                .filter(c => c.branch === dept1 || c.department === dept1)
+                .map(c => normalize(c.name))
+        );
+        const list2 = new Set(
+            allCourses
+                .filter(c => c.branch === dept2 || c.department === dept2)
+                .map(c => normalize(c.name))
         );
 
-        setCommonList(uniqueCommon);
-        // Reset checks when new search is made
-        setCheckedCourses({});
-    };
+        const common = [...list1]
+            .filter(name => list2.has(name))
+            .map(name => name.charAt(0).toUpperCase() + name.slice(1));
 
-    // 3. Toggle Checkbox
-    const toggleCheck = (courseName) => {
-        setCheckedCourses(prev => ({
-            ...prev,
-            [courseName]: !prev[courseName]
-        }));
-    };
+        setCommonList(common);
+        setCheckedCourses({});
+        setSearching(false);
+    }, [dept1, dept2, allCourses, loading]);
+
+    // ✅ useCallback — stable toggle handler
+    const toggleCheck = useCallback((courseName) => {
+        setCheckedCourses(prev => ({ ...prev, [courseName]: !prev[courseName] }));
+    }, []);
+
+    // ✅ useMemo — only recalculates when checkedCourses changes
+    const completedCount = useMemo(
+        () => Object.values(checkedCourses).filter(Boolean).length,
+        [checkedCourses]
+    );
 
     return (
         <DashboardLayout>
@@ -81,18 +89,22 @@ const CommonCourses = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                
+
                 {/* Selection Card */}
                 <GlassCard>
                     <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Search size={20} color="#60A5FA" /> Compare Departments
                     </h3>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '5px', color: '#aaa', fontSize: '0.9rem' }}>Department 1</label>
-                            <select value={dept1} onChange={(e) => setDept1(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}>
-                                {DEPARTMENTS.map(d => <option key={d} value={d} style={{color:'black'}}>{d}</option>)}
+                            <select
+                                value={dept1}
+                                onChange={(e) => setDept1(e.target.value)}
+                                style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+                            >
+                                {DEPARTMENTS.map(d => <option key={d} value={d} style={{ color: 'black' }}>{d}</option>)}
                             </select>
                         </div>
 
@@ -100,13 +112,27 @@ const CommonCourses = () => {
 
                         <div>
                             <label style={{ display: 'block', marginBottom: '5px', color: '#aaa', fontSize: '0.9rem' }}>Department 2</label>
-                            <select value={dept2} onChange={(e) => setDept2(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}>
-                                {DEPARTMENTS.map(d => <option key={d} value={d} style={{color:'black'}}>{d}</option>)}
+                            <select
+                                value={dept2}
+                                onChange={(e) => setDept2(e.target.value)}
+                                style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+                            >
+                                {DEPARTMENTS.map(d => <option key={d} value={d} style={{ color: 'black' }}>{d}</option>)}
                             </select>
                         </div>
 
-                        <GlassButton onClick={findCommon} disabled={loading} variant="gradient" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-                            {loading ? <RefreshCcw className="animate-spin" size={18}/> : "Find Common Subjects"}
+                        {/* ✅ Bug #20 — disabled while loading OR searching, no empty-result clicks */}
+                        <GlassButton
+                            onClick={findCommon}
+                            disabled={loading || searching}
+                            variant="gradient"
+                            style={{ justifyContent: 'center', marginTop: '1rem', gap: '8px' }}
+                        >
+                            {/* ✅ animate-spin replaced with inline style rotation — works without Tailwind */}
+                            {loading || searching
+                                ? <><RefreshCcw size={18} style={{ animation: 'spin 1s linear infinite' }} /> {loading ? 'Loading...' : 'Searching...'}</>
+                                : 'Find Common Subjects'
+                            }
                         </GlassButton>
                     </div>
                 </GlassCard>
@@ -119,28 +145,29 @@ const CommonCourses = () => {
                         </h3>
                         {commonList.length > 0 && (
                             <span style={{ fontSize: '0.8rem', color: '#aaa' }}>
-                                {Object.values(checkedCourses).filter(Boolean).length} / {commonList.length} Completed
+                                {completedCount} / {commonList.length} Completed
                             </span>
                         )}
                     </div>
 
                     {commonList.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div style={{ padding: '10px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', borderLeft: '3px solid #3B82F6' }}>
+                            <div style={{ padding: '10px', background: 'rgba(59,130,246,0.1)', borderRadius: '8px', borderLeft: '3px solid #3B82F6' }}>
                                 Found <b>{commonList.length}</b> common subjects between <b>{dept1}</b> and <b>{dept2}</b>.
                             </div>
                             <div style={{ display: 'grid', gap: '10px', maxHeight: '400px', overflowY: 'auto' }}>
                                 {commonList.map((course, idx) => {
-                                    const isChecked = checkedCourses[course];
+                                    const isChecked = !!checkedCourses[course];
                                     return (
-                                        <div 
-                                            key={idx} 
+                                        <div
+                                            key={idx}
                                             onClick={() => toggleCheck(course)}
-                                            style={{ 
-                                                display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', 
-                                                background: isChecked ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255,255,255,0.03)', 
-                                                borderRadius: '10px', border: isChecked ? '1px solid #34D399' : '1px solid rgba(255,255,255,0.05)',
-                                                cursor: 'pointer', transition: '0.2s'
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '12px', padding: '12px',
+                                                background: isChecked ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.03)',
+                                                borderRadius: '10px',
+                                                border: isChecked ? '1px solid #34D399' : '1px solid rgba(255,255,255,0.05)',
+                                                cursor: 'pointer', transition: 'all 0.2s'
                                             }}
                                         >
                                             <div style={{ color: isChecked ? '#34D399' : '#aaa' }}>
@@ -160,13 +187,17 @@ const CommonCourses = () => {
                     ) : (
                         <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
                             <Layers size={40} style={{ marginBottom: '10px', opacity: 0.3 }} />
-                            <p>Select departments to see results.</p>
-                            {loading && <p style={{ fontSize: '0.8rem', marginTop: '10px' }}>Loading Database...</p>}
+                            <p>{loading ? 'Loading courses...' : 'Select departments and click Find to see results.'}</p>
                         </div>
                     )}
                 </GlassCard>
-
             </div>
+
+            {/* ✅ spin animation for the loading icon */}
+            <style>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @media(max-width: 700px) { div[style*="repeat(auto-fit"] { grid-template-columns: 1fr !important; } }
+            `}</style>
         </DashboardLayout>
     );
 };
