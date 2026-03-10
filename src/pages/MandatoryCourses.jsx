@@ -71,8 +71,6 @@ const MandatoryCourses = () => {
                     margin-bottom: 8px;
                     font-size: 0.9rem;
                 }
-
-                /* ── Course card: horizontal on all screens ── */
                 .mc-course-card {
                     display: flex;
                     align-items: center;
@@ -80,7 +78,6 @@ const MandatoryCourses = () => {
                     gap: 0.75rem;
                     padding: 0.9rem 1.1rem;
                     transition: border-color 0.3s ease;
-                    /* Prevent the card itself from overflowing viewport */
                     overflow: hidden;
                     box-sizing: border-box;
                     width: 100%;
@@ -90,7 +87,7 @@ const MandatoryCourses = () => {
                     align-items: center;
                     gap: 10px;
                     flex: 1;
-                    min-width: 0; /* critical — allows text-overflow to work */
+                    min-width: 0;
                     overflow: hidden;
                 }
                 .mc-grade-dot {
@@ -135,6 +132,13 @@ const MandatoryCourses = () => {
                 .mc-dropdown-wrap {
                     width: 120px;
                 }
+                /* Override GlassDropdown trigger padding to be compact */
+                .mc-dropdown-wrap .glass-dropdown-container > div:first-child {
+                    padding: 9px 10px !important;
+                    border-radius: 10px !important;
+                    border-color: rgba(255,255,255,0.12) !important;
+                    box-shadow: none !important;
+                }
 
                 /* ── Mobile ── */
                 @media (max-width: 480px) {
@@ -144,9 +148,13 @@ const MandatoryCourses = () => {
                     .mc-course-card { padding: 0.65rem 0.75rem; gap: 0.5rem; }
                     .mc-course-left { gap: 7px; }
                     .mc-grade-dot { width: 28px; height: 28px; font-size: 0.68rem; }
-                    .mc-course-name { font-size: 0.78rem; }
-                    .mc-course-code { font-size: 0.67rem; }
-                    .mc-dropdown-wrap { width: 82px; }
+                    .mc-course-name { font-size: 0.82rem; }
+                    .mc-course-code { font-size: 0.7rem; }
+                    .mc-dropdown-wrap { width: 100px; }
+                    .mc-dropdown-wrap .glass-dropdown-container > div:first-child {
+                        padding: 8px 8px !important;
+                        font-size: 0.82rem !important;
+                    }
                     .mc-check-icon { display: none; }
                 }
 
@@ -154,7 +162,7 @@ const MandatoryCourses = () => {
                 @media (min-width: 481px) and (max-width: 768px) {
                     .mc-title { font-size: 1.55rem; }
                     .mc-course-name { font-size: 0.88rem; }
-                    .mc-dropdown-wrap { width: 105px; }
+                    .mc-dropdown-wrap { width: 110px; }
                 }
 
                 /* ── Desktop wide ── */
@@ -268,4 +276,4 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
-                                    
+
