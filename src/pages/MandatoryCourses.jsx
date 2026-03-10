@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { BookOpen, CheckCircle, ChevronDown } from 'lucide-react';
+import { BookOpen, CheckCircle } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
+import GlassDropdown from '../components/GlassDropdown';
 import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -131,35 +132,8 @@ const MandatoryCourses = () => {
                     gap: 6px;
                     flex-shrink: 0;
                 }
-                .mc-select-wrap {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                }
-                .mc-grade-select {
-                    appearance: none;
-                    -webkit-appearance: none;
-                    background: rgba(255,255,255,0.07);
-                    border: 1.5px solid rgba(255,255,255,0.15);
-                    border-radius: 10px;
-                    color: white;
-                    font-size: 0.82rem;
-                    font-weight: 600;
-                    padding: 6px 26px 6px 10px;
-                    cursor: pointer;
-                    outline: none;
-                    width: 78px;
-                    transition: border-color 0.2s, background 0.2s;
-                }
-                .mc-grade-select:focus {
-                    border-color: rgba(255,255,255,0.35);
-                    background: rgba(255,255,255,0.12);
-                }
-                .mc-select-chevron {
-                    position: absolute;
-                    right: 6px;
-                    pointer-events: none;
-                    opacity: 0.45;
+                .mc-dropdown-wrap {
+                    width: 120px;
                 }
 
                 /* ── Mobile ── */
@@ -172,7 +146,7 @@ const MandatoryCourses = () => {
                     .mc-grade-dot { width: 28px; height: 28px; font-size: 0.68rem; }
                     .mc-course-name { font-size: 0.78rem; }
                     .mc-course-code { font-size: 0.67rem; }
-                    .mc-grade-select { width: 70px; font-size: 0.78rem; padding: 5px 22px 5px 8px; }
+                    .mc-dropdown-wrap { width: 82px; }
                     .mc-check-icon { display: none; }
                 }
 
@@ -180,7 +154,7 @@ const MandatoryCourses = () => {
                 @media (min-width: 481px) and (max-width: 768px) {
                     .mc-title { font-size: 1.55rem; }
                     .mc-course-name { font-size: 0.88rem; }
-                    .mc-grade-select { width: 82px; }
+                    .mc-dropdown-wrap { width: 105px; }
                 }
 
                 /* ── Desktop wide ── */
@@ -188,7 +162,7 @@ const MandatoryCourses = () => {
                     .mc-title { font-size: 2rem; }
                     .mc-grade-dot { width: 40px; height: 40px; font-size: 0.88rem; }
                     .mc-course-name { font-size: 1rem; }
-                    .mc-grade-select { width: 90px; font-size: 0.88rem; }
+                    .mc-dropdown-wrap { width: 130px; }
                 }
             `}</style>
 
@@ -275,19 +249,13 @@ const MandatoryCourses = () => {
 
                                 <div className="mc-course-right">
                                     {currentGrade && <CheckCircle className="mc-check-icon" size={14} color="#34D399" />}
-                                    <div className="mc-select-wrap">
-                                        <select
-                                            className="mc-grade-select"
+                                    <div className="mc-dropdown-wrap">
+                                        <GlassDropdown
+                                            options={GRADES}
                                             value={currentGrade}
-                                            onChange={(e) => handleGradeChange(course, e.target.value)}
-                                            style={{ borderColor: currentGrade ? color : 'rgba(255,255,255,0.15)' }}
-                                        >
-                                            <option value="" style={{ background: '#1a1a2e', color: '#aaa' }}>--</option>
-                                            {GRADES.map(g => (
-                                                <option key={g} value={g} style={{ background: '#1a1a2e', color: 'white' }}>{g}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown size={12} className="mc-select-chevron" />
+                                            onChange={(g) => handleGradeChange(course, g)}
+                                            placeholder="Grade --"
+                                        />
                                     </div>
                                 </div>
                             </GlassCard>
@@ -300,3 +268,4 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
+                                    
