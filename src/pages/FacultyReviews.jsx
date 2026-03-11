@@ -10,7 +10,9 @@ import {
     Trash2, Edit2, ShieldCheck, ThumbsUp, ThumbsDown,
     MessageCircle, Send, UserCheck, Flame, Trophy
 } from 'lucide-react';
-import { useData, POINTS } from '../context/DataContext';
+import { useData } from '../context/DataContext';
+
+const POINTS = { SUBMIT_REVIEW: 25, EDIT_REVIEW: 5, LIKE_REVIEW: 2, COMMENT: 5, CALL_FACULTY: 3 };
 import { useAuth } from '../context/AuthContext';
 
 const PointsToast = ({ pts, reason, onDone }) => {
