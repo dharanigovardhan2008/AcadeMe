@@ -1,5 +1,5 @@
-
 import React, { useMemo, useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { BookOpen, CheckCircle, ChevronDown, Check } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import DashboardLayout from '../components/DashboardLayout';
@@ -28,7 +28,10 @@ const GradeDropdown = ({ value, onChange }) => {
 
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) {
+            if (
+                containerRef.current && !containerRef.current.contains(e.target) &&
+                !e.target.closest('.grade-portal-menu')
+            ) {
                 setIsOpen(false);
             }
         };
@@ -36,94 +39,124 @@ const GradeDropdown = ({ value, onChange }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const calcPos = () => {
+        if (!triggerRef.current) return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        const left = Math.min(rect.left, window.innerWidth - rect.width - 8);
+        setMenuPos({
+            top: rect.bottom + 6,
+            left: Math.max(left, 8),
+            width: rect.width,
+        });
+    };
+
+    useEffect(() => {
+        if (!isOpen) return;
+        window.addEventListener('scroll', calcPos, true);
+        window.addEventListener('resize', calcPos);
+        return () => {
+            window.removeEventListener('scroll', calcPos, true);
+            window.removeEventListener('resize', calcPos);
+        };
+    }, [isOpen]);
+
     const handleToggle = () => {
-        if (!isOpen && triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const menuHeight = GRADES.length * 44 + 12;
-            if (spaceBelow < menuHeight) {
-                setMenuPos({ bottom: window.innerHeight - rect.top + 6, top: 'auto', left: rect.left, width: rect.width });
-            } else {
-                setMenuPos({ top: rect.bottom + 6, bottom: 'auto', left: rect.left, width: rect.width });
-            }
-        }
+        calcPos();
         setIsOpen(prev => !prev);
     };
 
-    return (
-        <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-            <div
-                ref={triggerRef}
-                onClick={handleToggle}
-                style={{
-                    padding: '9px 10px',
-                    borderRadius: '10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: value ? 'white' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    userSelect: 'none',
-                    boxSizing: 'border-box',
-                    width: '100%',
-                }}
-            >
-                <span style={{ fontSize: '0.9rem' }}>{value || 'Grade --'}</span>
-                <ChevronDown size={15} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s', color: 'var(--text-secondary)', flexShrink: 0 }} />
-            </div>
-
-            {isOpen && (
-                <div style={{
-                    position: 'fixed',
-                    top: menuPos.top ?? 'auto',
-                    bottom: menuPos.bottom ?? 'auto',
-                    left: menuPos.left,
-                    width: menuPos.width,
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    background: 'rgba(15, 15, 26, 0.97)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-                    zIndex: 99999,
-                    padding: '6px',
-                }} className="custom-scrollbar">
-                    {GRADES.map((grade) => (
-                        <div
-                            key={grade}
-                            onClick={() => { onChange(grade); setIsOpen(false); }}
-                            className="dropdown-item"
-                            style={{
-                                padding: '10px 12px',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                color: value === grade ? 'var(--primary)' : 'rgba(255,255,255,0.8)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                transition: 'all 0.2s',
-                                marginBottom: '2px',
-                                background: value === grade ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                                fontSize: '0.95rem'
-                            }}
-                        >
-                            <span>{grade}</span>
-                            {value === grade && <Check size={16} color="var(--primary)" />}
-                        </div>
-                    ))}
+    const menu = isOpen ? ReactDOM.createPortal(
+        <div
+            className="grade-portal-menu custom-scrollbar"
+            style={{
+                position: 'fixed',
+                top: menuPos.top,
+                left: menuPos.left,
+                width: menuPos.width,
+                maxHeight: '220px',
+                overflowY: 'auto',
+                background: 'rgba(15, 15, 26, 0.97)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
+                zIndex: 999999,
+                padding: '6px',
+            }}
+        >
+            {GRADES.map((grade) => (
+                <div
+                    key={grade}
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        onChange(grade);
+                        setIsOpen(false);
+                    }}
+                    className="dropdown-item"
+                    style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: value === grade ? 'var(--primary, #3B82F6)' : 'rgba(255,255,255,0.8)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s',
+                        marginBottom: '2px',
+                        background: value === grade ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                        fontSize: '0.95rem',
+                    }}
+                >
+                    <span>{grade}</span>
+                    {value === grade && <Check size={16} color="var(--primary, #3B82F6)" />}
                 </div>
-            )}
+            ))}
+        </div>,
+        document.body
+    ) : null;
+
+    return (
+        <>
             <style>{`
                 .dropdown-item:hover {
-                    background: rgba(255, 255, 255, 0.05) !important;
+                    background: rgba(255, 255, 255, 0.08) !important;
                     color: white !important;
                 }
             `}</style>
-        </div>
+            <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+                <div
+                    ref={triggerRef}
+                    onClick={handleToggle}
+                    style={{
+                        padding: '9px 10px',
+                        borderRadius: '10px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: value ? 'white' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        userSelect: 'none',
+                        boxSizing: 'border-box',
+                        width: '100%',
+                    }}
+                >
+                    <span style={{ fontSize: '0.9rem' }}>{value || 'Grade --'}</span>
+                    <ChevronDown
+                        size={15}
+                        style={{
+                            transform: isOpen ? 'rotate(180deg)' : 'rotate(0)',
+                            transition: 'transform 0.3s',
+                            color: 'var(--text-secondary)',
+                            flexShrink: 0,
+                        }}
+                    />
+                </div>
+                {menu}
+            </div>
+        </>
     );
 };
 
@@ -369,3 +402,4 @@ const MandatoryCourses = () => {
 };
 
 export default MandatoryCourses;
+
