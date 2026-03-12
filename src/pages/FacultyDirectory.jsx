@@ -10,7 +10,7 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
-const POINTS = { CALL_FACULTY: 3 };
+const POINTS = { CALL_FACULTY: 3, SUGGEST_FACULTY: 15 };
 
 // ── InfoRow ─────────────────────────────────────────────────────────────────
 const InfoRow = ({ icon, label, value }) => (
@@ -159,6 +159,15 @@ const FacultyDirectory = () => {
                 submittedAt: serverTimestamp(),
                 status: 'pending',
             });
+            // Award points for contributing
+            if (currentUser) {
+                await awardPoints(
+                    currentUser.uid,
+                    currentUser.displayName || user?.name,
+                    POINTS.SUGGEST_FACULTY,
+                    'Suggested a faculty member'
+                );
+            }
             setSuggestDone(true);
             setSuggestData(blankSuggest);
         } catch (err) { console.error(err); }
@@ -336,9 +345,12 @@ const FacultyDirectory = () => {
                         <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
                             <CheckCircle size={48} color="#34D399" style={{ marginBottom: '12px' }} />
                             <h3 style={{ margin: '0 0 8px', color: '#34D399' }}>Suggestion Sent!</h3>
-                            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>
+                            <p style={{ color: 'var(--text-secondary)', margin: '0 0 8px', fontSize: '0.9rem' }}>
                                 Thank you! The admin will review and add the faculty.
                             </p>
+                            <span style={{ fontSize: '0.85rem', background: 'rgba(52,211,153,0.15)', color: '#34D399', padding: '4px 14px', borderRadius: '20px', border: '1px solid rgba(52,211,153,0.3)' }}>
+                                +{POINTS.SUGGEST_FACULTY} pts earned 🎉
+                            </span>
                             <button onClick={() => { setSuggestDone(false); setShowSuggestForm(false); }}
                                 style={{ marginTop: '1rem', padding: '8px 20px', borderRadius: '20px', border: 'none', background: 'rgba(52,211,153,0.15)', color: '#34D399', cursor: 'pointer' }}>
                                 Close
@@ -357,7 +369,7 @@ const FacultyDirectory = () => {
                                     <input type="text" placeholder="Designation" value={suggestData.designation}
                                         onChange={e => setSuggestData(p => ({ ...p, designation: e.target.value }))} style={inp} />
                                 </div>
-                                <input type="tel" placeholder="Phone (optional)" value={suggestData.phone}
+                                <input required type="tel" placeholder="Phone Number *" value={suggestData.phone}
                                     onChange={e => setSuggestData(p => ({ ...p, phone: e.target.value }))} style={inp} />
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '0.85rem' }}>
                                     <input type="text" placeholder="Course Code (e.g. CS101)" value={suggestData.courseCode}
@@ -390,7 +402,7 @@ const FacultyDirectory = () => {
                             <input type="text" placeholder="Designation" required value={formData.designation}
                                 onChange={e => setFormData(p => ({ ...p, designation: e.target.value }))} style={inp} />
                         </div>
-                        <input type="tel" placeholder="Phone Number" value={formData.phone}
+                        <input required type="tel" placeholder="Phone Number *" value={formData.phone}
                             onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} style={inp} />
                         <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px' }}>
                             <label style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '8px', display: 'block' }}>Courses Taught</label>
