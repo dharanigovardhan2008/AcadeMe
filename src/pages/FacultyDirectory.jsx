@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, BookOpen, Phone, User, X, Plus, Trash2, Edit2, Code, Filter, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Search, BookOpen, Phone, X, Plus, Trash2, Edit2, Code, Filter, ChevronDown, RefreshCcw } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
-import GlassInput from '../components/GlassInput';
 import Badge from '../components/Badge';
 import DashboardLayout from '../components/DashboardLayout';
 import { db, auth } from '../firebase';
@@ -18,12 +17,17 @@ const FacultyDirectory = () => {
 
     const [facultyList, setFacultyList] = useState([]);
     const [search, setSearch] = useState('');
-    const [courseFilter, setCourseFilter] = useState('All');
+    const [filterMode, setFilterMode] = useState('code');       // 'code' | 'name'
+    const [filterValue, setFilterValue] = useState('All');
+    const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [selectedFaculty, setSelectedFaculty] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
+
+    const filterRef = useRef(null);
+    const searchRef = useRef(null);
 
     const currentUser = auth.currentUser;
     const ADMIN_EMAIL = "palerugopi2008@gmail.com";
@@ -35,42 +39,52 @@ const FacultyDirectory = () => {
 
     useEffect(() => {
         const q = query(collection(db, "faculty"), orderBy("name"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setFacultyList(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const unsub = onSnapshot(q, snap => {
+            setFacultyList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         });
-        return () => unsubscribe();
+        return () => unsub();
     }, []);
 
-    const uniqueCourseCodes = useMemo(() => {
-        const codes = facultyList.flatMap(f => f.courses ? f.courses.map(c => c.code) : []);
-        return ['All', ...new Set(codes.filter(Boolean))].sort();
-    }, [facultyList]);
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (filterRef.current && !filterRef.current.contains(e.target)) {
+                setShowFilterDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const uniqueCodes = useMemo(() =>
+        ['All', ...new Set(facultyList.flatMap(f => f.courses?.map(c => c.code) || []).filter(Boolean))].sort()
+    , [facultyList]);
+
+    const uniqueCourseNames = useMemo(() =>
+        ['All', ...new Set(facultyList.flatMap(f => f.courses?.map(c => c.name) || []).filter(Boolean))].sort()
+    , [facultyList]);
 
     const filtered = useMemo(() => facultyList.filter(f => {
         const s = search.toLowerCase().trim();
-        const matchesSearch = !s ||
+        const matchSearch = !s ||
             (f.name?.toLowerCase() || '').includes(s) ||
             (f.designation?.toLowerCase() || '').includes(s) ||
             f.courses?.some(c =>
-                (c.name?.toLowerCase() || '').includes(s) ||
-                (c.code?.toLowerCase() || '').includes(s)
+                (c.code?.toLowerCase() || '').includes(s) ||
+                (c.name?.toLowerCase() || '').includes(s)
             );
-        const matchesCode = courseFilter === 'All' ||
-            f.courses?.some(c => c.code === courseFilter);
-        return matchesSearch && matchesCode;
-    }), [search, courseFilter, facultyList]);
+        const matchFilter = filterValue === 'All' ? true :
+            filterMode === 'code'
+                ? f.courses?.some(c => c.code === filterValue)
+                : f.courses?.some(c => c.name === filterValue);
+        return matchSearch && matchFilter;
+    }), [search, filterMode, filterValue, facultyList]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // only save fields we want — no department/room/email
-            const data = {
-                name: formData.name,
-                designation: formData.designation,
-                phone: formData.phone,
-                courses: formData.courses || [],
-            };
+            const data = { name: formData.name, designation: formData.designation, phone: formData.phone, courses: formData.courses || [] };
             if (isEditing && editId) {
                 await updateDoc(doc(db, "faculty", editId), data);
             } else {
@@ -90,15 +104,9 @@ const FacultyDirectory = () => {
         }
     };
 
-    const handleEdit = (faculty) => {
-        setFormData({
-            name: faculty.name || '',
-            designation: faculty.designation || '',
-            phone: faculty.phone || '',
-            courses: faculty.courses || [],
-        });
-        setEditId(faculty.id); setIsEditing(true);
-        setShowForm(true); setSelectedFaculty(null);
+    const handleEdit = (f) => {
+        setFormData({ name: f.name || '', designation: f.designation || '', phone: f.phone || '', courses: f.courses || [] });
+        setEditId(f.id); setIsEditing(true); setShowForm(true); setSelectedFaculty(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -109,25 +117,22 @@ const FacultyDirectory = () => {
         }
     };
 
-    const removeCourseFromForm = (index) => {
-        setFormData(p => ({ ...p, courses: p.courses.filter((_, i) => i !== index) }));
-    };
-
     const handleCallFaculty = async (phone) => {
         if (!phone) return;
         if (currentUser) {
-            await awardPoints(
-                currentUser.uid,
-                currentUser.displayName || user?.name,
-                POINTS.CALL_FACULTY,
-                'Called a faculty member'
-            );
+            await awardPoints(currentUser.uid, currentUser.displayName || user?.name, POINTS.CALL_FACULTY, 'Called a faculty member');
         }
         window.location.href = `tel:${phone}`;
     };
 
-    // font-size 16px stops iOS from zooming + closing keyboard on focus
-    const inputStyle = {
+    const activeLabel = filterValue !== 'All'
+        ? (filterMode === 'code' ? `Code: ${filterValue}` : `Course: ${filterValue}`)
+        : null;
+
+    const filterOptions = filterMode === 'code' ? uniqueCodes : uniqueCourseNames;
+
+    // input style — fontSize 16px is critical: prevents iOS from zooming and closing keyboard
+    const inp = {
         width: '100%', padding: '12px', borderRadius: '12px',
         border: '1px solid rgba(255,255,255,0.1)',
         background: 'rgba(0,0,0,0.3)', color: 'white', outline: 'none',
@@ -136,95 +141,155 @@ const FacultyDirectory = () => {
 
     return (
         <DashboardLayout>
-            <GlassCard className="mb-6" style={{ overflow: 'visible' }}>
-                {/* Title row */}
+            <style>{`
+                .fd-pills::-webkit-scrollbar { display: none; }
+                .fd-filter-opt { background: transparent; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(255,255,255,0.6); padding: 8px 12px; cursor: pointer; font-size: 0.85rem; text-align: left; width: 100%; transition: background 0.15s; }
+                .fd-filter-opt:hover { background: rgba(255,255,255,0.07); }
+                .fd-filter-opt.active { background: rgba(59,130,246,0.2); border-color: #3B82F6; color: white; font-weight: 600; }
+            `}</style>
+
+            {/* ── Header card ── */}
+            <GlassCard style={{ marginBottom: '1.25rem', overflow: 'visible' }}>
+
+                {/* Title + admin button */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>Faculty Directory</h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>Find professors by Course Code</p>
+                        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0 }}>Faculty Directory</h1>
+                        <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0', fontSize: '0.88rem' }}>
+                            {filtered.length} faculty found
+                        </p>
                     </div>
                     {isAdmin && (
                         <button
                             onClick={() => { setShowForm(!showForm); setIsEditing(false); setFormData(initialFormState); }}
-                            style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)', color: 'white', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'linear-gradient(135deg,#3B82F6,#8B5CF6)', color: 'white', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                         >
-                            {showForm ? <><X size={18} /> Cancel</> : <><Plus size={18} /> Add Faculty</>}
+                            {showForm ? <><X size={18}/> Cancel</> : <><Plus size={18}/> Add Faculty</>}
                         </button>
                     )}
                 </div>
 
-                {/* Search bar */}
-                <div style={{ marginTop: '1.5rem' }}>
-                    <GlassInput
-                        icon={Search}
-                        placeholder="Search name, course or code..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ margin: 0, fontSize: '16px' }}
-                    />
-                </div>
+                {/* Search + Filter button row */}
+                <div style={{ marginTop: '1.25rem', display: 'flex', gap: '10px', alignItems: 'center' }}>
 
-                {/* Filter pills — own scrollable row */}
-                <div style={{
-                    marginTop: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    overflowX: 'auto',
-                    overflowY: 'visible',
-                    WebkitOverflowScrolling: 'touch',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                    paddingBottom: '4px',
-                    paddingTop: '2px',
-                }}>
-                    <Filter size={16} color="#aaa" style={{ flexShrink: 0 }} />
-                    {uniqueCourseCodes.map(code => (
+                    {/* Search — native input, NOT GlassInput, to avoid re-mount on mobile */}
+                    <div style={{ flex: 1, position: 'relative' }}>
+                        <Search size={16} color="#aaa" style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                        <input
+                            ref={searchRef}
+                            type="search"
+                            placeholder="Search name, course or code..."
+                            defaultValue=""
+                            onChange={e => setSearch(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            style={{ ...inp, paddingLeft: '38px' }}
+                        />
+                    </div>
+
+                    {/* Filter button with dropdown */}
+                    <div ref={filterRef} style={{ position: 'relative', flexShrink: 0 }}>
                         <button
-                            key={code}
-                            onClick={() => setCourseFilter(code)}
+                            onClick={() => setShowFilterDropdown(p => !p)}
                             style={{
-                                flexShrink: 0,
-                                padding: '7px 16px',
-                                borderRadius: '20px',
-                                border: '1px solid',
-                                borderColor: courseFilter === code ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                                background: courseFilter === code ? 'rgba(59,130,246,0.2)' : 'transparent',
-                                color: courseFilter === code ? 'white' : 'var(--text-secondary)',
-                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                padding: '12px 14px', borderRadius: '12px',
+                                border: `1px solid ${activeLabel ? '#3B82F6' : 'rgba(255,255,255,0.15)'}`,
+                                background: activeLabel ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
+                                color: activeLabel ? '#60A5FA' : 'white',
+                                cursor: 'pointer', fontSize: '0.88rem', fontWeight: activeLabel ? '600' : '400',
                                 whiteSpace: 'nowrap',
-                                fontWeight: courseFilter === code ? 'bold' : 'normal',
-                                fontSize: '0.85rem',
                             }}
                         >
-                            {code}
+                            <Filter size={15} />
+                            <span style={{ display: 'none' }}>{/* label hidden on small screens */}</span>
+                            {activeLabel
+                                ? <><span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLabel}</span><X size={13} onClick={e => { e.stopPropagation(); setFilterValue('All'); }} /></>
+                                : <><span>Filter</span><ChevronDown size={13} style={{ opacity: 0.6 }} /></>
+                            }
                         </button>
-                    ))}
+
+                        {/* Dropdown panel */}
+                        {showFilterDropdown && (
+                            <div style={{
+                                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                                width: '260px', background: '#16162a',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderRadius: '14px', padding: '12px', zIndex: 200,
+                                boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+                            }}>
+                                {/* Mode tabs */}
+                                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                    {[['code', 'By Code'], ['name', 'By Course Name']].map(([m, lbl]) => (
+                                        <button
+                                            key={m}
+                                            onClick={() => { setFilterMode(m); setFilterValue('All'); }}
+                                            style={{
+                                                flex: 1, padding: '7px', borderRadius: '8px',
+                                                border: `1px solid ${filterMode === m ? '#3B82F6' : 'rgba(255,255,255,0.1)'}`,
+                                                background: filterMode === m ? 'rgba(59,130,246,0.2)' : 'transparent',
+                                                color: filterMode === m ? 'white' : 'rgba(255,255,255,0.5)',
+                                                fontSize: '0.78rem', cursor: 'pointer', fontWeight: filterMode === m ? '700' : '400',
+                                            }}
+                                        >
+                                            {lbl}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Options */}
+                                <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {filterOptions.map(opt => (
+                                        <button
+                                            key={opt}
+                                            className={`fd-filter-opt${filterValue === opt ? ' active' : ''}`}
+                                            onClick={() => { setFilterValue(opt); setShowFilterDropdown(false); }}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
+                {/* Active filter chip */}
+                {activeLabel && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Filtered by:</span>
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(59,130,246,0.15)', color: '#60A5FA', padding: '3px 10px', borderRadius: '20px', border: '1px solid rgba(59,130,246,0.3)' }}>
+                            {activeLabel}
+                        </span>
+                        <button onClick={() => setFilterValue('All')} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '0.75rem' }}>✕ Clear</button>
+                    </div>
+                )}
             </GlassCard>
 
-            {/* Admin form */}
+            {/* ── Admin form ── */}
             {isAdmin && showForm && (
                 <GlassCard style={{ marginBottom: '2rem', padding: '2rem', border: '1px solid rgba(59,130,246,0.3)' }}>
-                    <h3 style={{ marginBottom: '1.5rem' }}>{isEditing ? 'Edit Faculty' : 'Add New Faculty'}</h3>
+                    <h3 style={{ marginBottom: '1.5rem', margin: '0 0 1.5rem' }}>{isEditing ? 'Edit Faculty' : 'Add New Faculty'}</h3>
                     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: '1rem' }}>
-                            <input type="text" placeholder="Name (e.g. Dr. Gopi)" required value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} style={inputStyle} />
-                            <input type="text" placeholder="Designation" required value={formData.designation} onChange={e => setFormData(p => ({ ...p, designation: e.target.value }))} style={inputStyle} />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '1rem' }}>
+                            <input type="text" placeholder="Name (e.g. Dr. Gopi)" required value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} style={inp} />
+                            <input type="text" placeholder="Designation" required value={formData.designation} onChange={e => setFormData(p => ({ ...p, designation: e.target.value }))} style={inp} />
                         </div>
-                        <input type="tel" placeholder="Phone Number" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} style={inputStyle} />
+                        <input type="tel" placeholder="Phone Number" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} style={inp} />
                         <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px' }}>
                             <label style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '8px', display: 'block' }}>Add Courses Taught</label>
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                <input type="text" placeholder="Code (e.g. CS101)" value={tempCourse.code} onChange={e => setTempCourse(p => ({ ...p, code: e.target.value }))} style={inputStyle} />
-                                <input type="text" placeholder="Name (e.g. Java)" value={tempCourse.name} onChange={e => setTempCourse(p => ({ ...p, name: e.target.value }))} style={inputStyle} />
+                                <input type="text" placeholder="Code (e.g. CS101)" value={tempCourse.code} onChange={e => setTempCourse(p => ({ ...p, code: e.target.value }))} style={inp} />
+                                <input type="text" placeholder="Name (e.g. Java)" value={tempCourse.name} onChange={e => setTempCourse(p => ({ ...p, name: e.target.value }))} style={inp} />
                                 <button type="button" onClick={addCourseToForm} style={{ padding: '0 15px', background: '#34D399', border: 'none', borderRadius: '8px', cursor: 'pointer', color: 'black', flexShrink: 0 }}><Plus /></button>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                 {formData.courses?.map((c, i) => (
                                     <div key={i} style={{ padding: '6px 12px', background: 'rgba(59,130,246,0.2)', borderRadius: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <b>{c.code}</b> - {c.name}
-                                        <X size={14} style={{ cursor: 'pointer' }} onClick={() => removeCourseFromForm(i)} />
+                                        <X size={14} style={{ cursor: 'pointer' }} onClick={() => setFormData(p => ({ ...p, courses: p.courses.filter((_, idx) => idx !== i) }))} />
                                     </div>
                                 ))}
                             </div>
@@ -236,7 +301,7 @@ const FacultyDirectory = () => {
                 </GlassCard>
             )}
 
-            {/* Faculty grid */}
+            {/* ── Faculty grid ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 {filtered.length > 0 ? filtered.map(f => (
                     <GlassCard key={f.id} onClick={() => setSelectedFaculty(f)} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
@@ -266,18 +331,14 @@ const FacultyDirectory = () => {
                 )}
             </div>
 
-            {/* Faculty detail modal */}
+            {/* ── Faculty detail modal ── */}
             {selectedFaculty && (
-                <div
-                    style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-                    onClick={() => setSelectedFaculty(null)}
-                >
+                <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setSelectedFaculty(null)}>
                     <GlassCard onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px', margin: '20px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
                         <button onClick={() => setSelectedFaculty(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
                             <X size={24} />
                         </button>
 
-                        {/* Avatar + name */}
                         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                             <div style={{ width: '100px', height: '100px', borderRadius: '50%', margin: '0 auto 1rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.2)' }}>
                                 <span style={{ fontSize: '2rem', fontWeight: 'bold', color: 'white' }}>
@@ -289,7 +350,6 @@ const FacultyDirectory = () => {
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Courses taught */}
                             <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: 'var(--accent)' }}>
                                     <BookOpen size={20} />
@@ -300,12 +360,10 @@ const FacultyDirectory = () => {
                                         ? selectedFaculty.courses.map((c, i) => (
                                             <span key={i} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px' }}>{c.name}</span>
                                         ))
-                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No courses listed.</span>
-                                    }
+                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No courses listed.</span>}
                                 </div>
                             </div>
 
-                            {/* Phone */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <Phone size={20} color="var(--success)" />
                                 <div>
@@ -314,7 +372,6 @@ const FacultyDirectory = () => {
                                 </div>
                             </div>
 
-                            {/* Course codes */}
                             <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: 'var(--warning)' }}>
                                     <Code size={20} />
@@ -325,20 +382,16 @@ const FacultyDirectory = () => {
                                         ? selectedFaculty.courses.map((c, i) => (
                                             <span key={i} style={{ fontSize: '0.8rem', background: 'rgba(251,191,36,0.1)', color: '#FBBF24', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(251,191,36,0.2)' }}>{c.code}</span>
                                         ))
-                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No codes listed.</span>
-                                    }
+                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No codes listed.</span>}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Call button */}
                         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <GlassButton variant="gradient" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleCallFaculty(selectedFaculty.phone)}>
                                 Call Now
                             </GlassButton>
-                            {currentUser && (
-                                <span style={{ fontSize: '0.75rem', color: '#34D399', whiteSpace: 'nowrap' }}>+{POINTS.CALL_FACULTY} pts</span>
-                            )}
+                            {currentUser && <span style={{ fontSize: '0.75rem', color: '#34D399', whiteSpace: 'nowrap' }}>+{POINTS.CALL_FACULTY} pts</span>}
                         </div>
                     </GlassCard>
                 </div>
