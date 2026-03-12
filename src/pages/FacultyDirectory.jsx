@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, BookOpen, Phone, X, Plus, Trash2, Edit2, Code, Filter, ChevronDown, RefreshCcw } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
@@ -20,6 +21,7 @@ const FacultyDirectory = () => {
     const [filterMode, setFilterMode] = useState('code');       // 'code' | 'name'
     const [filterValue, setFilterValue] = useState('All');
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const [selectedFaculty, setSelectedFaculty] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -27,7 +29,9 @@ const FacultyDirectory = () => {
     const [editId, setEditId] = useState(null);
 
     const filterRef = useRef(null);
+    const filterBtnRef = useRef(null);
     const searchRef = useRef(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
 
     const currentUser = auth.currentUser;
     const ADMIN_EMAIL = "palerugopi2008@gmail.com";
@@ -192,7 +196,11 @@ const FacultyDirectory = () => {
                     {/* Filter button with dropdown */}
                     <div ref={filterRef} style={{ position: 'relative', flexShrink: 0 }}>
                         <button
-                            onClick={() => setShowFilterDropdown(p => !p)}
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setDropdownPos({ top: rect.bottom + window.scrollY + 8, right: window.innerWidth - rect.right });
+                                setShowFilterDropdown(p => !p);
+                            }}
                             style={{
                                 display: 'flex', alignItems: 'center', gap: '6px',
                                 padding: '12px 14px', borderRadius: '12px',
@@ -211,13 +219,13 @@ const FacultyDirectory = () => {
                             }
                         </button>
 
-                        {/* Dropdown panel */}
-                        {showFilterDropdown && (
+                        {/* Dropdown panel — portal to escape stacking context */}
+                        {showFilterDropdown && createPortal(
                             <div style={{
-                                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                                position: 'fixed', top: dropdownPos.top, right: dropdownPos.right,
                                 width: '260px', background: '#16162a',
                                 border: '1px solid rgba(255,255,255,0.12)',
-                                borderRadius: '14px', padding: '12px', zIndex: 200,
+                                borderRadius: '14px', padding: '12px', zIndex: 99999,
                                 boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
                             }}>
                                 {/* Mode tabs */}
@@ -252,11 +260,11 @@ const FacultyDirectory = () => {
                                     ))}
                                 </div>
                             </div>
-                        )}
+                        , document.body)}
                     </div>
                 </div>
 
-                {/* Active filter chip */}
+                {/* Active filter chip */
                 {activeLabel && (
                     <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Filtered by:</span>
