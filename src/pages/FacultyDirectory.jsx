@@ -136,7 +136,7 @@ const FacultyDirectory = () => {
 
     return (
         <DashboardLayout>
-            <GlassCard className="mb-6">
+            <GlassCard className="mb-6" style={{ overflow: 'visible' }}>
                 {/* Title row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
@@ -164,18 +164,19 @@ const FacultyDirectory = () => {
                     />
                 </div>
 
-                {/* Filter pills — on its own row, full width, scrollable */}
+                {/* Filter pills — own scrollable row */}
                 <div style={{
                     marginTop: '0.85rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
                     overflowX: 'auto',
-                    // hide scrollbar but keep scroll
+                    overflowY: 'visible',
                     WebkitOverflowScrolling: 'touch',
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    paddingBottom: '2px', // prevents bottom clip
+                    paddingBottom: '4px',
+                    paddingTop: '2px',
                 }}>
                     <Filter size={16} color="#aaa" style={{ flexShrink: 0 }} />
                     {uniqueCourseCodes.map(code => (
