@@ -12,13 +12,25 @@ import { useAuth } from '../context/AuthContext';
 
 const POINTS = { CALL_FACULTY: 3 };
 
+// ── InfoRow helper ──────────────────────────────────────────────────────────
+const InfoRow = ({ icon, label, value }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+        {icon}
+        <div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{label}</p>
+            <p style={{ margin: 0 }}>{value}</p>
+        </div>
+    </div>
+);
+
+// ── Main component ──────────────────────────────────────────────────────────
 const FacultyDirectory = () => {
     const { awardPoints } = useData();
     const { user } = useAuth();
 
     const [facultyList, setFacultyList] = useState([]);
     const [search, setSearch] = useState('');
-    const [filterMode, setFilterMode] = useState('code');
+    const [filterMode, setFilterMode] = useState('code');   // 'code' | 'name'
     const [filterValue, setFilterValue] = useState('All');
     const [showFilterDropdown, setShowFilterDropdown] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -34,10 +46,12 @@ const FacultyDirectory = () => {
     const ADMIN_EMAIL = "palerugopi2008@gmail.com";
     const isAdmin = currentUser && currentUser.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
+    // No department/room/email — only these fields
     const initialFormState = { name: '', designation: '', phone: '', courses: [] };
     const [formData, setFormData] = useState(initialFormState);
     const [tempCourse, setTempCourse] = useState({ name: '', code: '' });
 
+    // ── Real-time fetch ──
     useEffect(() => {
         const q = query(collection(db, "faculty"), orderBy("name"));
         const unsub = onSnapshot(q, snap => {
@@ -46,7 +60,7 @@ const FacultyDirectory = () => {
         return () => unsub();
     }, []);
 
-    // Close dropdown on outside click
+    // ── Close dropdown on outside click ──
     useEffect(() => {
         const handler = (e) => {
             if (filterBtnRef.current && !filterBtnRef.current.contains(e.target)) {
@@ -57,6 +71,7 @@ const FacultyDirectory = () => {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    // ── Derived data ──
     const uniqueCodes = useMemo(() =>
         ['All', ...new Set(facultyList.flatMap(f => f.courses?.map(c => c.code) || []).filter(Boolean))].sort()
     , [facultyList]);
@@ -81,11 +96,18 @@ const FacultyDirectory = () => {
         return matchSearch && matchFilter;
     }), [search, filterMode, filterValue, facultyList]);
 
+    // ── CRUD ──
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const data = { name: formData.name, designation: formData.designation, phone: formData.phone, courses: formData.courses || [] };
+            // Only save the fields we want — no department/room/email
+            const data = {
+                name: formData.name,
+                designation: formData.designation,
+                phone: formData.phone,
+                courses: formData.courses || [],
+            };
             if (isEditing && editId) {
                 await updateDoc(doc(db, "faculty", editId), data);
             } else {
@@ -106,7 +128,12 @@ const FacultyDirectory = () => {
     };
 
     const handleEdit = (f) => {
-        setFormData({ name: f.name || '', designation: f.designation || '', phone: f.phone || '', courses: f.courses || [] });
+        setFormData({
+            name: f.name || '',
+            designation: f.designation || '',
+            phone: f.phone || '',
+            courses: f.courses || [],
+        });
         setEditId(f.id); setIsEditing(true); setShowForm(true); setSelectedFaculty(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -114,7 +141,12 @@ const FacultyDirectory = () => {
     const handleCallFaculty = async (phone) => {
         if (!phone) return;
         if (currentUser) {
-            await awardPoints(currentUser.uid, currentUser.displayName || user?.name, POINTS.CALL_FACULTY, 'Called a faculty member');
+            await awardPoints(
+                currentUser.uid,
+                currentUser.displayName || user?.name,
+                POINTS.CALL_FACULTY,
+                'Called a faculty member'
+            );
         }
         window.location.href = `tel:${phone}`;
     };
@@ -133,12 +165,17 @@ const FacultyDirectory = () => {
 
     const filterOptions = filterMode === 'code' ? uniqueCodes : uniqueCourseNames;
 
+    // fontSize 16px on all inputs — prevents iOS Safari from zooming and closing keyboard
     const inp = {
         width: '100%', padding: '12px', borderRadius: '12px',
         border: '1px solid rgba(255,255,255,0.1)',
         background: 'rgba(0,0,0,0.3)', color: 'white', outline: 'none',
         fontSize: '16px', boxSizing: 'border-box',
     };
+
+    // ── Avatar initials helper ──
+    const initials = (name) =>
+        name?.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') || '?';
 
     return (
         <DashboardLayout>
@@ -164,7 +201,7 @@ const FacultyDirectory = () => {
                 }
             `}</style>
 
-            {/* Header card */}
+            {/* ── Header card ── */}
             <GlassCard style={{ marginBottom: '1.25rem', overflow: 'visible' }}>
 
                 {/* Title + admin button */}
@@ -187,7 +224,8 @@ const FacultyDirectory = () => {
 
                 {/* Search + Filter button */}
                 <div style={{ marginTop: '1.25rem', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    {/* Native input — avoids GlassInput remount that closes keyboard on mobile */}
+
+                    {/* Native input — NOT GlassInput, avoids remount that closes mobile keyboard */}
                     <div style={{ flex: 1, position: 'relative' }}>
                         <Search size={16} color="#aaa" style={{ position: 'absolute', left: '13px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                         <input
@@ -243,7 +281,7 @@ const FacultyDirectory = () => {
                 )}
             </GlassCard>
 
-            {/* Filter dropdown — portalled to body to escape all stacking contexts */}
+            {/* ── Filter dropdown — portalled to body, escapes all stacking contexts ── */}
             {showFilterDropdown && createPortal(
                 <div style={{
                     position: 'fixed',
@@ -276,7 +314,7 @@ const FacultyDirectory = () => {
                             </button>
                         ))}
                     </div>
-                    {/* Options list */}
+                    {/* Options */}
                     <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {filterOptions.map(opt => (
                             <button
@@ -292,7 +330,7 @@ const FacultyDirectory = () => {
                 document.body
             )}
 
-            {/* Admin form */}
+            {/* ── Admin form ── */}
             {isAdmin && showForm && (
                 <GlassCard style={{ marginBottom: '2rem', padding: '2rem', border: '1px solid rgba(59,130,246,0.3)' }}>
                     <h3 style={{ margin: '0 0 1.5rem' }}>{isEditing ? 'Edit Faculty' : 'Add New Faculty'}</h3>
@@ -330,13 +368,13 @@ const FacultyDirectory = () => {
                 </GlassCard>
             )}
 
-            {/* Faculty grid */}
+            {/* ── Faculty grid ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 {filtered.length > 0 ? filtered.map(f => (
                     <GlassCard key={f.id} onClick={() => setSelectedFaculty(f)} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
                         <div style={{ width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 1rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid rgba(255,255,255,0.2)' }}>
                             <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>
-                                {f.name?.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') || '?'}
+                                {initials(f.name)}
                             </span>
                         </div>
                         <h3 style={{ fontWeight: 'bold', marginBottom: '0.2rem' }}>{f.name}</h3>
@@ -360,23 +398,33 @@ const FacultyDirectory = () => {
                 )}
             </div>
 
-            {/* Faculty detail modal */}
+            {/* ── Faculty detail modal ── */}
             {selectedFaculty && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setSelectedFaculty(null)}>
-                    <GlassCard onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '500px', margin: '20px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+                <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                    onClick={() => setSelectedFaculty(null)}
+                >
+                    <GlassCard
+                        onClick={e => e.stopPropagation()}
+                        style={{ width: '100%', maxWidth: '500px', margin: '20px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
+                    >
                         <button onClick={() => setSelectedFaculty(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
                             <X size={24} />
                         </button>
+
+                        {/* Avatar + name */}
                         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                             <div style={{ width: '100px', height: '100px', borderRadius: '50%', margin: '0 auto 1rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid rgba(255,255,255,0.2)' }}>
                                 <span style={{ fontSize: '2rem', fontWeight: 'bold', color: 'white' }}>
-                                    {selectedFaculty.name?.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') || '?'}
+                                    {initials(selectedFaculty.name)}
                                 </span>
                             </div>
                             <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{selectedFaculty.name}</h2>
                             <p style={{ color: 'var(--primary)' }}>{selectedFaculty.designation}</p>
                         </div>
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Courses taught */}
                             <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: 'var(--accent)' }}>
                                     <BookOpen size={20} />
@@ -387,16 +435,15 @@ const FacultyDirectory = () => {
                                         ? selectedFaculty.courses.map((c, i) => (
                                             <span key={i} style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '12px' }}>{c.name}</span>
                                         ))
-                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No courses listed.</span>}
+                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No courses listed.</span>
+                                    }
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                                <Phone size={20} color="var(--success)" />
-                                <div>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Phone</p>
-                                    <p style={{ margin: 0 }}>{selectedFaculty.phone || "N/A"}</p>
-                                </div>
-                            </div>
+
+                            {/* Phone */}
+                            <InfoRow icon={<Phone size={20} color="var(--success)" />} label="Phone" value={selectedFaculty.phone || "N/A"} />
+
+                            {/* Course codes */}
                             <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', color: 'var(--warning)' }}>
                                     <Code size={20} />
@@ -407,15 +454,20 @@ const FacultyDirectory = () => {
                                         ? selectedFaculty.courses.map((c, i) => (
                                             <span key={i} style={{ fontSize: '0.8rem', background: 'rgba(251,191,36,0.1)', color: '#FBBF24', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(251,191,36,0.2)' }}>{c.code}</span>
                                         ))
-                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No codes listed.</span>}
+                                        : <span style={{ fontSize: '0.8rem', color: '#666' }}>No codes listed.</span>
+                                    }
                                 </div>
                             </div>
                         </div>
+
+                        {/* Call button */}
                         <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <GlassButton variant="gradient" style={{ flex: 1, justifyContent: 'center' }} onClick={() => handleCallFaculty(selectedFaculty.phone)}>
                                 Call Now
                             </GlassButton>
-                            {currentUser && <span style={{ fontSize: '0.75rem', color: '#34D399', whiteSpace: 'nowrap' }}>+{POINTS.CALL_FACULTY} pts</span>}
+                            {currentUser && (
+                                <span style={{ fontSize: '0.75rem', color: '#34D399', whiteSpace: 'nowrap' }}>+{POINTS.CALL_FACULTY} pts</span>
+                            )}
                         </div>
                     </GlassCard>
                 </div>
