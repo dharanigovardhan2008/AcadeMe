@@ -23,12 +23,14 @@ import AdminPanel from "./pages/AdminPanel";
 import CompleteProfile from "./pages/CompleteProfile";
 import FacultyReviews from "./pages/FacultyReviews";
 import CommonCourses from "./pages/CommonCourses";
+import Leaderboard from "./pages/Leaderboard";
 
 import AdminModal from "./components/AdminModal";
+import FeedbackFAB from "./components/FeedbackFAB";
 
+// ── Protected route wrapper ──────────────────────────────────────────────────
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
       <div style={{ color: "white", padding: "2rem", textAlign: "center" }}>
@@ -36,125 +38,71 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
+  if (!user) return <Navigate to="/login" />;
   return children;
 };
 
+// ── App content ──────────────────────────────────────────────────────────────
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   useAnimationSystem();
 
+  // Ctrl+Shift+A opens secret admin modal
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handler = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === "A") {
         e.preventDefault();
         setAdminModalOpen(true);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   return (
     <>
       <Routes>
-        <Route path="/" element={<SplashScreen />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        {/* Public */}
+        <Route path="/"               element={<SplashScreen />} />
+        <Route path="/login"          element={<Login />} />
+        <Route path="/signup"         element={<Signup />} />
 
-        <Route
-          path="/complete-profile"
-          element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>}
-        />
+        {/* Protected */}
+        <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
+        <Route path="/dashboard"        element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/calc"             element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>} />
+        <Route path="/attendance"       element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>} />
+        <Route path="/courses"          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>} />
+        <Route path="/common-courses"   element={<ProtectedRoute><CommonCourses /></ProtectedRoute>} />
+        <Route path="/faculty"          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
+        <Route path="/resources"        element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>} />
+        <Route path="/profile"          element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/settings"         element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/reviews"          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>} />
+        <Route path="/admin"            element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+        <Route path="/leaderboard"      element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
 
-        <Route
-          path="/dashboard"
-          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/calc"
-          element={<ProtectedRoute><CGPACalculator /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/attendance"
-          element={<ProtectedRoute><AttendanceTracker /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/courses"
-          element={<ProtectedRoute><MandatoryCourses /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/common-courses"
-          element={<ProtectedRoute><CommonCourses /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/faculty"
-          element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/resources"
-          element={<ProtectedRoute><ResourcesHub /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/profile"
-          element={<ProtectedRoute><Profile /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/settings"
-          element={<ProtectedRoute><Settings /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/reviews"
-          element={<ProtectedRoute><FacultyReviews /></ProtectedRoute>}
-        />
-
-        <Route
-          path="/admin"
-          element={<ProtectedRoute><AdminPanel /></ProtectedRoute>}
-        />
-
-        {/* ✅ Bug #38 Fixed — was Navigate to="/" causing infinite loop on unknown routes */}
+        {/* Bug #38 fix — unknown routes go to login, not splash (prevents infinite loop) */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
 
-      <AdminModal
-        isOpen={adminModalOpen}
-        onClose={() => setAdminModalOpen(false)}
-      />
+      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      {/* Global feedback button — visible on every page */}
+      <FeedbackFAB />
     </>
   );
 };
 
+// ── Root ─────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AuthProvider>
           <DataProvider>
-            <div
-              className="app-container"
-              style={{
-                minHeight: "100vh",
-                background: "#0F0F1A"
-              }}
-            >
-              {/* APK INSTALL BANNER */}
+            <div className="app-container" style={{ minHeight: "100vh", background: "#0F0F1A" }}>
               <DownloadAppBanner />
-
               <AppContent />
             </div>
           </DataProvider>
