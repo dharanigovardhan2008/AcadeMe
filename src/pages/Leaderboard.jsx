@@ -1,351 +1,589 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, Star, RefreshCw, Crown, Zap, Clock, User } from 'lucide-react';
-import GlassCard from '../components/GlassCard';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { db, auth } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const MEDAL = ['#FFD700', '#C0C0C0', '#CD7F32'];
-const RANK_BG = [
-    'linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.08))',
-    'linear-gradient(135deg,rgba(192,192,192,0.15),rgba(160,160,160,0.08))',
-    'linear-gradient(135deg,rgba(205,127,50,0.15),rgba(160,100,30,0.08))',
+// ── Static Data ───────────────────────────────────────────────────────────────
+const HOW_TO_EARN = [
+    { label: 'Report a bug',           pts: 30, icon: '🐛' },
+    { label: 'Submit faculty review',  pts: 25, icon: '⭐' },
+    { label: 'Suggest a feature',      pts: 20, icon: '💡' },
+    { label: 'Suggest a faculty',      pts: 15, icon: '👨‍🏫' },
+    { label: 'General feedback',       pts: 10, icon: '💬' },
+    { label: 'Comment on review',      pts:  5, icon: '🗨️' },
+    { label: 'Edit your review',       pts:  5, icon: '✏️' },
+    { label: 'Call a faculty',         pts:  3, icon: '📞' },
+    { label: 'Like a review',          pts:  2, icon: '👍' },
 ];
 
-const HOW_TO_EARN = [
-    ['Submit a faculty review',  25],
-    ['Report a bug',             30],
-    ['Suggest a feature',        20],
-    ['Suggest a faculty',        15],
-    ['General feedback',         10],
-    ['Comment on review',         5],
-    ['Edit your review',          5],
-    ['Like a review',             2],
-    ['Call a faculty',            3],
-];
+const MEDAL_COLOR = ['#FFD700', '#D4D4D8', '#CD7F32'];
+const MEDAL_GLOW  = ['rgba(255,215,0,0.55)', 'rgba(212,212,218,0.45)', 'rgba(205,127,50,0.5)'];
+const RANK_EMO    = ['🥇', '🥈', '🥉'];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const initials = (name = '') => {
-    const parts = name.trim().split(' ').filter(Boolean);
-    return parts.length >= 2
-        ? parts[0][0].toUpperCase() + parts[parts.length - 1][0].toUpperCase()
-        : (parts[0]?.[0]?.toUpperCase() || '?');
+    const p = name.trim().split(' ').filter(Boolean);
+    return p.length >= 2
+        ? p[0][0].toUpperCase() + p[p.length - 1][0].toUpperCase()
+        : (p[0]?.[0]?.toUpperCase() || '?');
 };
 
 const getWeekStart = () => {
     const d = new Date();
-    d.setDate(d.getDate() - d.getDay()); // Sunday
+    d.setDate(d.getDate() - d.getDay());
     d.setHours(0, 0, 0, 0);
     return d;
 };
 
-const fmtTime = (d) => d?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
+// ── Animated counter ──────────────────────────────────────────────────────────
+const Counter = ({ value }) => {
+    const [disp, setDisp] = useState(0);
+    useEffect(() => {
+        let t0 = null;
+        const dur = 900;
+        const end = value;
+        const tick = (ts) => {
+            if (!t0) t0 = ts;
+            const p = Math.min((ts - t0) / dur, 1);
+            const e = 1 - Math.pow(1 - p, 3);
+            setDisp(Math.round(end * e));
+            if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }, [value]);
+    return <>{disp}</>;
+};
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Particle starfield ────────────────────────────────────────────────────────
+const StarField = () => {
+    const ref = useRef(null);
+    useEffect(() => {
+        const c = ref.current; if (!c) return;
+        const ctx = c.getContext('2d');
+        let W = c.width = c.offsetWidth, H = c.height = c.offsetHeight;
+        const stars = Array.from({ length: 70 }, () => ({
+            x: Math.random() * W, y: Math.random() * H,
+            r: Math.random() * 1.4 + 0.2,
+            a: Math.random(), da: (Math.random() - 0.5) * 0.004,
+            vx: (Math.random() - 0.5) * 0.12, vy: (Math.random() - 0.5) * 0.12,
+        }));
+        let raf;
+        const draw = () => {
+            ctx.clearRect(0, 0, W, H);
+            for (const s of stars) {
+                s.x += s.vx; s.y += s.vy; s.a += s.da;
+                if (s.x < 0) s.x = W; if (s.x > W) s.x = 0;
+                if (s.y < 0) s.y = H; if (s.y > H) s.y = 0;
+                s.a = Math.max(0.1, Math.min(1, s.a));
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(200,180,255,${s.a * 0.6})`; ctx.fill();
+            }
+            raf = requestAnimationFrame(draw);
+        };
+        draw();
+        const onResize = () => { W = c.width = c.offsetWidth; H = c.height = c.offsetHeight; };
+        window.addEventListener('resize', onResize);
+        return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+    }, []);
+    return (
+        <canvas ref={ref} style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', opacity: 0.7,
+        }} />
+    );
+};
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 const Leaderboard = () => {
     const { user } = useAuth();
     const currentUid = auth.currentUser?.uid || user?.uid;
 
-    const [tab,         setTab]         = useState('weekly');
-    const [allUsers,    setAllUsers]    = useState([]);
-    const [loading,     setLoading]     = useState(true);
-    const [lastUpdated, setLastUpdated] = useState(null);
+    const [tab,         setTab]      = useState('weekly');
+    const [allUsers,    setAllUsers] = useState([]);
+    const [loading,     setLoading]  = useState(true);
+    const [showEarn,    setShowEarn] = useState(false);
+    const [mounted,     setMounted]  = useState(false);
 
     const weekStart = getWeekStart();
 
-    // ── Real-time Firestore listener ─────────────────────────────────────────
-    // Listens to the entire `users` collection and re-ranks on every change
-    // This means when any user earns points the board updates live (daily changes visible)
+    useEffect(() => { const t = setTimeout(() => setMounted(true), 80); return () => clearTimeout(t); }, []);
+
     useEffect(() => {
         setLoading(true);
         const unsub = onSnapshot(collection(db, 'users'), (snap) => {
-            const users = snap.docs
-                .map(d => {
-                    const data = d.data();
-                    // Client-side weekly reset: if pointsLastReset < this Sunday → weeklyPoints = 0
-                    const lastReset = data.pointsLastReset ? new Date(data.pointsLastReset) : null;
-                    const stale = !lastReset || lastReset < weekStart;
-                    return {
-                        uid:          d.id,
-                        name:         data.name || 'Student',
-                        branch:       data.branch || '',
-                        totalPoints:  data.totalPoints  || 0,
-                        weeklyPoints: stale ? 0 : (data.weeklyPoints || 0),
-                    };
-                })
-                .filter(u => u.name && (u.totalPoints > 0 || u.weeklyPoints > 0));
-            setAllUsers(users);
-            setLastUpdated(new Date());
+            const list = snap.docs.map(d => {
+                const data = d.data();
+                const lr = data.pointsLastReset ? new Date(data.pointsLastReset) : null;
+                const stale = !lr || lr < weekStart;
+                return {
+                    uid:          d.id,
+                    name:         data.name || 'Student',
+                    branch:       data.branch || '',
+                    totalPoints:  data.totalPoints  || 0,
+                    weeklyPoints: stale ? 0 : (data.weeklyPoints || 0),
+                };
+            }).filter(u => u.totalPoints > 0 || u.weeklyPoints > 0);
+            setAllUsers(list);
             setLoading(false);
-        }, (err) => {
-            console.error('Leaderboard snapshot error:', err);
-            setLoading(false);
-        });
+        }, (err) => { console.error(err); setLoading(false); });
         return () => unsub();
-    }, []); // Run once — onSnapshot keeps it live
+    }, []);
 
-    // ── Derived lists ─────────────────────────────────────────────────────────
-    const pointsKey = tab === 'weekly' ? 'weeklyPoints' : 'totalPoints';
+    const key    = tab === 'weekly' ? 'weeklyPoints' : 'totalPoints';
+    const sorted = [...allUsers].sort((a, b) => (b[key] || 0) - (a[key] || 0));
+    const top10  = sorted.slice(0, 10);
+    const myIdx  = sorted.findIndex(u => u.uid === currentUid);
+    const myRank = myIdx >= 0 ? myIdx + 1 : null;
+    const myEntry = myIdx >= 0 ? sorted[myIdx] : null;
+    const inTop10 = myRank !== null && myRank <= 10;
+    const maxPts  = top10[0]?.[key] || 1;
 
-    const sorted = [...allUsers]
-        .sort((a, b) => (b[pointsKey] || 0) - (a[pointsKey] || 0));
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    const fmtDate = d => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-    const top10 = sorted.slice(0, 10);
+    const CSS = `
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
 
-    // Find current user's rank in full sorted list
-    const myRankIdx = sorted.findIndex(u => u.uid === currentUid);
-    const myRank    = myRankIdx >= 0 ? myRankIdx + 1 : null;
-    const myEntry   = myRankIdx >= 0 ? sorted[myRankIdx] : null;
-    const inTop10   = myRank !== null && myRank <= 10;
+        .lb { font-family: 'DM Sans', sans-serif; color: #e2d9f3; }
 
-    // Week range display
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    const fmtDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        /* Keyframes */
+        @keyframes lb-spin    { to { transform: rotate(360deg); } }
+        @keyframes lb-rise    { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes lb-pop     { 0%{transform:scale(0.5) rotate(-10deg);opacity:0} 70%{transform:scale(1.06) rotate(3deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+        @keyframes lb-glow    { 0%,100%{box-shadow:0 0 24px rgba(255,215,0,0.25),0 0 0 1px rgba(255,215,0,0.2)} 50%{box-shadow:0 0 48px rgba(255,215,0,0.55),0 0 0 1px rgba(255,215,0,0.45)} }
+        @keyframes lb-shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        @keyframes lb-pulse   { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+        @keyframes lb-float   { 0%,100%{transform:translateY(0px) rotate(0deg)} 50%{transform:translateY(-7px) rotate(8deg)} }
+        @keyframes lb-crown   { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-5px) rotate(4deg)} }
+        @keyframes lb-bar     { from{width:0} to{width:var(--w,0%)} }
+        @keyframes lb-scanline { from{transform:translateY(-100%)} to{transform:translateY(100%)} }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+        /* Hero */
+        .lb-hero {
+            position: relative; overflow: hidden; border-radius: 28px;
+            margin-bottom: 1.75rem; padding: 2.75rem 2rem 2rem;
+            background: linear-gradient(140deg, #0c0118 0%, #100d2e 45%, #080f1f 100%);
+            border: 1px solid rgba(130,90,255,0.22);
+        }
+        .lb-hero::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(180deg, rgba(130,90,255,0.06) 0%, transparent 60%);
+        }
+        .lb-hero-title {
+            font-family: 'Syne', sans-serif; font-weight: 800; line-height: 1;
+            letter-spacing: -2px; margin: 0 0 6px;
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
+            background: linear-gradient(135deg, #FFD700 0%, #FF8C00 25%, #FF6B9D 55%, #BF5FFF 85%, #60BFFF 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            animation: lb-shimmer 6s linear infinite;
+        }
+        .lb-hero-sub { font-size: 0.82rem; color: rgba(180,155,255,0.5); margin: 0; letter-spacing: 0.3px; }
+
+        /* Live pill */
+        .lb-live {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+            background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+            color: #4ade80; letter-spacing: 0.5px;
+        }
+        .lb-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+            box-shadow: 0 0 7px #22c55e; animation: lb-pulse 2s ease-in-out infinite; }
+
+        /* My rank */
+        .lb-myrank {
+            position: relative; border-radius: 20px; padding: 1.1rem 1.4rem;
+            margin-bottom: 1.5rem; overflow: hidden;
+            background: linear-gradient(135deg, rgba(96,165,250,0.09), rgba(139,92,246,0.09));
+            border: 1px solid rgba(96,165,250,0.3);
+            animation: lb-rise 0.45s ease both;
+        }
+        .lb-myrank::before {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(90deg, transparent, rgba(96,165,250,0.07), transparent);
+            background-size: 200% 100%; animation: lb-shimmer 4s linear infinite;
+        }
+        .lb-myrank-num {
+            font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.2rem; line-height: 1;
+            background: linear-gradient(135deg, #60A5FA, #A78BFA);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+
+        /* Tabs */
+        .lb-tabs { display: flex; gap: 5px; background: rgba(255,255,255,0.04);
+            border-radius: 16px; padding: 4px; margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.07); }
+        .lb-tab { flex: 1; padding: 11px 8px; border-radius: 13px; border: none; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
+            transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1); }
+        .lb-tab-on  { background: linear-gradient(135deg,rgba(130,90,255,0.35),rgba(70,40,190,0.35));
+            color: #e0d0ff; border: 1px solid rgba(140,100,255,0.4);
+            box-shadow: 0 4px 18px rgba(110,60,255,0.28), inset 0 1px 0 rgba(255,255,255,0.08); }
+        .lb-tab-off { background: transparent; color: rgba(180,155,255,0.4); border: 1px solid transparent; }
+        .lb-tab-off:hover { background: rgba(255,255,255,0.05); color: rgba(210,190,255,0.7); }
+
+        /* Podium */
+        .lb-podium { display: grid; grid-template-columns: 1fr 1.18fr 1fr;
+            gap: 10px; margin-bottom: 1.75rem; align-items: end; }
+        .lb-pod {
+            border-radius: 22px; text-align: center; position: relative;
+            overflow: hidden; cursor: default;
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease;
+        }
+        .lb-pod:hover { transform: translateY(-8px) scale(1.03); }
+        .lb-pod-gold   { background: linear-gradient(160deg,#19110a,#2c1d00); border: 1px solid rgba(255,215,0,0.35); animation: lb-glow 3.5s ease-in-out infinite; }
+        .lb-pod-silver { background: linear-gradient(160deg,#101018,#1a1a2a); border: 1px solid rgba(200,200,225,0.2); }
+        .lb-pod-bronze { background: linear-gradient(160deg,#130b00,#1f1200); border: 1px solid rgba(205,127,50,0.28); }
+        .lb-pod-avatar {
+            border-radius: 50%; margin: 0 auto 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Syne', sans-serif; font-weight: 800;
+            position: relative; z-index: 1;
+            transition: transform 0.3s ease;
+        }
+        .lb-pod:hover .lb-pod-avatar { transform: scale(1.1); }
+        .lb-pod-pts { font-family: 'Syne', sans-serif; font-weight: 800; }
+        .lb-pod-glow { position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
+            border-radius: 50%; filter: blur(22px); opacity: 0.5; pointer-events: none; z-index: 0; }
+        .lb-pod-floor { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
+
+        /* List */
+        .lb-list { border-radius: 22px; overflow: hidden; margin-bottom: 1.5rem;
+            background: rgba(255,255,255,0.022); border: 1px solid rgba(255,255,255,0.07); }
+        .lb-list-head { padding: 1rem 1.25rem; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: linear-gradient(90deg, rgba(110,60,255,0.08), rgba(50,100,255,0.05)); }
+        .lb-row {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+            transition: background 0.22s ease; cursor: default; position: relative;
+        }
+        .lb-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 3px; background: transparent; transition: background 0.22s; border-radius: 0 2px 2px 0; }
+        .lb-row + .lb-row { border-top: 1px solid rgba(255,255,255,0.04); }
+        .lb-row:hover { background: rgba(255,255,255,0.04); }
+        .lb-row:hover::before { background: rgba(130,90,255,0.7); }
+        .lb-row-me { background: linear-gradient(90deg, rgba(96,165,250,0.09), rgba(139,92,246,0.06)) !important; }
+        .lb-row-me::before { background: linear-gradient(180deg, #60A5FA, #A78BFA) !important; }
+        .lb-rank-badge {
+            width: 32px; height: 32px; border-radius: 10px; display: flex;
+            align-items: center; justify-content: center; flex-shrink: 0;
+            font-size: 0.78rem; font-weight: 800;
+        }
+        .lb-bar-track { width: 56px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+        .lb-bar-fill  { height: 100%; border-radius: 2px; animation: lb-bar 0.9s ease-out both; }
+        .lb-you { font-size: 0.62rem; background: linear-gradient(135deg,#3B82F6,#8B5CF6);
+            padding: 2px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0; }
+
+        /* Earn */
+        .lb-earn { border-radius: 22px; overflow: hidden;
+            border: 1px solid rgba(251,191,36,0.18);
+            background: linear-gradient(135deg, rgba(251,191,36,0.04), rgba(255,90,0,0.025)); }
+        .lb-earn-head { padding: 1rem 1.25rem; display: flex; align-items: center;
+            justify-content: space-between; cursor: pointer; user-select: none;
+            background: linear-gradient(90deg, rgba(251,191,36,0.07), transparent);
+            transition: background 0.2s; }
+        .lb-earn-head:hover { background: rgba(251,191,36,0.11); }
+        .lb-earn-item { display: flex; align-items: center; justify-content: space-between;
+            padding: 9px 14px; border-radius: 10px; transition: background 0.2s; }
+        .lb-earn-item:hover { background: rgba(255,255,255,0.05); }
+        .lb-pts-badge { font-family: 'Syne',sans-serif; font-weight: 800; font-size: 0.82rem; color: #4ade80;
+            background: rgba(74,222,128,0.1); padding: 2px 10px; border-radius: 20px;
+            border: 1px solid rgba(74,222,128,0.2); flex-shrink: 0; }
+
+        @media(max-width:520px) {
+            .lb-podium { grid-template-columns: 1fr 1.1fr 1fr; gap: 7px; }
+            .lb-hero   { padding: 2rem 1.2rem 1.5rem; }
+            .lb-row    { padding: 10px 12px; gap: 10px; }
+            .lb-bar-track { display: none; }
+        }
+    `;
+
     return (
         <DashboardLayout>
-            <style>{`
-                @keyframes spin { to { transform: rotate(360deg); } }
-                @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-                .lb-row { transition: transform 0.2s; animation: fadeUp 0.3s ease both; }
-                .lb-row:hover { transform: translateX(4px); }
-                @media (max-width: 480px) {
-                    .lb-podium { grid-template-columns: 1fr 1.1fr 1fr !important; gap: 0.5rem !important; }
-                    .lb-header h1 { font-size: 1.5rem !important; }
-                }
-            `}</style>
+            <style>{CSS}</style>
+            <div className="lb" style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.4s ease' }}>
 
-            {/* ── Header ── */}
-            <div className="lb-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-                        <Trophy size={28} color="#FBBF24" /> Leaderboard
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-                        Points update live • Weekly board resets every Sunday
-                    </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                    {lastUpdated && <><Clock size={12} /> Live · {fmtTime(lastUpdated)}</>}
-                </div>
-            </div>
+                {/* ── Hero ── */}
+                <div className="lb-hero">
+                    <StarField />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: '2.6rem', lineHeight: 1, animation: 'lb-float 3s ease-in-out infinite', display: 'inline-block' }}>
+                                🏆
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <h1 className="lb-hero-title">Leaderboard</h1>
+                                <p className="lb-hero-sub">Earn points · Climb ranks · Be legendary</p>
+                            </div>
+                        </div>
 
-            {/* ── Week banner ── */}
-            <GlassCard style={{ padding: '0.75rem 1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
-                    <Clock size={14} color="#818CF8" />
-                    <span style={{ color: '#818CF8', fontWeight: '600' }}>This week:</span>
-                    <span style={{ color: 'rgba(255,255,255,0.6)' }}>{fmtDate(weekStart)} — {fmtDate(weekEnd)}</span>
-                </div>
-                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
-                    {allUsers.length} students ranked
-                </span>
-            </GlassCard>
-
-            {/* ── My rank card (always visible) ── */}
-            {myEntry && (
-                <GlassCard style={{ marginBottom: '1.25rem', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.3)' }}>
-                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg,#3B82F6,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', color: 'white', flexShrink: 0 }}>
-                        {initials(myEntry.name)}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '1.4rem', alignItems: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px',
+                                background: 'rgba(130,90,255,0.15)', borderRadius: '20px',
+                                border: '1px solid rgba(130,90,255,0.25)', fontSize: '0.75rem', fontWeight: '600', color: 'rgba(200,175,255,0.8)' }}>
+                                👥 {allUsers.length} students ranked
+                            </div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px',
+                                background: 'rgba(60,100,255,0.12)', borderRadius: '20px',
+                                border: '1px solid rgba(80,120,255,0.2)', fontSize: '0.75rem', color: 'rgba(160,185,255,0.7)' }}>
+                                📅 {fmtDate(weekStart)} – {fmtDate(weekEnd)}
+                            </div>
+                            <div className="lb-live" style={{ marginLeft: 'auto' }}>
+                                <div className="lb-live-dot" /> LIVE
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: '700', fontSize: '0.95rem' }}>
-                            {myEntry.name} <span style={{ fontSize: '0.72rem', color: '#60A5FA', background: 'rgba(96,165,250,0.15)', padding: '2px 8px', borderRadius: '10px', marginLeft: '4px' }}>You</span>
-                        </p>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {myEntry.branch || 'Student'}
-                        </p>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ margin: 0, fontWeight: '800', fontSize: '1.4rem', color: '#60A5FA' }}>
-                            #{myRank}
-                        </p>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {myEntry[pointsKey] || 0} pts {tab === 'weekly' ? 'this week' : 'total'}
-                        </p>
-                    </div>
-                </GlassCard>
-            )}
+                </div>
 
-            {/* ── Tabs ── */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '4px' }}>
-                {[['weekly', '⚡ This Week'], ['alltime', '👑 All Time']].map(([id, label]) => (
-                    <button key={id} onClick={() => setTab(id)} style={{
-                        flex: 1, padding: '10px', borderRadius: '10px', border: 'none',
-                        background: tab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        color: tab === id ? 'white' : 'var(--text-secondary)',
-                        fontWeight: tab === id ? '700' : '400',
-                        cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s',
-                    }}>
-                        {label}
-                    </button>
-                ))}
-            </div>
-
-            {/* ── Podium top 3 ── */}
-            {!loading && top10.length >= 3 && (
-                <div className="lb-podium" style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'end' }}>
-                    {[1, 0, 2].map((rankIdx) => {
-                        const entry = top10[rankIdx];
-                        if (!entry) return <div key={rankIdx} />;
-                        const isMe = entry.uid === currentUid;
-                        return (
-                            <GlassCard key={entry.uid} style={{
-                                textAlign: 'center',
-                                padding: rankIdx === 0 ? '1.5rem 0.75rem' : '1rem 0.5rem',
-                                background: RANK_BG[rankIdx],
-                                border: isMe ? '2px solid #60A5FA' : `1px solid ${MEDAL[rankIdx]}44`,
-                                position: 'relative',
-                            }}>
-                                {rankIdx === 0 && <Crown size={20} color="#FFD700" style={{ marginBottom: '4px' }} />}
-                                <div style={{
-                                    width: rankIdx === 0 ? '58px' : '46px',
-                                    height: rankIdx === 0 ? '58px' : '46px',
-                                    borderRadius: '50%', margin: '0 auto 8px',
-                                    background: `linear-gradient(135deg,${MEDAL[rankIdx]},${MEDAL[rankIdx]}88)`,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: rankIdx === 0 ? '1.2rem' : '0.95rem',
-                                    fontWeight: 'bold', color: '#0f0f1a',
-                                }}>
-                                    {initials(entry.name)}
+                {/* ── My Rank Card ── */}
+                {myEntry && (
+                    <div className="lb-myrank">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
+                            <div style={{ width: '50px', height: '50px', borderRadius: '15px', flexShrink: 0,
+                                background: 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '1rem', color: 'white',
+                                boxShadow: '0 4px 18px rgba(96,165,250,0.4)' }}>
+                                {initials(myEntry.name)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{myEntry.name}</span>
+                                    <span className="lb-you">YOU</span>
                                 </div>
-                                <p style={{ fontWeight: '700', fontSize: '0.8rem', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {entry.name}{isMe ? ' 👤' : ''}
-                                </p>
-                                {entry.branch && (
-                                    <p style={{ margin: '0 0 4px', fontSize: '0.68rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.branch}</p>
-                                )}
-                                <p style={{ color: MEDAL[rankIdx], fontWeight: '800', fontSize: rankIdx === 0 ? '1.2rem' : '1rem', margin: 0 }}>
-                                    {entry[pointsKey] || 0}
-                                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', marginLeft: '2px' }}>pts</span>
-                                </p>
-                                <div style={{ position: 'absolute', top: '8px', left: '8px', width: '22px', height: '22px', borderRadius: '50%', background: MEDAL[rankIdx], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 'bold', color: '#0f0f1a' }}>
-                                    {rankIdx + 1}
+                                <div style={{ fontSize: '0.74rem', color: 'rgba(180,155,255,0.45)', marginTop: '3px' }}>
+                                    {myEntry.branch || 'Student'} · <Counter value={myEntry[key] || 0} /> pts {tab === 'weekly' ? 'this week' : 'total'}
                                 </div>
-                            </GlassCard>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* ── Full top 10 list ── */}
-            <GlassCard style={{ padding: '0.5rem', marginBottom: '1.5rem' }}>
-                <div style={{ padding: '0.75rem 1rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>
-                        Top 10 Students
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {tab === 'weekly' ? 'Weekly pts' : 'Total pts'}
-                    </span>
-                </div>
-
-                {loading ? (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                        <RefreshCw size={28} style={{ animation: 'spin 1s linear infinite', marginBottom: '10px' }} />
-                        <p style={{ margin: 0, fontSize: '0.9rem' }}>Loading leaderboard...</p>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div className="lb-myrank-num">#{myRank}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(180,155,255,0.4)' }}>your rank</div>
+                            </div>
+                        </div>
                     </div>
-                ) : top10.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                        <Trophy size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                        <p style={{ fontWeight: '600', margin: '0 0 4px' }}>No rankings yet</p>
-                        <p style={{ fontSize: '0.82rem', margin: 0 }}>Start reviewing faculty or submitting feedback to earn points!</p>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        {top10.map((entry, index) => {
-                            const rank = index + 1;
+                )}
+
+                {/* ── Tabs ── */}
+                <div className="lb-tabs">
+                    {[['weekly', '⚡ This Week'], ['alltime', '👑 All Time']].map(([id, label]) => (
+                        <button key={id} onClick={() => setTab(id)}
+                            className={`lb-tab ${tab === id ? 'lb-tab-on' : 'lb-tab-off'}`}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* ── Podium ── */}
+                {!loading && top10.length >= 3 && (
+                    <div className="lb-podium">
+                        {[1, 0, 2].map((ri, col) => {
+                            const entry = top10[ri];
+                            if (!entry) return <div key={col} />;
                             const isMe = entry.uid === currentUid;
-                            const isTop3 = rank <= 3;
+                            const mc   = MEDAL_COLOR[ri];
+                            const mg   = MEDAL_GLOW[ri];
+                            const sz   = ri === 0 ? 66 : 52;
+                            const cls  = ['lb-pod-silver', 'lb-pod-gold', 'lb-pod-bronze'][col];
+                            const pad  = ri === 0 ? '2.2rem 0.8rem 1.4rem' : '1.6rem 0.7rem 1.2rem';
                             return (
-                                <div key={entry.uid} className="lb-row" style={{
-                                    display: 'flex', alignItems: 'center', gap: '12px',
-                                    padding: '11px 14px', borderRadius: '10px',
-                                    background: isMe
-                                        ? 'rgba(96,165,250,0.12)'
-                                        : isTop3 ? `${MEDAL[rank - 1]}0d` : 'rgba(255,255,255,0.03)',
-                                    border: isMe ? '1px solid rgba(96,165,250,0.35)' : '1px solid transparent',
-                                    animationDelay: `${index * 0.04}s`,
-                                }}>
-                                    {/* Rank */}
-                                    <div style={{ width: '28px', textAlign: 'center', flexShrink: 0 }}>
-                                        {isTop3
-                                            ? <Medal size={18} color={MEDAL[rank - 1]} fill={MEDAL[rank - 1]} />
-                                            : <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>#{rank}</span>
-                                        }
-                                    </div>
+                                <div key={entry.uid} className={`lb-pod ${cls}`}
+                                    style={{ padding: pad, outline: isMe ? '2px solid rgba(96,165,250,0.55)' : 'none',
+                                        animation: `lb-rise 0.5s ${col * 0.07}s ease both` }}>
 
-                                    {/* Avatar */}
-                                    <div style={{
-                                        width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                                        background: isTop3
-                                            ? `linear-gradient(135deg,${MEDAL[rank - 1]},${MEDAL[rank - 1]}88)`
-                                            : 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontWeight: 'bold', fontSize: '0.85rem',
-                                        color: isTop3 ? '#0f0f1a' : 'white',
-                                    }}>
+                                    {ri === 0 && (
+                                        <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)',
+                                            fontSize: '1.6rem', animation: 'lb-crown 2.8s ease-in-out infinite', zIndex: 3 }}>
+                                            👑
+                                        </div>
+                                    )}
+
+                                    <div className="lb-pod-glow" style={{ width: `${sz}px`, height: `${sz}px`, background: mg }} />
+
+                                    <div className="lb-pod-avatar" style={{ width: `${sz}px`, height: `${sz}px`,
+                                        background: `linear-gradient(135deg,${mc},${mc}88)`,
+                                        fontSize: ri === 0 ? '1.3rem' : '1.05rem', color: '#0a0a0a',
+                                        boxShadow: `0 6px 22px ${mg}` }}>
                                         {initials(entry.name)}
                                     </div>
 
-                                    {/* Name + branch */}
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{ fontWeight: isMe ? '700' : '500', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
-                                            {entry.name}
-                                            {isMe && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#60A5FA', background: 'rgba(96,165,250,0.15)', padding: '2px 6px', borderRadius: '10px' }}>You</span>}
+                                    <p style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.76rem',
+                                        margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        padding: '0 6px', position: 'relative', zIndex: 1 }}>
+                                        {entry.name}{isMe ? ' 👤' : ''}
+                                    </p>
+                                    {entry.branch && (
+                                        <p style={{ fontSize: '0.63rem', color: 'rgba(180,155,255,0.38)', margin: '0 0 8px',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            position: 'relative', zIndex: 1 }}>
+                                            {entry.branch}
                                         </p>
-                                        {entry.branch && (
-                                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{entry.branch}</p>
-                                        )}
+                                    )}
+
+                                    <div className="lb-pod-pts" style={{ fontSize: ri === 0 ? '1.55rem' : '1.2rem',
+                                        color: mc, textShadow: `0 0 14px ${mg}`, position: 'relative', zIndex: 1 }}>
+                                        <Counter value={entry[key] || 0} />
+                                        <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)',
+                                            marginLeft: '3px', fontFamily: 'DM Sans,sans-serif' }}>pts</span>
                                     </div>
 
-                                    {/* Points */}
-                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <p style={{ fontWeight: '800', fontSize: '1.05rem', margin: 0, color: isTop3 ? MEDAL[rank - 1] : 'white' }}>
-                                            {entry[pointsKey] || 0}
-                                        </p>
-                                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-secondary)' }}>points</p>
+                                    <div style={{ position: 'absolute', top: '10px', right: '10px',
+                                        fontSize: '1rem', zIndex: 2, animation: ri === 0 ? 'lb-pop 0.5s 0.3s ease both' : 'none' }}>
+                                        {RANK_EMO[ri]}
                                     </div>
+
+                                    <div className="lb-pod-floor" style={{ background: `linear-gradient(90deg,${mc}00,${mc}55,${mc}00)` }} />
                                 </div>
                             );
                         })}
                     </div>
                 )}
-            </GlassCard>
 
-            {/* ── My rank if outside top 10 ── */}
-            {!loading && myRank !== null && !inTop10 && (
-                <GlassCard style={{ marginBottom: '1.5rem', padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.2)' }}>
-                    <User size={16} color="#60A5FA" />
-                    <span style={{ flex: 1, fontSize: '0.85rem' }}>
-                        Your current rank: <strong style={{ color: '#60A5FA' }}>#{myRank}</strong>
-                        <span style={{ color: 'var(--text-secondary)', marginLeft: '6px', fontSize: '0.8rem' }}>
-                            ({myEntry?.[pointsKey] || 0} pts)
+                {/* ── Top 10 List ── */}
+                <div className="lb-list">
+                    <div className="lb-list-head">
+                        <span style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
+                            color: 'rgba(210,195,255,0.8)' }}>Top 10 Rankings</span>
+                        <span style={{ fontSize: '0.72rem', color: 'rgba(180,155,255,0.38)', fontWeight: '500' }}>
+                            {tab === 'weekly' ? '⚡ This week' : '👑 All time'}
                         </span>
-                    </span>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        {myRank - 10} spots from top 10
-                    </span>
-                </GlassCard>
-            )}
+                    </div>
 
-            {/* ── How to earn points ── */}
-            <GlassCard style={{ padding: '1.25rem', border: '1px solid rgba(251,191,36,0.15)', background: 'rgba(251,191,36,0.03)' }}>
-                <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Zap size={16} color="#FBBF24" /> How to earn points
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '0.4rem' }}>
-                    {HOW_TO_EARN.map(([action, pts]) => (
-                        <div key={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
-                            <span style={{ fontSize: '0.79rem', color: 'rgba(255,255,255,0.65)' }}>{action}</span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#34D399', marginLeft: '8px', flexShrink: 0 }}>+{pts}</span>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(180,155,255,0.45)' }}>
+                            <div style={{ width: '36px', height: '36px', border: '3px solid rgba(130,90,255,0.2)',
+                                borderTopColor: '#8B5CF6', borderRadius: '50%', margin: '0 auto 14px',
+                                animation: 'lb-spin 0.75s linear infinite' }} />
+                            <p style={{ margin: 0, fontSize: '0.85rem' }}>Loading rankings…</p>
                         </div>
-                    ))}
+                    ) : top10.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(180,155,255,0.35)' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '14px', opacity: 0.35 }}>🏆</div>
+                            <p style={{ fontWeight: '700', margin: '0 0 6px' }}>No rankings yet</p>
+                            <p style={{ fontSize: '0.8rem', margin: 0 }}>Be the first — review faculty or submit feedback!</p>
+                        </div>
+                    ) : (
+                        top10.map((entry, idx) => {
+                            const rank  = idx + 1;
+                            const isMe  = entry.uid === currentUid;
+                            const isTop = rank <= 3;
+                            const mc    = isTop ? MEDAL_COLOR[rank - 1] : null;
+                            const pct   = Math.round(((entry[key] || 0) / maxPts) * 100);
+                            const bar   = isTop ? mc : '#8B5CF6';
+                            return (
+                                <div key={entry.uid} className={`lb-row${isMe ? ' lb-row-me' : ''}`}
+                                    style={{ animation: `lb-rise 0.4s ${idx * 0.045}s ease both` }}>
+
+                                    <div className="lb-rank-badge" style={{
+                                        background: isTop ? `${mc}18` : 'rgba(255,255,255,0.05)',
+                                        border: `1px solid ${isTop ? mc + '40' : 'rgba(255,255,255,0.08)'}`,
+                                        color: isTop ? mc : 'rgba(180,155,255,0.45)',
+                                        fontSize: isTop ? '1rem' : '0.78rem',
+                                    }}>
+                                        {isTop ? RANK_EMO[rank - 1] : `#${rank}`}
+                                    </div>
+
+                                    <div style={{ width: '40px', height: '40px', borderRadius: '13px', flexShrink: 0,
+                                        background: isTop ? `linear-gradient(135deg,${mc},${mc}88)` : 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
+                                        color: isTop ? '#0a0a0a' : 'white',
+                                        boxShadow: isTop ? `0 2px 14px ${MEDAL_GLOW[rank - 1]}` : 'none' }}>
+                                        {initials(entry.name)}
+                                    </div>
+
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{ fontWeight: isMe ? '700' : '500', fontSize: '0.9rem',
+                                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                color: isMe ? '#93C5FD' : 'rgba(215,205,255,0.88)' }}>
+                                                {entry.name}
+                                            </span>
+                                            {isMe && <span className="lb-you">YOU</span>}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '5px' }}>
+                                            {entry.branch && (
+                                                <span style={{ fontSize: '0.67rem', color: 'rgba(180,155,255,0.32)' }}>{entry.branch}</span>
+                                            )}
+                                            <div className="lb-bar-track">
+                                                <div className="lb-bar-fill"
+                                                    style={{ '--w': `${pct}%`, width: `${pct}%`,
+                                                        background: `linear-gradient(90deg,${bar}66,${bar})`,
+                                                        animationDelay: `${idx * 0.06 + 0.25}s` }} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '1.1rem',
+                                            color: isTop ? mc : (isMe ? '#93C5FD' : 'rgba(215,205,255,0.85)'),
+                                            textShadow: isTop ? `0 0 10px ${MEDAL_GLOW[rank-1]}` : 'none' }}>
+                                            <Counter value={entry[key] || 0} />
+                                        </div>
+                                        <div style={{ fontSize: '0.6rem', color: 'rgba(180,155,255,0.3)', letterSpacing: '0.5px' }}>PTS</div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
-            </GlassCard>
+
+                {/* ── My rank if outside top 10 ── */}
+                {!loading && myRank !== null && !inTop10 && (
+                    <div style={{ borderRadius: '16px', padding: '1rem 1.25rem', marginBottom: '1.5rem',
+                        background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.22)',
+                        display: 'flex', alignItems: 'center', gap: '12px', animation: 'lb-rise 0.5s ease both' }}>
+                        <TrendingUp size={18} color="#60A5FA" style={{ flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: '0.85rem' }}>
+                            Your rank: <strong style={{ color: '#60A5FA', fontFamily: 'Syne,sans-serif', fontSize: '1rem' }}>#{myRank}</strong>
+                            <span style={{ color: 'rgba(180,155,255,0.4)', marginLeft: '6px', fontSize: '0.78rem' }}>
+                                · {myEntry?.[key] || 0} pts
+                            </span>
+                        </span>
+                        <span style={{ fontSize: '0.74rem', color: 'rgba(96,165,250,0.6)',
+                            background: 'rgba(96,165,250,0.1)', padding: '4px 10px', borderRadius: '10px', fontWeight: '600' }}>
+                            {myRank - 10} from top 10
+                        </span>
+                    </div>
+                )}
+
+                {/* ── How to Earn ── */}
+                <div className="lb-earn">
+                    <div className="lb-earn-head" onClick={() => setShowEarn(!showEarn)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                            <span style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
+                                color: 'rgba(251,191,36,0.88)' }}>How to Earn Points</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'rgba(180,155,255,0.38)' }}>
+                                {showEarn ? 'Collapse' : 'Tap to expand'}
+                            </span>
+                            <span style={{ color: 'rgba(251,191,36,0.5)', fontSize: '0.8rem',
+                                display: 'inline-block', transition: 'transform 0.3s',
+                                transform: showEarn ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                        </div>
+                    </div>
+
+                    {showEarn && (
+                        <div style={{ padding: '0.75rem', display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill,minmax(195px,1fr))', gap: '5px' }}>
+                            {HOW_TO_EARN.map(({ label, pts, icon }, i) => (
+                                <div key={label} className="lb-earn-item"
+                                    style={{ animation: `lb-rise 0.32s ${i * 0.035}s ease both` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '1rem' }}>{icon}</span>
+                                        <span style={{ fontSize: '0.78rem', color: 'rgba(200,185,255,0.68)' }}>{label}</span>
+                                    </div>
+                                    <span className="lb-pts-badge">+{pts}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+            </div>
         </DashboardLayout>
     );
 };
