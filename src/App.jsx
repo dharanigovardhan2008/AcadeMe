@@ -26,29 +26,41 @@ import CommonCourses from "./pages/CommonCourses";
 import Leaderboard from "./pages/Leaderboard";
 
 import AdminModal from "./components/AdminModal";
-import FeedbackFAB from "./components/FeedbackFAB";
 
-// ── Protected route wrapper ──────────────────────────────────────────────────
+// ── ProtectedRoute ───────────────────────────────────────────────────────────
+// KEY FIX: while loading=true we show a spinner — never redirect to /login
+// This prevents the flash-redirect when Firebase auth resolves slowly
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+
   if (loading) {
     return (
-      <div style={{ color: "white", padding: "2rem", textAlign: "center" }}>
-        Loading...
+      <div style={{
+        minHeight: "100vh", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: "#0F0F1A", color: "white", gap: "1rem",
+      }}>
+        <div style={{
+          width: "40px", height: "40px", borderRadius: "50%",
+          border: "3px solid rgba(255,255,255,0.1)",
+          borderTopColor: "#3B82F6",
+          animation: "spin 0.8s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" />;
+
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 };
 
-// ── App content ──────────────────────────────────────────────────────────────
+// ── AppContent ───────────────────────────────────────────────────────────────
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   useAnimationSystem();
 
-  // Ctrl+Shift+A opens secret admin modal
   useEffect(() => {
     const handler = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === "A") {
@@ -64,9 +76,9 @@ const AppContent = () => {
     <>
       <Routes>
         {/* Public */}
-        <Route path="/"               element={<SplashScreen />} />
-        <Route path="/login"          element={<Login />} />
-        <Route path="/signup"         element={<Signup />} />
+        <Route path="/"       element={<SplashScreen />} />
+        <Route path="/login"  element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         {/* Protected */}
         <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
@@ -83,13 +95,11 @@ const AppContent = () => {
         <Route path="/admin"            element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
         <Route path="/leaderboard"      element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
 
-        {/* Bug #38 fix — unknown routes go to login, not splash (prevents infinite loop) */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        {/* Bug #38: wildcard → /login not / (prevents splash loop) */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
       <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
-      {/* Global feedback button — visible on every page */}
-      <FeedbackFAB />
     </>
   );
 };
