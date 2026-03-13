@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Trophy, Crown, Flame, Zap, Users, CalendarDays, Bug, Star, Lightbulb, UserPlus, MessageSquare, MessageCircle, Pencil, Phone, ThumbsUp, ChevronDown, Medal } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { db, auth } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -7,29 +7,22 @@ import { useAuth } from '../context/AuthContext';
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 const HOW_TO_EARN = [
-    { label: 'Report a bug',           pts: 30, icon: '🐛' },
-    { label: 'Submit faculty review',  pts: 25, icon: '⭐' },
-    { label: 'Suggest a feature',      pts: 20, icon: '💡' },
-    { label: 'Suggest a faculty',      pts: 15, icon: '👨‍🏫' },
-    { label: 'General feedback',       pts: 10, icon: '💬' },
-    { label: 'Comment on review',      pts:  5, icon: '🗨️' },
-    { label: 'Edit your review',       pts:  5, icon: '✏️' },
-    { label: 'Call a faculty',         pts:  3, icon: '📞' },
-    { label: 'Like a review',          pts:  2, icon: '👍' },
+    { label: 'Report a bug',           pts: 30, Icon: Bug,           color: '#F87171' },
+    { label: 'Submit faculty review',  pts: 25, Icon: Star,          color: '#FBBF24' },
+    { label: 'Suggest a feature',      pts: 20, Icon: Lightbulb,     color: '#A78BFA' },
+    { label: 'Suggest a faculty',      pts: 15, Icon: UserPlus,      color: '#34D399' },
+    { label: 'General feedback',       pts: 10, Icon: MessageSquare, color: '#60A5FA' },
+    { label: 'Comment on review',      pts:  5, Icon: MessageCircle, color: '#818CF8' },
+    { label: 'Edit your review',       pts:  5, Icon: Pencil,        color: '#F9A8D4' },
+    { label: 'Call a faculty',         pts:  3, Icon: Phone,         color: '#6EE7B7' },
+    { label: 'Like a review',          pts:  2, Icon: ThumbsUp,      color: '#FCA5A5' },
 ];
 
 const MEDAL_COLOR = ['#FFD700', '#D4D4D8', '#CD7F32'];
 const MEDAL_GLOW  = ['rgba(255,215,0,0.55)', 'rgba(212,212,218,0.45)', 'rgba(205,127,50,0.5)'];
-const RANK_EMO    = ['🥇', '🥈', '🥉'];
+const RANK_BADGE_COLORS = [MEDAL_COLOR[0], MEDAL_COLOR[1], MEDAL_COLOR[2]];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const initials = (name = '') => {
-    const p = name.trim().split(' ').filter(Boolean);
-    return p.length >= 2
-        ? p[0][0].toUpperCase() + p[p.length - 1][0].toUpperCase()
-        : (p[0]?.[0]?.toUpperCase() || '?');
-};
-
 const getWeekStart = () => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay());
@@ -236,17 +229,7 @@ const Leaderboard = () => {
         .lb-pod-gold   { background: linear-gradient(160deg,#19110a,#2c1d00); border: 1px solid rgba(255,215,0,0.35); animation: lb-glow 3.5s ease-in-out infinite; }
         .lb-pod-silver { background: linear-gradient(160deg,#101018,#1a1a2a); border: 1px solid rgba(200,200,225,0.2); }
         .lb-pod-bronze { background: linear-gradient(160deg,#130b00,#1f1200); border: 1px solid rgba(205,127,50,0.28); }
-        .lb-pod-avatar {
-            border-radius: 50%; margin: 0 auto 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-family: 'Syne', sans-serif; font-weight: 800;
-            position: relative; z-index: 1;
-            transition: transform 0.3s ease;
-        }
-        .lb-pod:hover .lb-pod-avatar { transform: scale(1.1); }
         .lb-pod-pts { font-family: 'Syne', sans-serif; font-weight: 800; }
-        .lb-pod-glow { position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
-            border-radius: 50%; filter: blur(22px); opacity: 0.5; pointer-events: none; z-index: 0; }
         .lb-pod-floor { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; }
 
         /* List */
@@ -311,7 +294,7 @@ const Leaderboard = () => {
                     <div style={{ position: 'relative', zIndex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
                             <div style={{ fontSize: '2.6rem', lineHeight: 1, animation: 'lb-float 3s ease-in-out infinite', display: 'inline-block' }}>
-                                🏆
+                                <Trophy size={44} style={{ filter: 'drop-shadow(0 0 16px rgba(255,215,0,0.7))', color: '#FFD700' }} />
                             </div>
                             <div style={{ flex: 1 }}>
                                 <h1 className="lb-hero-title">Leaderboard</h1>
@@ -323,12 +306,12 @@ const Leaderboard = () => {
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px',
                                 background: 'rgba(130,90,255,0.15)', borderRadius: '20px',
                                 border: '1px solid rgba(130,90,255,0.25)', fontSize: '0.75rem', fontWeight: '600', color: 'rgba(200,175,255,0.8)' }}>
-                                👥 {allUsers.length} students ranked
+                                <Users size={12} /> {allUsers.length} students ranked
                             </div>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px',
                                 background: 'rgba(60,100,255,0.12)', borderRadius: '20px',
                                 border: '1px solid rgba(80,120,255,0.2)', fontSize: '0.75rem', color: 'rgba(160,185,255,0.7)' }}>
-                                📅 {fmtDate(weekStart)} – {fmtDate(weekEnd)}
+                                <CalendarDays size={12} /> {fmtDate(weekStart)} – {fmtDate(weekEnd)}
                             </div>
                             <div className="lb-live" style={{ marginLeft: 'auto' }}>
                                 <div className="lb-live-dot" /> LIVE
@@ -341,13 +324,6 @@ const Leaderboard = () => {
                 {myEntry && (
                     <div className="lb-myrank">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
-                            <div style={{ width: '50px', height: '50px', borderRadius: '15px', flexShrink: 0,
-                                background: 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '1rem', color: 'white',
-                                boxShadow: '0 4px 18px rgba(96,165,250,0.4)' }}>
-                                {initials(myEntry.name)}
-                            </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                     <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{myEntry.name}</span>
@@ -367,7 +343,8 @@ const Leaderboard = () => {
 
                 {/* ── Tabs ── */}
                 <div className="lb-tabs">
-                    {[['weekly', '⚡ This Week'], ['alltime', '👑 All Time']].map(([id, label]) => (
+                    {[['weekly', <><Zap size={14} style={{marginRight:5,verticalAlign:'middle'}}/>This Week</>],
+                  ['alltime', <><Crown size={14} style={{marginRight:5,verticalAlign:'middle'}}/>All Time</>]].map(([id, label]) => (
                         <button key={id} onClick={() => setTab(id)}
                             className={`lb-tab ${tab === id ? 'lb-tab-on' : 'lb-tab-off'}`}>
                             {label}
@@ -384,7 +361,6 @@ const Leaderboard = () => {
                             const isMe = entry.uid === currentUid;
                             const mc   = MEDAL_COLOR[ri];
                             const mg   = MEDAL_GLOW[ri];
-                            const sz   = ri === 0 ? 66 : 52;
                             const cls  = ['lb-pod-silver', 'lb-pod-gold', 'lb-pod-bronze'][col];
                             const pad  = ri === 0 ? '2.2rem 0.8rem 1.4rem' : '1.6rem 0.7rem 1.2rem';
                             return (
@@ -393,25 +369,17 @@ const Leaderboard = () => {
                                         animation: `lb-rise 0.5s ${col * 0.07}s ease both` }}>
 
                                     {ri === 0 && (
-                                        <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)',
-                                            fontSize: '1.6rem', animation: 'lb-crown 2.8s ease-in-out infinite', zIndex: 3 }}>
-                                            👑
+                                        <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
+                                            animation: 'lb-crown 2.8s ease-in-out infinite', zIndex: 3,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Crown size={26} style={{ color: '#FFD700', filter: 'drop-shadow(0 0 10px rgba(255,215,0,0.8))' }} />
                                         </div>
                                     )}
-
-                                    <div className="lb-pod-glow" style={{ width: `${sz}px`, height: `${sz}px`, background: mg }} />
-
-                                    <div className="lb-pod-avatar" style={{ width: `${sz}px`, height: `${sz}px`,
-                                        background: `linear-gradient(135deg,${mc},${mc}88)`,
-                                        fontSize: ri === 0 ? '1.3rem' : '1.05rem', color: '#0a0a0a',
-                                        boxShadow: `0 6px 22px ${mg}` }}>
-                                        {initials(entry.name)}
-                                    </div>
 
                                     <p style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.76rem',
                                         margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                         padding: '0 6px', position: 'relative', zIndex: 1 }}>
-                                        {entry.name}{isMe ? ' 👤' : ''}
+                                        {entry.name}{isMe ? <span style={{marginLeft:4,verticalAlign:'middle'}}><Flame size={13} style={{color:'#F87171',display:'inline'}}/></span> : ''}
                                     </p>
                                     {entry.branch && (
                                         <p style={{ fontSize: '0.63rem', color: 'rgba(180,155,255,0.38)', margin: '0 0 8px',
@@ -428,9 +396,8 @@ const Leaderboard = () => {
                                             marginLeft: '3px', fontFamily: 'DM Sans,sans-serif' }}>pts</span>
                                     </div>
 
-                                    <div style={{ position: 'absolute', top: '10px', right: '10px',
-                                        fontSize: '1rem', zIndex: 2, animation: ri === 0 ? 'lb-pop 0.5s 0.3s ease both' : 'none' }}>
-                                        {RANK_EMO[ri]}
+                                    <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}>
+                                        <Medal size={18} style={{ color: RANK_BADGE_COLORS[ri], filter: `drop-shadow(0 0 6px ${MEDAL_GLOW[ri]})` }} />
                                     </div>
 
                                     <div className="lb-pod-floor" style={{ background: `linear-gradient(90deg,${mc}00,${mc}55,${mc}00)` }} />
@@ -445,8 +412,8 @@ const Leaderboard = () => {
                     <div className="lb-list-head">
                         <span style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
                             color: 'rgba(210,195,255,0.8)' }}>Top 10 Rankings</span>
-                        <span style={{ fontSize: '0.72rem', color: 'rgba(180,155,255,0.38)', fontWeight: '500' }}>
-                            {tab === 'weekly' ? '⚡ This week' : '👑 All time'}
+                        <span style={{ fontSize: '0.72rem', color: 'rgba(180,155,255,0.38)', fontWeight: '500', display:'flex', alignItems:'center', gap:'4px' }}>
+                            {tab === 'weekly' ? <><Zap size={11}/>This week</> : <><Crown size={11}/>All time</>}
                         </span>
                     </div>
 
@@ -459,7 +426,7 @@ const Leaderboard = () => {
                         </div>
                     ) : top10.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(180,155,255,0.35)' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '14px', opacity: 0.35 }}>🏆</div>
+                            <Trophy size={48} style={{ opacity: 0.2, color: '#FBBF24', marginBottom: '14px' }} />
                             <p style={{ fontWeight: '700', margin: '0 0 6px' }}>No rankings yet</p>
                             <p style={{ fontSize: '0.8rem', margin: 0 }}>Be the first — review faculty or submit feedback!</p>
                         </div>
@@ -481,16 +448,7 @@ const Leaderboard = () => {
                                         color: isTop ? mc : 'rgba(180,155,255,0.45)',
                                         fontSize: isTop ? '1rem' : '0.78rem',
                                     }}>
-                                        {isTop ? RANK_EMO[rank - 1] : `#${rank}`}
-                                    </div>
-
-                                    <div style={{ width: '40px', height: '40px', borderRadius: '13px', flexShrink: 0,
-                                        background: isTop ? `linear-gradient(135deg,${mc},${mc}88)` : 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
-                                        color: isTop ? '#0a0a0a' : 'white',
-                                        boxShadow: isTop ? `0 2px 14px ${MEDAL_GLOW[rank - 1]}` : 'none' }}>
-                                        {initials(entry.name)}
+                                        {isTop ? <Medal size={16} style={{ color: RANK_BADGE_COLORS[rank-1], filter:`drop-shadow(0 0 5px ${MEDAL_GLOW[rank-1]})` }} /> : `#${rank}`}
                                     </div>
 
                                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -552,7 +510,7 @@ const Leaderboard = () => {
                 <div className="lb-earn">
                     <div className="lb-earn-head" onClick={() => setShowEarn(!showEarn)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                            <Zap size={16} style={{ color: '#FBBF24', filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.6))' }} />
                             <span style={{ fontFamily: 'Syne,sans-serif', fontWeight: '800', fontSize: '0.88rem',
                                 color: 'rgba(251,191,36,0.88)' }}>How to Earn Points</span>
                         </div>
@@ -560,23 +518,26 @@ const Leaderboard = () => {
                             <span style={{ fontSize: '0.72rem', color: 'rgba(180,155,255,0.38)' }}>
                                 {showEarn ? 'Collapse' : 'Tap to expand'}
                             </span>
-                            <span style={{ color: 'rgba(251,191,36,0.5)', fontSize: '0.8rem',
-                                display: 'inline-block', transition: 'transform 0.3s',
-                                transform: showEarn ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                            <ChevronDown size={16} style={{ color: 'rgba(251,191,36,0.5)',
+                                transition: 'transform 0.3s', transform: showEarn ? 'rotate(180deg)' : 'rotate(0)' }} />
                         </div>
                     </div>
 
                     {showEarn && (
                         <div style={{ padding: '0.75rem', display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fill,minmax(195px,1fr))', gap: '5px' }}>
-                            {HOW_TO_EARN.map(({ label, pts, icon }, i) => (
-                                <div key={label} className="lb-earn-item"
+                            {HOW_TO_EARN.map((item, i) => (
+                                <div key={item.label} className="lb-earn-item"
                                     style={{ animation: `lb-rise 0.32s ${i * 0.035}s ease both` }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontSize: '1rem' }}>{icon}</span>
-                                        <span style={{ fontSize: '0.78rem', color: 'rgba(200,185,255,0.68)' }}>{label}</span>
+                                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                            background: `${item.color}15`, border: `1px solid ${item.color}30` }}>
+                                            <item.Icon size={14} style={{ color: item.color }} />
+                                        </div>
+                                        <span style={{ fontSize: '0.78rem', color: 'rgba(200,185,255,0.68)' }}>{item.label}</span>
                                     </div>
-                                    <span className="lb-pts-badge">+{pts}</span>
+                                    <span className="lb-pts-badge">+{item.pts}</span>
                                 </div>
                             ))}
                         </div>
