@@ -356,4 +356,5 @@ const TopBar = ({ toggleSidebar }) => {
         </>
     );
 };
+
 export default TopBar;
