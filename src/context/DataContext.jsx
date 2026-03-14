@@ -47,6 +47,16 @@ const clearUserCache = (userId) => {
     sessionStorage.removeItem(`attendance_${userId}`);
     sessionStorage.removeItem(`attendance_${userId}_time`);
 };
+
+// Named export required by AdminPanel.jsx
+export const clearCoursesCache = () => {
+    try {
+        // Clear all course-related cache keys
+        Object.keys(sessionStorage)
+            .filter(k => k.startsWith('courses_'))
+            .forEach(k => sessionStorage.removeItem(k));
+    } catch {}
+};
 // ============ END CACHING UTILITY ============
 
 export const DataProvider = ({ children }) => {
