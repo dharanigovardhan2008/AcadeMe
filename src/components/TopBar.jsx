@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Menu, X, Send, CheckCheck } from 'lucide-react';
+import { Bell, Menu, X, Send, CheckCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -16,7 +16,6 @@ const TopBar = ({ toggleSidebar }) => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [replyText,         setReplyText]         = useState({});
     const [unreadCount,       setUnreadCount]       = useState(0);
-    const [searchQuery,       setSearchQuery]       = useState('');
 
     useEffect(() => {
         if (!user) return;
@@ -25,9 +24,9 @@ const TopBar = ({ toggleSidebar }) => {
             const list = snap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
                 .sort((a, b) => {
-                    const da = a.createdAt ? new Date(a.createdAt) : new Date(0);
-                    const db2 = b.createdAt ? new Date(b.createdAt) : new Date(0);
-                    return db2 - da;
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB - dateA;
                 });
             setNotifications(list);
             const key = `acadeMe_notif_count_${user.uid}`;
@@ -44,7 +43,9 @@ const TopBar = ({ toggleSidebar }) => {
     };
 
     const handleBellClick = () => {
-        setShowNotifications(v => { if (!v) markAllRead(); return !v; });
+        const willOpen = !showNotifications;
+        if (willOpen) markAllRead();
+        setShowNotifications(willOpen);
     };
 
     const handleReply = async (msgId) => {
@@ -59,10 +60,12 @@ const TopBar = ({ toggleSidebar }) => {
         } catch (e) { console.error(e); }
     };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        if (searchQuery.trim()) navigate(`/faculty?search=${encodeURIComponent(searchQuery.trim())}`);
-    };
+    useEffect(() => {
+        if (!showNotifications) return;
+        const onKey = (e) => e.key === 'Escape' && setShowNotifications(false);
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [showNotifications]);
 
     const userAvatar = user?.avatar ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=3B82F6&color=fff&size=128&bold=true`;
@@ -79,7 +82,7 @@ const TopBar = ({ toggleSidebar }) => {
             <style>{`
                 .tb {
                     position: sticky; top: 0; z-index: 30;
-                    display: flex; align-items: center; gap: 10px;
+                    display: flex; align-items: center; justify-content: space-between;
                     padding: 10px 16px;
                     background: rgba(10,14,30,0.88);
                     backdrop-filter: blur(18px);
@@ -89,7 +92,10 @@ const TopBar = ({ toggleSidebar }) => {
                     box-sizing: border-box;
                 }
 
-                /* ── Hamburger: ALWAYS visible with explicit color ── */
+                .tb-left {
+                    display: flex; align-items: center; gap: 12px;
+                }
+
                 .tb-ham {
                     display: flex; align-items: center; justify-content: center;
                     width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
@@ -103,36 +109,17 @@ const TopBar = ({ toggleSidebar }) => {
                 .tb-ham:hover, .tb-ham:focus { background: rgba(255,255,255,0.14); color: #F1F5F9; outline: none; }
                 @media (min-width: 768px) { .tb-ham { display: none; } }
 
-                /* ── Search ── */
-                .tb-search { flex: 1; max-width: 440px; position: relative; display: flex; }
-                .tb-search-ico {
-                    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
-                    pointer-events: none; color: rgba(148,163,184,0.6);
-                    display: flex; align-items: center; z-index: 1;
-                }
-                .tb-search-inp {
-                    width: 100%; padding: 9px 12px 9px 36px;
-                    background: rgba(255,255,255,0.06);
-                    border: 1px solid rgba(255,255,255,0.09);
-                    border-radius: 11px; outline: none;
-                    color: #E2E8F0;
-                    font-size: 16px;
-                    font-family: inherit;
-                    min-height: 40px;
-                    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-                    -webkit-appearance: none;
-                }
-                .tb-search-inp::placeholder { color: rgba(148,163,184,0.45); }
-                .tb-search-inp:focus {
-                    background: rgba(255,255,255,0.09);
-                    border-color: rgba(96,165,250,0.5);
-                    box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
+                .tb-brand {
+                    font-size: 1.05rem; font-weight: 800;
+                    background: linear-gradient(135deg, #60A5FA, #A78BFA);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    letter-spacing: -0.3px;
                 }
 
-                /* ── Right ── */
-                .tb-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+                .tb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-                /* ── Bell button ── */
                 .tb-bell {
                     position: relative;
                     display: flex; align-items: center; justify-content: center;
@@ -146,7 +133,6 @@ const TopBar = ({ toggleSidebar }) => {
                 }
                 .tb-bell:hover { background: rgba(255,255,255,0.13); color: #F1F5F9; }
 
-                /* ── Badge ── */
                 .tb-badge {
                     position: absolute; top: -5px; right: -5px;
                     min-width: 17px; height: 17px; border-radius: 10px;
@@ -157,11 +143,9 @@ const TopBar = ({ toggleSidebar }) => {
                     border: 2px solid rgba(10,14,30,1);
                 }
 
-                /* ── User info (desktop) ── */
                 .tb-uinfo { display: none; flex-direction: column; align-items: flex-end; gap: 1px; }
                 @media (min-width: 600px) { .tb-uinfo { display: flex; } }
 
-                /* ── Avatar ── */
                 .tb-avatar {
                     width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
                     object-fit: cover; cursor: pointer;
@@ -171,7 +155,6 @@ const TopBar = ({ toggleSidebar }) => {
                 }
                 .tb-avatar:hover { border-color: rgba(96,165,250,0.9); transform: scale(1.06); }
 
-                /* ── Notification panel ── */
                 .tb-panel {
                     position: fixed; top: 68px; right: 12px;
                     width: min(380px, calc(100vw - 24px));
@@ -231,33 +214,17 @@ const TopBar = ({ toggleSidebar }) => {
 
             <div className="tb">
 
-                {/* ── Hamburger ── */}
-                <button className="tb-ham" onClick={toggleSidebar} aria-label="Menu">
-                    <Menu size={20} />
-                </button>
-
-                {/* ── Search ── */}
-                <div className="tb-search">
-                    <form onSubmit={handleSearch} style={{ width: '100%', display: 'flex', position: 'relative' }}>
-                        <span className="tb-search-ico"><Search size={15} /></span>
-                        <input
-                            className="tb-search-inp"
-                            type="search"
-                            placeholder="Search anything..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck="false"
-                        />
-                    </form>
+                {/* ── Left: Hamburger + Brand ── */}
+                <div className="tb-left">
+                    <button className="tb-ham" onClick={toggleSidebar} aria-label="Menu">
+                        <Menu size={20} />
+                    </button>
+                    <span className="tb-brand">acadeMe</span>
                 </div>
 
-                {/* ── Right cluster ── */}
+                {/* ── Right: Bell + Name + Avatar ── */}
                 <div className="tb-right">
 
-                    {/* Bell */}
                     <button className="tb-bell" onClick={handleBellClick} aria-label="Notifications">
                         <Bell size={18} />
                         {unreadCount > 0 && (
@@ -265,7 +232,6 @@ const TopBar = ({ toggleSidebar }) => {
                         )}
                     </button>
 
-                    {/* Name + branch */}
                     <div className="tb-uinfo">
                         <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E2E8F0', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {user?.name || 'User'}
@@ -275,8 +241,15 @@ const TopBar = ({ toggleSidebar }) => {
                         </span>
                     </div>
 
-                    {/* Avatar */}
-                    <img className="tb-avatar" src={userAvatar} alt={user?.name || 'Profile'} onClick={() => navigate('/profile')} />
+                    <img
+                        className="tb-avatar"
+                        src={userAvatar}
+                        alt={user?.name || 'Profile'}
+                        onClick={() => navigate('/profile')}
+                        onError={(e) => {
+                            e.target.src = `https://ui-avatars.com/api/?name=U&background=3B82F6&color=fff`;
+                        }}
+                    />
                 </div>
             </div>
 
@@ -363,6 +336,12 @@ const TopBar = ({ toggleSidebar }) => {
                                             placeholder="Reply..."
                                             value={replyText[notif.id] || ''}
                                             onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleReply(notif.id);
+                                                }
+                                            }}
                                         />
                                         <button className="tb-send-btn" onClick={() => handleReply(notif.id)} disabled={!replyText[notif.id]?.trim()}>
                                             <Send size={11} /> Send
