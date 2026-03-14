@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     BookOpen, FileText, PlayCircle, Map,
     Layers, FlaskConical, HelpCircle, CheckSquare,
-    SearchX, ExternalLink, Sparkles, BookMarked,
+    SearchX, ExternalLink, Sparkles, BookMarked, Search, X,
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -47,9 +47,9 @@ const TABS = [
     },
     {
         id: 'lab-manuals',   label: 'Lab Manuals',    icon: FlaskConical, type: 'lab-manual',
-        color: '#FB7185', glow: 'rgba(251,113,133,0.3)',
-        grad: 'linear-gradient(135deg,#FB7185,#BE123C)',
-        bg: 'rgba(251,113,133,0.1)', border: 'rgba(251,113,133,0.25)',
+        color: '#2DD4BF', glow: 'rgba(45,212,191,0.3)',
+        grad: 'linear-gradient(135deg,#2DD4BF,#0891B2)',
+        bg: 'rgba(45,212,191,0.1)', border: 'rgba(45,212,191,0.25)',
     },
     {
         id: 'imp-questions', label: 'Imp Questions',  icon: HelpCircle,   type: 'imp-question',
@@ -93,8 +93,23 @@ const ResourcesHub = () => {
             .finally(() => setLoading(false));
     }, [user?.branch]);
 
+    const [searchRaw,  setSearchRaw]  = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Debounce — 250ms after user stops typing
+    useEffect(() => {
+        const t = setTimeout(() => setSearchTerm(searchRaw.trim().toLowerCase()), 250);
+        return () => clearTimeout(t);
+    }, [searchRaw]);
+
+    // Reset search when tab changes
+    useEffect(() => { setSearchRaw(''); setSearchTerm(''); }, [activeTab]);
+
     const cfg      = TABS.find(t => t.id === activeTab);
-    const filtered = resources.filter(r => r.type === cfg?.type);
+    const byTab    = resources.filter(r => r.type === cfg?.type);
+    const filtered = searchTerm
+        ? byTab.filter(r => r.title?.toLowerCase().includes(searchTerm))
+        : byTab;
 
     const CSS = `
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -270,6 +285,53 @@ const ResourcesHub = () => {
             padding: 1.1rem; display: flex; flex-direction: column; gap: 0.8rem;
         }
         .rh-skel-bar { border-radius: 8px; background: rgba(148,163,184,0.08); }
+
+        /* ── SEARCH BAR ── */
+        .rh-search-wrap {
+            position: relative;
+            margin: 0.75rem 0 1.1rem;
+        }
+        .rh-search-input {
+            width: 100%;
+            padding: 11px 40px 11px 40px;
+            border-radius: 13px;
+            border: 1px solid rgba(148,163,184,0.12);
+            background: rgba(148,163,184,0.06);
+            color: #E2E8F0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 500;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            /* prevent iOS zoom on focus — font-size >= 16px */
+            font-size: 16px;
+        }
+        .rh-search-input::placeholder { color: rgba(148,163,184,0.4); font-size: 0.85rem; }
+        .rh-search-input:focus {
+            border-color: var(--rh-focus-color, rgba(148,163,184,0.35));
+            background: rgba(148,163,184,0.09);
+            box-shadow: 0 0 0 3px var(--rh-focus-glow, rgba(148,163,184,0.08));
+        }
+        .rh-search-icon {
+            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+            pointer-events: none; display: flex; align-items: center;
+            transition: color 0.2s;
+        }
+        .rh-search-clear {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(148,163,184,0.15); color: rgba(148,163,184,0.7);
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .rh-search-clear:hover { background: rgba(148,163,184,0.25); color: #E2E8F0; }
+        .rh-result-count {
+            font-size: 0.72rem; font-weight: 600;
+            color: rgba(148,163,184,0.45);
+            padding: 0 2px 0.6rem;
+            display: flex; align-items: center; gap: 5px;
+        }
     `;
 
     return (
@@ -336,6 +398,40 @@ const ResourcesHub = () => {
                             );
                         })}
                     </div>
+
+                    {/* ── SEARCH BAR — only for non-lectures tabs ── */}
+                    {activeTab !== 'lectures' && (
+                        <div
+                            className="rh-search-wrap"
+                            style={{ '--rh-focus-color': cfg?.border, '--rh-focus-glow': cfg?.glow?.replace('0.3','0.12') }}
+                        >
+                            {/* Search icon */}
+                            <span className="rh-search-icon" style={{ color: searchRaw ? cfg?.color : 'rgba(148,163,184,0.4)' }}>
+                                <Search size={16} />
+                            </span>
+
+                            <input
+                                className="rh-search-input"
+                                type="search"
+                                value={searchRaw}
+                                onChange={e => setSearchRaw(e.target.value)}
+                                placeholder={`Search ${cfg?.label || 'resources'}…`}
+                                autoComplete="off"
+                                style={searchRaw ? { borderColor: cfg?.border, boxShadow: `0 0 0 3px ${cfg?.glow?.replace('0.3','0.1')}` } : {}}
+                            />
+
+                            {/* Clear button */}
+                            {searchRaw && (
+                                <button
+                                    className="rh-search-clear"
+                                    onClick={() => setSearchRaw('')}
+                                    aria-label="Clear search"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* ── CONTENT ── */}
@@ -389,15 +485,37 @@ const ResourcesHub = () => {
                         </div>
                         <div>
                             <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: '#E2E8F0' }}>
-                                No {cfg.label} Yet
+                                {searchTerm ? 'No results found' : `No ${cfg.label} Yet`}
                             </h3>
                             <p style={{ margin: 0, fontSize: '0.84rem', color: 'rgba(148,163,184,0.55)', maxWidth: '240px' }}>
-                                Nothing uploaded for {user?.branch || 'your branch'} yet. Check back soon!
+                                {searchTerm
+                                    ? `Nothing matched "${searchRaw}" in ${cfg.label}. Try a different keyword.`
+                                    : `Nothing uploaded for ${user?.branch || 'your branch'} yet. Check back soon!`}
                             </p>
                         </div>
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchRaw('')}
+                                style={{
+                                    padding: '8px 20px', borderRadius: '20px', border: `1px solid ${cfg.border}`,
+                                    background: cfg.bg, color: cfg.color, fontWeight: 700,
+                                    fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans,sans-serif',
+                                }}
+                            >
+                                Clear search
+                            </button>
+                        )}
                     </div>
 
                 ) : (
+                    <>
+                        {/* Result count when searching */}
+                        {searchTerm && (
+                            <div className="rh-result-count" style={{ color: cfg.color }}>
+                                <Search size={12} />
+                                {filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{searchRaw}"
+                            </div>
+                        )}
                     <div className="rh-grid">
                         {filtered.map((res, idx) => (
                             <div
@@ -489,6 +607,7 @@ const ResourcesHub = () => {
                             </div>
                         ))}
                     </div>
+                    </>
                 )}
             </div>
         </DashboardLayout>
