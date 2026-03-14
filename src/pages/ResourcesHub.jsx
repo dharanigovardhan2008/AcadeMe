@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     BookOpen, FileText, PlayCircle, Map,
     Layers, FlaskConical, HelpCircle, CheckSquare,
-    SearchX, ExternalLink, Sparkles,
+    SearchX, ExternalLink, Sparkles, BookMarked,
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -25,53 +25,53 @@ const setCache = (key, data) => {
     } catch {}
 };
 
-// ── Tab config ────────────────────────────────────────────────────────────────
+// ── Tab config — each tab gets its own identity ───────────────────────────────
 const TABS = [
     {
-        id: 'concept-maps', label: 'Concept Maps', icon: Map, type: 'concept-map',
-        color: '#00E5FF', dim: '#0097A7',
-        grad: 'linear-gradient(135deg,#00E5FF,#0097A7)',
-        glow: 'rgba(0,229,255,0.35)', bg: 'rgba(0,229,255,0.08)',
+        id: 'concept-maps',  label: 'Concept Maps',  icon: Map,          type: 'concept-map',
+        color: '#38BDF8', glow: 'rgba(56,189,248,0.3)',
+        grad: 'linear-gradient(135deg,#38BDF8,#0284C7)',
+        bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.25)',
     },
     {
-        id: 'papers', label: 'Papers', icon: FileText, type: 'paper',
-        color: '#7C6FFF', dim: '#4C46C8',
-        grad: 'linear-gradient(135deg,#7C6FFF,#4C46C8)',
-        glow: 'rgba(124,111,255,0.35)', bg: 'rgba(124,111,255,0.08)',
+        id: 'papers',        label: 'Papers',         icon: FileText,     type: 'paper',
+        color: '#A78BFA', glow: 'rgba(167,139,250,0.3)',
+        grad: 'linear-gradient(135deg,#A78BFA,#7C3AED)',
+        bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.25)',
     },
     {
-        id: 'syllabus', label: 'Syllabus', icon: BookOpen, type: 'syllabus',
-        color: '#00E896', dim: '#00A86B',
-        grad: 'linear-gradient(135deg,#00E896,#00A86B)',
-        glow: 'rgba(0,232,150,0.35)', bg: 'rgba(0,232,150,0.08)',
+        id: 'syllabus',      label: 'Syllabus',       icon: BookOpen,     type: 'syllabus',
+        color: '#34D399', glow: 'rgba(52,211,153,0.3)',
+        grad: 'linear-gradient(135deg,#34D399,#059669)',
+        bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.25)',
     },
     {
-        id: 'lab-manuals', label: 'Lab Manuals', icon: FlaskConical, type: 'lab-manual',
-        color: '#FF6B6B', dim: '#C0392B',
-        grad: 'linear-gradient(135deg,#FF6B6B,#C0392B)',
-        glow: 'rgba(255,107,107,0.35)', bg: 'rgba(255,107,107,0.08)',
+        id: 'lab-manuals',   label: 'Lab Manuals',    icon: FlaskConical, type: 'lab-manual',
+        color: '#FB7185', glow: 'rgba(251,113,133,0.3)',
+        grad: 'linear-gradient(135deg,#FB7185,#BE123C)',
+        bg: 'rgba(251,113,133,0.1)', border: 'rgba(251,113,133,0.25)',
     },
     {
-        id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle, type: 'imp-question',
-        color: '#FFD60A', dim: '#B8860B',
-        grad: 'linear-gradient(135deg,#FFD60A,#FF9500)',
-        glow: 'rgba(255,214,10,0.35)', bg: 'rgba(255,214,10,0.08)',
+        id: 'imp-questions', label: 'Imp Questions',  icon: HelpCircle,   type: 'imp-question',
+        color: '#FBBF24', glow: 'rgba(251,191,36,0.3)',
+        grad: 'linear-gradient(135deg,#FBBF24,#D97706)',
+        bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.25)',
     },
     {
-        id: 'mcqs', label: 'MCQs', icon: CheckSquare, type: 'mcq',
-        color: '#D946EF', dim: '#9D174D',
-        grad: 'linear-gradient(135deg,#D946EF,#9D174D)',
-        glow: 'rgba(217,70,239,0.35)', bg: 'rgba(217,70,239,0.08)',
+        id: 'mcqs',          label: 'MCQs',           icon: CheckSquare,  type: 'mcq',
+        color: '#E879F9', glow: 'rgba(232,121,249,0.3)',
+        grad: 'linear-gradient(135deg,#E879F9,#9D17C4)',
+        bg: 'rgba(232,121,249,0.1)', border: 'rgba(232,121,249,0.25)',
     },
     {
-        id: 'lectures', label: 'Videos', icon: PlayCircle, type: null,
-        color: '#FF7A00', dim: '#C2410C',
-        grad: 'linear-gradient(135deg,#FF7A00,#FF4500)',
-        glow: 'rgba(255,122,0,0.35)', bg: 'rgba(255,122,0,0.08)',
+        id: 'lectures',      label: 'Videos',         icon: PlayCircle,   type: null,
+        color: '#FB923C', glow: 'rgba(251,146,60,0.3)',
+        grad: 'linear-gradient(135deg,#FB923C,#EA580C)',
+        bg: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.25)',
     },
 ];
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 const ResourcesHub = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('concept-maps');
@@ -96,272 +96,302 @@ const ResourcesHub = () => {
     const cfg      = TABS.find(t => t.id === activeTab);
     const filtered = resources.filter(r => r.type === cfg?.type);
 
+    const CSS = `
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        * { box-sizing: border-box; }
+
+        @keyframes rh-up     { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes rh-pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes rh-shine  { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        @keyframes rh-spin   { to{transform:rotate(360deg)} }
+
+        .rh-page {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            width: 100%; overflow-x: hidden;
+            opacity: 0; transition: opacity 0.35s ease;
+        }
+        .rh-page.in { opacity: 1; }
+
+        /* ── HEADER ── */
+        .rh-header {
+            position: relative; overflow: hidden;
+            background: linear-gradient(135deg,
+                rgba(15,23,42,0.95) 0%,
+                rgba(17,24,56,0.95) 50%,
+                rgba(10,15,35,0.95) 100%);
+            border: 1px solid rgba(148,163,184,0.1);
+            border-radius: 20px;
+            padding: 1.25rem 1.1rem 0;
+            margin-bottom: 1.1rem;
+            backdrop-filter: blur(20px);
+        }
+        /* Subtle top shimmer line */
+        .rh-header::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg,
+                transparent, rgba(148,163,184,0.3), rgba(99,102,241,0.4),
+                rgba(148,163,184,0.3), transparent);
+        }
+        /* Decorative orb */
+        .rh-header::after {
+            content: '';
+            position: absolute; top: -60px; right: -60px;
+            width: 200px; height: 200px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(99,102,241,0.12), transparent 70%);
+            pointer-events: none;
+        }
+
+        .rh-title {
+            font-size: clamp(1.2rem, 5vw, 1.75rem);
+            font-weight: 800; margin: 0; line-height: 1.15; letter-spacing: -0.3px;
+            background: linear-gradient(135deg, #ffffff 0%, #94A3B8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── TAB GRID — always wraps, never scrolls ── */
+        .rh-tab-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 1rem 0 1.1rem;
+            position: relative; z-index: 1;
+        }
+        @media (max-width: 360px) { .rh-tab-grid { grid-template-columns: repeat(3,1fr); gap:6px; } }
+        @media (min-width: 640px) { .rh-tab-grid { grid-template-columns: repeat(7,1fr); } }
+
+        /* ── TAB BUTTON ── */
+        .rh-tab {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 6px; padding: 11px 6px 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(148,163,184,0.08);
+            background: rgba(148,163,184,0.04);
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.65rem; font-weight: 500;
+            color: rgba(148,163,184,0.55);
+            text-align: center; line-height: 1.3;
+            min-height: 64px;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            word-break: break-word;
+        }
+        .rh-tab:hover {
+            background: rgba(148,163,184,0.09);
+            border-color: rgba(148,163,184,0.2);
+            color: rgba(226,232,240,0.85);
+            transform: translateY(-2px);
+        }
+        .rh-tab.on {
+            font-weight: 700;
+            transform: translateY(-2px);
+        }
+
+        /* ── RESOURCE GRID ── */
+        .rh-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.85rem;
+        }
+        @media (min-width: 580px) { .rh-grid { grid-template-columns: repeat(2,1fr); } }
+        @media (min-width: 960px) { .rh-grid { grid-template-columns: repeat(3,1fr); } }
+
+        /* ── RESOURCE CARD ── */
+        .rh-card {
+            position: relative; overflow: hidden;
+            border-radius: 18px;
+            padding: 1.1rem 1.1rem 1rem;
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(148,163,184,0.1);
+            backdrop-filter: blur(12px);
+            display: flex; flex-direction: column; gap: 0.8rem;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;
+            animation: rh-up 0.4s ease both;
+        }
+        .rh-card:hover { transform: translateY(-5px); }
+
+        /* Diagonal shine on card */
+        .rh-card::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg,
+                rgba(255,255,255,0.025) 0%,
+                transparent 50%,
+                rgba(255,255,255,0.01) 100%);
+            pointer-events: none; border-radius: inherit;
+        }
+
+        /* ── OPEN BUTTON ── */
+        .rh-btn {
+            display: flex; align-items: center; justify-content: center;
+            gap: 7px; width: 100%;
+            padding: 12px 16px; border-radius: 12px; border: none;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.875rem; font-weight: 700;
+            cursor: pointer; text-decoration: none;
+            color: #fff; min-height: 46px; margin-top: auto;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 0.2s, transform 0.15s;
+            position: relative; overflow: hidden;
+        }
+        .rh-btn::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg,
+                rgba(255,255,255,0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .rh-btn:hover { opacity: 0.92; }
+        .rh-btn:active { transform: scale(0.97); opacity: 0.85; }
+
+        /* ── EMPTY / COMING SOON ── */
+        .rh-empty {
+            border-radius: 20px;
+            background: rgba(15,23,42,0.6);
+            border: 1px solid rgba(148,163,184,0.1);
+            padding: 4rem 1.5rem;
+            text-align: center;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 1rem;
+            animation: rh-up 0.4s ease both;
+            backdrop-filter: blur(12px);
+        }
+
+        /* ── SKELETON ── */
+        .rh-skel {
+            animation: rh-pulse 1.6s ease-in-out infinite;
+            border-radius: 18px;
+            background: rgba(15,23,42,0.7);
+            border: 1px solid rgba(148,163,184,0.08);
+            padding: 1.1rem; display: flex; flex-direction: column; gap: 0.8rem;
+        }
+        .rh-skel-bar { border-radius: 8px; background: rgba(148,163,184,0.08); }
+    `;
+
     return (
         <DashboardLayout>
-            <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+            <style>{CSS}</style>
+            <div className={`rh-page${mounted ? ' in' : ''}`}>
 
-                * { box-sizing: border-box; }
+                {/* ── HEADER ── */}
+                <div className="rh-header">
 
-                /* ── Keyframes ── */
-                @keyframes rh-rise    { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-                @keyframes rh-pulse   { 0%,100%{opacity:1} 50%{opacity:0.45} }
-                @keyframes rh-shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
-                @keyframes rh-glow    { 0%,100%{opacity:0.5} 50%{opacity:1} }
-                @keyframes rh-float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-                @keyframes rh-spin    { to{transform:rotate(360deg)} }
-
-                /* ── Page ── */
-                .rh { font-family:'DM Sans',sans-serif; width:100%; overflow-x:hidden; }
-
-                /* ── Hero header ── */
-                .rh-hero {
-                    position: relative; overflow: hidden;
-                    border-radius: 22px; padding: 1.4rem 1.2rem 0;
-                    margin-bottom: 1.1rem;
-                    background: linear-gradient(135deg, #0a0118 0%, #0d0d2b 50%, #060f1a 100%);
-                    border: 1px solid rgba(255,255,255,0.08);
-                }
-                .rh-hero::before {
-                    content:''; position:absolute; top:-40px; right:-40px;
-                    width:180px; height:180px; border-radius:50%;
-                    background: radial-gradient(circle, rgba(124,111,255,0.2), transparent 70%);
-                    pointer-events:none;
-                }
-                .rh-hero::after {
-                    content:''; position:absolute; bottom:-30px; left:-20px;
-                    width:140px; height:140px; border-radius:50%;
-                    background: radial-gradient(circle, rgba(0,229,255,0.12), transparent 70%);
-                    pointer-events:none;
-                }
-                .rh-hero-title {
-                    font-family:'Syne',sans-serif; font-weight:800;
-                    font-size:clamp(1.35rem,5vw,1.9rem);
-                    margin:0; line-height:1.1; letter-spacing:-0.5px;
-                    background: linear-gradient(135deg,#ffffff 0%,#b4aeff 50%,#00e5ff 100%);
-                    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
-                }
-
-                /* ── Tab grid ── */
-                .rh-tab-grid {
-                    display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 7px;
-                    padding: 1rem 0 1.1rem;
-                    position: relative; z-index: 1;
-                }
-                @media (max-width:370px) { .rh-tab-grid { grid-template-columns: repeat(3,1fr); gap:6px; } }
-                @media (min-width:600px) { .rh-tab-grid { grid-template-columns: repeat(7,1fr); } }
-
-                /* ── Tab pill ── */
-                .rh-tab {
-                    display: flex; flex-direction: column; align-items: center;
-                    justify-content: center; gap: 6px;
-                    padding: 11px 4px 10px;
-                    border-radius: 16px;
-                    border: 1px solid rgba(255,255,255,0.07);
-                    background: rgba(255,255,255,0.04);
-                    cursor: pointer;
-                    font-family: 'DM Sans', sans-serif;
-                    font-size: 0.67rem; font-weight: 500;
-                    color: rgba(180,175,220,0.6);
-                    text-align: center; line-height: 1.25;
-                    min-height: 62px;
-                    transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
-                    -webkit-tap-highlight-color: transparent;
-                    word-break: break-word;
-                    position: relative; overflow: hidden;
-                }
-                .rh-tab::before {
-                    content:''; position:absolute; inset:0; opacity:0;
-                    background: linear-gradient(135deg,rgba(255,255,255,0.06),transparent);
-                    transition: opacity 0.2s;
-                }
-                .rh-tab:hover::before { opacity:1; }
-                .rh-tab:hover { border-color:rgba(255,255,255,0.14); color:rgba(255,255,255,0.85); transform:translateY(-2px); }
-                .rh-tab.on { font-weight:700; border-width:1.5px; transform:translateY(-2px); }
-                .rh-tab.on::after {
-                    content:''; position:absolute; bottom:0; left:20%; right:20%; height:2px;
-                    border-radius:2px 2px 0 0; background:currentColor; opacity:0.7;
-                }
-
-                /* ── Resource grid ── */
-                .rh-grid {
-                    display:grid; grid-template-columns:1fr;
-                    gap:0.9rem; width:100%;
-                }
-                @media (min-width:580px) { .rh-grid { grid-template-columns:repeat(2,1fr); } }
-                @media (min-width:900px) { .rh-grid { grid-template-columns:repeat(3,1fr); } }
-
-                /* ── Resource card ── */
-                .rh-card {
-                    position: relative; overflow: hidden;
-                    border-radius: 18px;
-                    padding: 1.1rem;
-                    display: flex; flex-direction: column; gap: 0.75rem;
-                    background: rgba(255,255,255,0.035);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease, border-color 0.3s;
-                    animation: rh-rise 0.4s ease both;
-                }
-                .rh-card:hover { transform: translateY(-4px); }
-                .rh-card-glow {
-                    position:absolute; top:-30px; right:-30px; width:100px; height:100px;
-                    border-radius:50%; pointer-events:none; opacity:0.25;
-                    animation: rh-glow 3s ease-in-out infinite;
-                }
-                .rh-card-bar {
-                    position:absolute; top:0; left:0; right:0; height:3px; border-radius:18px 18px 0 0;
-                }
-
-                /* ── Open button ── */
-                .rh-btn {
-                    display:flex; align-items:center; justify-content:center; gap:8px;
-                    width:100%; padding:13px 16px; border-radius:13px; border:none;
-                    font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:700;
-                    cursor:pointer; text-decoration:none; color:#fff;
-                    min-height:48px; margin-top:auto;
-                    -webkit-tap-highlight-color:transparent;
-                    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-                    position:relative; overflow:hidden;
-                }
-                .rh-btn::before {
-                    content:''; position:absolute; inset:0; opacity:0;
-                    background:rgba(255,255,255,0.15);
-                    transition:opacity 0.2s;
-                }
-                .rh-btn:hover::before { opacity:1; }
-                .rh-btn:active { transform:scale(0.97); opacity:0.9; }
-
-                /* ── Icon wrapper on card ── */
-                .rh-card-icon {
-                    width:40px; height:40px; border-radius:12px; flex-shrink:0;
-                    display:flex; align-items:center; justify-content:center;
-                }
-
-                /* ── Skeleton ── */
-                .rh-skel-card {
-                    border-radius:18px; padding:1.1rem;
-                    background:rgba(255,255,255,0.03);
-                    border:1px solid rgba(255,255,255,0.06);
-                    display:flex; flex-direction:column; gap:0.75rem;
-                    animation: rh-pulse 1.5s ease-in-out infinite;
-                }
-                .rh-skel-line { border-radius:8px; background:rgba(255,255,255,0.08); }
-
-                /* ── Empty / coming soon ── */
-                .rh-empty {
-                    border-radius:20px; padding:3.5rem 1.5rem;
-                    text-align:center; display:flex; flex-direction:column;
-                    align-items:center; gap:1rem;
-                    background:rgba(255,255,255,0.025);
-                    border:1px solid rgba(255,255,255,0.07);
-                    animation: rh-rise 0.4s ease both;
-                }
-                .rh-empty-icon {
-                    width:64px; height:64px; border-radius:50%;
-                    display:flex; align-items:center; justify-content:center;
-                }
-
-                /* ── Tag pill ── */
-                .rh-tag {
-                    display:inline-flex; align-items:center;
-                    font-size:0.7rem; font-weight:700; padding:3px 10px;
-                    border-radius:20px; letter-spacing:0.3px;
-                }
-            `}</style>
-
-            <div className="rh" style={{ opacity: mounted ? 1 : 0, transition: 'opacity 0.3s' }}>
-
-                {/* ── Hero header with live tab grid ── */}
-                <div className="rh-hero">
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                        {/* Title row */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                                width: '44px', height: '44px', borderRadius: '14px', flexShrink: 0,
-                                background: 'linear-gradient(135deg,rgba(0,229,255,0.25),rgba(124,111,255,0.2))',
-                                border: '1px solid rgba(0,229,255,0.2)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: '#00E5FF', animation: 'rh-float 3s ease-in-out infinite',
+                    {/* Title + icon */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
+                        <div style={{
+                            width: '42px', height: '42px', borderRadius: '13px', flexShrink: 0,
+                            background: 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(56,189,248,0.2))',
+                            border: '1px solid rgba(99,102,241,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <BookMarked size={19} color="#818CF8" />
+                        </div>
+                        <div>
+                            <h1 className="rh-title">Resources Hub</h1>
+                            <p style={{
+                                margin: '3px 0 0', fontSize: '0.75rem',
+                                color: 'rgba(148,163,184,0.5)',
+                                fontFamily: 'Plus Jakarta Sans, sans-serif',
                             }}>
-                                <Layers size={20} />
-                            </div>
-                            <div>
-                                <h1 className="rh-hero-title">Resources Hub</h1>
-                                <p style={{ margin: '3px 0 0', fontSize: '0.76rem', color: 'rgba(180,175,220,0.5)', fontFamily: 'DM Sans,sans-serif' }}>
-                                    Everything you need to succeed · {user?.branch || ''}
-                                </p>
-                            </div>
+                                {user?.branch
+                                    ? `Showing resources for ${user.branch}`
+                                    : 'Everything you need to succeed'}
+                            </p>
                         </div>
+                    </div>
 
-                        {/* Tab grid — GRID layout, never scrolls, always wraps */}
-                        <div className="rh-tab-grid">
-                            {TABS.map(tab => {
-                                const on = activeTab === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        className={`rh-tab${on ? ' on' : ''}`}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        style={on ? {
-                                            background: tab.bg,
-                                            borderColor: tab.color + '55',
-                                            color: tab.color,
-                                            boxShadow: `0 4px 16px ${tab.glow}, inset 0 1px 0 rgba(255,255,255,0.08)`,
-                                        } : {}}
-                                    >
-                                        <tab.icon size={17} />
-                                        <span>{tab.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    {/* ── TAB GRID — wraps into rows, NO horizontal scroll ── */}
+                    <div className="rh-tab-grid">
+                        {TABS.map(tab => {
+                            const on = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    className={`rh-tab${on ? ' on' : ''}`}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    style={on ? {
+                                        background: tab.bg,
+                                        borderColor: tab.border,
+                                        color: tab.color,
+                                        boxShadow: `0 0 16px ${tab.glow}, 0 4px 12px rgba(0,0,0,0.3)`,
+                                    } : {}}
+                                >
+                                    <div style={{
+                                        width: '30px', height: '30px', borderRadius: '9px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: on ? `${tab.bg}` : 'rgba(148,163,184,0.06)',
+                                        border: on ? `1px solid ${tab.border}` : '1px solid rgba(148,163,184,0.1)',
+                                        transition: 'all 0.2s',
+                                    }}>
+                                        <tab.icon size={15} color={on ? tab.color : 'rgba(148,163,184,0.5)'} />
+                                    </div>
+                                    <span style={{ fontSize: '0.64rem', fontWeight: on ? 700 : 500 }}>
+                                        {tab.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* ── Content ── */}
+                {/* ── CONTENT ── */}
                 {loading ? (
                     <div className="rh-grid">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="rh-skel-card" style={{ animationDelay: `${i * 0.1}s` }}>
-                                <div className="rh-skel-line" style={{ height: '16px', width: '60%' }} />
-                                <div className="rh-skel-line" style={{ height: '13px', width: '35%' }} />
-                                <div className="rh-skel-line" style={{ height: '48px', width: '100%', marginTop: '4px' }} />
+                            <div key={i} className="rh-skel" style={{ animationDelay: `${i * 0.12}s` }}>
+                                <div className="rh-skel-bar" style={{ height: '15px', width: '55%' }} />
+                                <div className="rh-skel-bar" style={{ height: '12px', width: '35%' }} />
+                                <div className="rh-skel-bar" style={{ height: '46px', width: '100%', marginTop: '6px' }} />
                             </div>
                         ))}
                     </div>
 
                 ) : activeTab === 'lectures' ? (
                     <div className="rh-empty">
-                        <div className="rh-empty-icon" style={{ background: 'rgba(255,122,0,0.12)', border: '1px solid rgba(255,122,0,0.25)' }}>
-                            <PlayCircle size={30} color="#FF7A00" />
+                        <div style={{
+                            width: '62px', height: '62px', borderRadius: '18px',
+                            background: 'rgba(251,146,60,0.1)',
+                            border: '1px solid rgba(251,146,60,0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <PlayCircle size={28} color="#FB923C" />
                         </div>
                         <div>
-                            <h3 style={{ margin: '0 0 6px', fontFamily: 'Syne,sans-serif', fontSize: '1.05rem', fontWeight: '800' }}>
+                            <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: '#E2E8F0' }}>
                                 Video Lectures Coming Soon
                             </h3>
-                            <p style={{ margin: 0, color: 'rgba(180,175,220,0.5)', fontSize: '0.84rem' }}>
+                            <p style={{ margin: 0, fontSize: '0.84rem', color: 'rgba(148,163,184,0.6)', maxWidth: '240px' }}>
                                 We're curating the best content for you.
                             </p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
-                            background: 'rgba(255,122,0,0.08)', borderRadius: '20px', border: '1px solid rgba(255,122,0,0.2)' }}>
-                            <Sparkles size={13} color="#FF7A00" />
-                            <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#FF7A00' }}>Stay tuned!</span>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '6px 14px', borderRadius: '20px',
+                            background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)',
+                        }}>
+                            <Sparkles size={12} color="#FB923C" />
+                            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#FB923C' }}>Stay tuned</span>
                         </div>
                     </div>
 
                 ) : filtered.length === 0 ? (
                     <div className="rh-empty">
-                        <div className="rh-empty-icon" style={{ background: cfg.bg, border: `1px solid ${cfg.color}30` }}>
-                            <SearchX size={28} color={cfg.color} />
+                        <div style={{
+                            width: '62px', height: '62px', borderRadius: '18px',
+                            background: cfg.bg, border: `1px solid ${cfg.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <SearchX size={26} color={cfg.color} />
                         </div>
                         <div>
-                            <h3 style={{ margin: '0 0 6px', fontFamily: 'Syne,sans-serif', fontSize: '1.05rem', fontWeight: '800' }}>
+                            <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: '#E2E8F0' }}>
                                 No {cfg.label} Yet
                             </h3>
-                            <p style={{ margin: 0, color: 'rgba(180,175,220,0.5)', fontSize: '0.84rem', maxWidth: '240px' }}>
+                            <p style={{ margin: 0, fontSize: '0.84rem', color: 'rgba(148,163,184,0.55)', maxWidth: '240px' }}>
                                 Nothing uploaded for {user?.branch || 'your branch'} yet. Check back soon!
                             </p>
                         </div>
@@ -374,60 +404,74 @@ const ResourcesHub = () => {
                                 key={res.id || idx}
                                 className="rh-card"
                                 style={{
-                                    animationDelay: `${idx * 0.06}s`,
-                                    borderColor: `${cfg.color}18`,
+                                    animationDelay: `${idx * 0.055}s`,
+                                    borderColor: `${cfg.color}20`,
                                 }}
                                 onMouseEnter={e => {
-                                    e.currentTarget.style.boxShadow = `0 8px 32px ${cfg.glow}, 0 0 0 1px ${cfg.color}25`;
+                                    e.currentTarget.style.boxShadow = `0 12px 36px rgba(0,0,0,0.4), 0 0 0 1px ${cfg.color}30`;
                                     e.currentTarget.style.borderColor = `${cfg.color}35`;
                                 }}
                                 onMouseLeave={e => {
                                     e.currentTarget.style.boxShadow = '';
-                                    e.currentTarget.style.borderColor = `${cfg.color}18`;
+                                    e.currentTarget.style.borderColor = `${cfg.color}20`;
                                 }}
                             >
-                                {/* Glow blob top-right */}
-                                <div className="rh-card-glow" style={{ background: `radial-gradient(circle,${cfg.color},transparent 70%)` }} />
+                                {/* Top accent line */}
+                                <div style={{
+                                    position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+                                    borderRadius: '18px 18px 0 0', background: cfg.grad,
+                                }} />
 
-                                {/* Top accent bar */}
-                                <div className="rh-card-bar" style={{ background: cfg.grad }} />
+                                {/* Soft corner glow */}
+                                <div style={{
+                                    position: 'absolute', top: '-20px', right: '-20px',
+                                    width: '80px', height: '80px', borderRadius: '50%',
+                                    background: `radial-gradient(circle,${cfg.glow},transparent 70%)`,
+                                    opacity: 0.4, pointerEvents: 'none',
+                                }} />
 
-                                {/* Icon + title row */}
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginTop: '4px' }}>
-                                    <div className="rh-card-icon" style={{ background: cfg.bg, border: `1px solid ${cfg.color}30` }}>
-                                        <cfg.icon size={18} color={cfg.color} />
+                                {/* Icon + title */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '11px', position: 'relative', zIndex: 1, marginTop: '6px' }}>
+                                    <div style={{
+                                        width: '38px', height: '38px', borderRadius: '11px', flexShrink: 0,
+                                        background: cfg.bg, border: `1px solid ${cfg.border}`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                        <cfg.icon size={17} color={cfg.color} />
                                     </div>
                                     <h3 style={{
                                         margin: 0, flex: 1,
-                                        fontFamily: 'Syne,sans-serif', fontWeight: '700',
-                                        fontSize: 'clamp(0.87rem,3.5vw,0.98rem)',
-                                        lineHeight: 1.4, wordBreak: 'break-word',
-                                        color: '#f0ecff',
+                                        fontSize: 'clamp(0.86rem, 3.2vw, 0.97rem)',
+                                        fontWeight: 700, lineHeight: 1.45,
+                                        color: '#E2E8F0', wordBreak: 'break-word',
                                     }}>
                                         {res.title}
                                     </h3>
                                 </div>
 
-                                {/* Tags */}
-                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                    <span className="rh-tag" style={{
-                                        background: cfg.bg, color: cfg.color,
-                                        border: `1px solid ${cfg.color}35`,
+                                {/* Tag pills */}
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+                                    <span style={{
+                                        fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px',
+                                        borderRadius: '20px', background: cfg.bg,
+                                        color: cfg.color, border: `1px solid ${cfg.border}`,
                                     }}>
                                         {cfg.label}
                                     </span>
                                     {user?.branch && (
-                                        <span className="rh-tag" style={{
-                                            background: 'rgba(255,255,255,0.05)',
-                                            color: 'rgba(180,175,220,0.55)',
-                                            border: '1px solid rgba(255,255,255,0.08)',
+                                        <span style={{
+                                            fontSize: '0.68rem', fontWeight: 500, padding: '3px 10px',
+                                            borderRadius: '20px',
+                                            background: 'rgba(148,163,184,0.07)',
+                                            color: 'rgba(148,163,184,0.55)',
+                                            border: '1px solid rgba(148,163,184,0.12)',
                                         }}>
                                             {user.branch}
                                         </span>
                                     )}
                                 </div>
 
-                                {/* CTA button — vivid, always visible */}
+                                {/* Open button — full vivid gradient, never invisible */}
                                 <a
                                     href={res.url}
                                     target="_blank"
@@ -435,7 +479,8 @@ const ResourcesHub = () => {
                                     className="rh-btn"
                                     style={{
                                         background: cfg.grad,
-                                        boxShadow: `0 4px 18px ${cfg.glow}`,
+                                        boxShadow: `0 4px 20px ${cfg.glow}`,
+                                        position: 'relative', zIndex: 1,
                                     }}
                                 >
                                     <ExternalLink size={15} />
