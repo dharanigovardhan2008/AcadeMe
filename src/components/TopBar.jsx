@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Menu, X, Send, CheckCheck, Instagram, School } from 'lucide-react';
+import { Bell, Menu, X, Send, CheckCheck, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -8,7 +8,7 @@ import {
   updateDoc, doc, arrayUnion,
 } from 'firebase/firestore';
 
-/* ── Safe Firestore Timestamp converter ── */
+/* ── Safe Firestore Timestamp ── */
 const toJSDate = (val) => {
   if (!val) return new Date(0);
   if (val.toDate) return val.toDate();
@@ -19,13 +19,35 @@ const toJSDate = (val) => {
 const fmtTime = (val) => {
   if (!val) return '';
   const d = toJSDate(val);
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
-    ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
+
+/* ── Instagram SVG Icon ── */
+const InstagramIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+/* ── Graduation Cap / College SVG Icon ── */
+const CollegeIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+  </svg>
+);
 
 const TopBar = ({ toggleSidebar }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const panelRef = useRef(null);
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -78,426 +100,561 @@ const TopBar = ({ toggleSidebar }) => {
     }
   };
 
-  const userAvatar = user?.avatar ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=3B82F6&color=fff&size=128&bold=true`;
+  const userInitial = (user?.name || 'U').charAt(0).toUpperCase();
+  const userAvatar = user?.avatar;
 
   return (
     <>
       <style>{`
-        .tb {
-          position: sticky; top: 0; z-index: 30;
-          display: flex; align-items: center; gap: 10px;
-          padding: 10px 16px;
-          background: rgba(10,14,30,0.92);
-          backdrop-filter: blur(18px);
-          -webkit-backdrop-filter: blur(18px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          min-height: 56px;
+        /* ══════════════════════════════════════════
+           TOPBAR — WORLD CLASS
+        ══════════════════════════════════════════ */
+        .tb-root {
+          position: sticky; top: 0; z-index: 50;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 16px;
+          height: 60px;
+          background: rgba(10, 10, 20, 0.75);
+          backdrop-filter: blur(24px) saturate(1.5);
+          -webkit-backdrop-filter: blur(24px) saturate(1.5);
+          border-bottom: 1px solid rgba(255,255,255,0.04);
           box-sizing: border-box;
         }
 
-        /* ── Hamburger: mobile only ── */
-        .tb-ham {
-          display: flex; align-items: center; justify-content: center;
-          width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
-          background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.12);
-          cursor: pointer; color: #CBD5E1;
-          transition: background 0.2s;
+        /* ── Left ── */
+        .tb-left { display: flex; align-items: center; gap: 10px; }
+
+        /* ── Hamburger ── */
+        .tb-menu {
+          display: none; align-items: center; justify-content: center;
+          width: 38px; height: 38px; border-radius: 12px;
+          background: transparent; border: none;
+          color: rgba(255,255,255,0.5); cursor: pointer;
+          transition: all 0.2s ease;
           -webkit-tap-highlight-color: transparent;
         }
-        .tb-ham:hover, .tb-ham:focus { background: rgba(255,255,255,0.14); color: #F1F5F9; outline: none; }
-        @media (min-width: 769px) { .tb-ham { display: none; } }
+        .tb-menu:hover { background: rgba(255,255,255,0.07); color: #fff; }
+        .tb-menu:active { transform: scale(0.92); }
+        @media (max-width: 768px) { .tb-menu { display: flex; } }
 
         /* ── Brand ── */
-        .tb-brand {
-          font-weight: 800; font-size: 1.15rem;
-          background: linear-gradient(135deg, #6366F1, #3B82F6);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+        .tb-logo {
+          font-weight: 900; font-size: 1.3rem; letter-spacing: -0.8px;
+          background: linear-gradient(135deg, #818CF8 0%, #6366F1 40%, #4F46E5 100%);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
-          letter-spacing: -0.3px;
-          cursor: pointer;
-          user-select: none;
+          cursor: pointer; user-select: none;
+          transition: opacity 0.2s;
+          position: relative;
         }
-
-        /* ── Right cluster ── */
-        .tb-right {
-          display: flex; align-items: center; gap: 4px;
-          margin-left: auto; flex-shrink: 0;
+        .tb-logo::after {
+          content: ''; position: absolute;
+          bottom: -2px; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, #6366F1, transparent);
+          border-radius: 1px; opacity: 0;
+          transition: opacity 0.2s;
         }
+        .tb-logo:hover::after { opacity: 1; }
 
-        /* ── Icon buttons ── */
-        .tb-icon-btn {
+        /* ── Right ── */
+        .tb-right { display: flex; align-items: center; gap: 4px; }
+
+        /* ── Icon Button (shared) ── */
+        .tb-icon {
+          position: relative;
           display: flex; align-items: center; justify-content: center;
-          width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.08);
-          cursor: pointer; color: #94A3B8;
-          transition: all 0.2s;
+          width: 38px; height: 38px; border-radius: 12px;
+          background: transparent; border: none;
+          color: rgba(255,255,255,0.4); cursor: pointer;
+          transition: all 0.25s ease;
           -webkit-tap-highlight-color: transparent;
           text-decoration: none;
         }
-        .tb-icon-btn:hover {
-          background: rgba(255,255,255,0.12);
-          color: #F1F5F9;
-          border-color: rgba(255,255,255,0.15);
+        .tb-icon:hover {
+          background: rgba(255,255,255,0.07);
+          color: rgba(255,255,255,0.85);
+          transform: translateY(-1px);
+        }
+        .tb-icon:active { transform: scale(0.92); }
+
+        /* ── Specific icon hovers ── */
+        .tb-icon-insta:hover {
+          color: #E1306C !important;
+          background: rgba(225,48,108,0.08) !important;
+          box-shadow: 0 4px 16px rgba(225,48,108,0.12);
+        }
+        .tb-icon-arms:hover {
+          color: #FBBF24 !important;
+          background: rgba(251,191,36,0.08) !important;
+          box-shadow: 0 4px 16px rgba(251,191,36,0.12);
+        }
+        .tb-icon-bell:hover {
+          color: #60A5FA !important;
+          background: rgba(96,165,250,0.08) !important;
         }
 
-        /* Instagram hover color */
-        .tb-insta:hover { color: #E1306C !important; border-color: rgba(225,48,108,0.3) !important; }
-
-        /* ARMS hover color */
-        .tb-arms:hover { color: #FBBF24 !important; border-color: rgba(251,191,36,0.3) !important; }
-
-        /* ── Bell specific ── */
-        .tb-bell { position: relative; }
-
-        /* ── Badge ── */
-        .tb-badge {
-          position: absolute; top: -5px; right: -5px;
-          min-width: 17px; height: 17px; border-radius: 10px;
-          background: #EF4444; color: #fff;
-          font-size: 0.58rem; font-weight: 800;
-          display: flex; align-items: center; justify-content: center;
-          padding: 0 3px; line-height: 1;
-          border: 2px solid rgba(10,14,30,1);
-          pointer-events: none;
+        /* ── Tooltips ── */
+        .tb-icon[data-tip]::before {
+          content: attr(data-tip);
+          position: absolute; bottom: -32px; left: 50%;
+          transform: translateX(-50%) scale(0.9);
+          padding: 4px 10px; border-radius: 8px;
+          background: rgba(15,15,30,0.95);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.7);
+          font-size: 0.62rem; font-weight: 600;
+          white-space: nowrap; pointer-events: none;
+          opacity: 0; transition: all 0.2s ease;
+          z-index: 100;
+        }
+        .tb-icon[data-tip]:hover::before {
+          opacity: 1; transform: translateX(-50%) scale(1);
+          bottom: -36px;
+        }
+        @media (max-width: 768px) {
+          .tb-icon[data-tip]::before { display: none; }
         }
 
-        /* ── Divider ── */
-        .tb-divider {
+        /* ── Separator ── */
+        .tb-sep {
           width: 1px; height: 24px;
-          background: rgba(255,255,255,0.08);
+          background: linear-gradient(180deg, transparent, rgba(255,255,255,0.08), transparent);
           margin: 0 4px; flex-shrink: 0;
         }
 
-        /* ── User info (desktop only) ── */
-        .tb-uinfo {
-          display: none; flex-direction: column;
-          align-items: flex-end; gap: 1px;
+        /* ── Bell Badge ── */
+        .tb-badge {
+          position: absolute; top: 3px; right: 3px;
+          min-width: 16px; height: 16px; border-radius: 8px;
+          background: linear-gradient(135deg, #EF4444, #DC2626);
+          color: #fff; font-size: 0.55rem; font-weight: 800;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0 3px; line-height: 1;
+          border: 2px solid rgba(10,10,20,1);
+          pointer-events: none;
+          animation: tb-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+          box-shadow: 0 2px 8px rgba(239,68,68,0.4);
         }
-        @media (min-width: 600px) { .tb-uinfo { display: flex; } }
+        @keyframes tb-pop {
+          0% { transform: scale(0); }
+          100% { transform: scale(1); }
+        }
 
-        /* ── Avatar ── */
+        /* ── Profile ── */
+        .tb-profile {
+          display: flex; align-items: center; gap: 10px;
+          cursor: pointer; padding: 4px 6px; border-radius: 14px;
+          transition: all 0.2s ease;
+          -webkit-tap-highlight-color: transparent;
+          margin-left: 2px;
+        }
+        .tb-profile:hover { background: rgba(255,255,255,0.05); }
+        .tb-profile:active { transform: scale(0.97); }
+
+        .tb-uinfo {
+          display: none; flex-direction: column; align-items: flex-end;
+          gap: 0; max-width: 140px;
+        }
+        @media (min-width: 640px) { .tb-uinfo { display: flex; } }
+
+        .tb-uname {
+          font-size: 0.82rem; font-weight: 700; color: #F1F5F9;
+          overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; line-height: 1.3;
+        }
+        .tb-umeta {
+          font-size: 0.65rem; color: rgba(148,163,184,0.45);
+          line-height: 1.3;
+        }
+
         .tb-avatar {
           width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
-          object-fit: cover; cursor: pointer;
-          border: 2px solid rgba(96,165,250,0.4);
-          transition: border-color 0.2s, transform 0.2s;
-          -webkit-tap-highlight-color: transparent;
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 800; font-size: 0.85rem; color: #fff;
+          background: linear-gradient(135deg, #6366F1, #818CF8, #A78BFA);
+          border: 2px solid rgba(99,102,241,0.25);
+          transition: all 0.3s ease;
+          overflow: hidden; flex-shrink: 0;
+          box-shadow: 0 2px 12px rgba(99,102,241,0.15);
         }
-        .tb-avatar:hover { border-color: rgba(96,165,250,0.9); transform: scale(1.06); }
+        .tb-profile:hover .tb-avatar {
+          border-color: rgba(99,102,241,0.6);
+          box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+          transform: scale(1.05);
+        }
+        .tb-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* ── Notification panel ── */
-        .tb-panel {
-          position: fixed; top: 64px; right: 12px;
-          width: min(380px, calc(100vw - 24px));
-          max-height: 72vh;
-          background: rgba(11,15,32,0.98);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px;
-          box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
-          backdrop-filter: blur(24px);
-          display: flex; flex-direction: column;
-          overflow: hidden; z-index: 1000;
-          animation: tb-drop 0.2s ease;
+        /* ══════════════════════════════════════════
+           NOTIFICATION PANEL
+        ══════════════════════════════════════════ */
+        .np-overlay {
+          position: fixed; inset: 0; z-index: 998;
+          background: rgba(0,0,0,0.4);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          animation: np-fadein 0.2s ease;
         }
-        @keyframes tb-drop {
-          from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+        @keyframes np-fadein { from { opacity: 0; } to { opacity: 1; } }
+
+        .np-panel {
+          position: fixed; top: 68px; right: 14px;
+          width: min(400px, calc(100vw - 28px));
+          max-height: calc(100vh - 86px);
+          background: rgba(13, 13, 26, 0.97);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 22px;
+          box-shadow:
+            0 30px 80px rgba(0,0,0,0.6),
+            0 0 0 1px rgba(255,255,255,0.03),
+            inset 0 1px 0 rgba(255,255,255,0.04);
+          backdrop-filter: blur(30px);
+          -webkit-backdrop-filter: blur(30px);
+          display: flex; flex-direction: column;
+          overflow: hidden; z-index: 999;
+          animation: np-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes np-slide {
+          from { opacity: 0; transform: translateY(-14px) scale(0.95); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .tb-phead {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 13px 15px 11px; flex-shrink: 0;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+        @media (max-width: 480px) {
+          .np-panel {
+            right: 8px; top: 64px;
+            width: calc(100vw - 16px);
+            max-height: calc(100vh - 80px);
+            border-radius: 18px;
+          }
         }
-        .tb-pscroll { overflow-y: auto; flex: 1; }
-        .tb-pscroll::-webkit-scrollbar { width: 3px; }
-        .tb-pscroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-        .tb-nitem {
-          padding: 13px 15px;
+
+        .np-head {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 16px 20px 14px; flex-shrink: 0;
           border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .np-head-left { display: flex; align-items: center; gap: 10px; }
+        .np-head-dot {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: linear-gradient(135deg, #6366F1, #818CF8);
+          box-shadow: 0 0 8px rgba(99,102,241,0.4);
+        }
+        .np-head-title { font-weight: 800; font-size: 0.95rem; color: #F1F5F9; }
+        .np-head-count {
+          font-size: 0.6rem; font-weight: 700;
+          background: rgba(99,102,241,0.12); color: #818CF8;
+          padding: 2px 8px; border-radius: 10px;
+        }
+        .np-head-actions { display: flex; gap: 6px; align-items: center; }
+
+        .np-mark-btn {
+          background: none; border: none; cursor: pointer;
+          color: rgba(148,163,184,0.4); font-size: 0.67rem;
+          display: flex; align-items: center; gap: 4px;
+          padding: 4px 8px; border-radius: 8px;
+          transition: all 0.2s;
+        }
+        .np-mark-btn:hover { color: #818CF8; background: rgba(99,102,241,0.08); }
+
+        .np-close {
+          display: flex; align-items: center; justify-content: center;
+          width: 28px; height: 28px; border-radius: 9px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.06);
+          cursor: pointer; color: rgba(148,163,184,0.5);
+          transition: all 0.2s;
+        }
+        .np-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .np-scroll {
+          overflow-y: auto; flex: 1;
+          overscroll-behavior: contain;
+        }
+        .np-scroll::-webkit-scrollbar { width: 3px; }
+        .np-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+
+        .np-empty {
+          padding: 3.5rem 1.5rem; text-align: center;
+          color: rgba(148,163,184,0.25);
+        }
+        .np-empty-ico { display: block; margin: 0 auto 14px; opacity: 0.12; }
+
+        .np-item {
+          padding: 16px 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.03);
           transition: background 0.15s;
         }
-        .tb-nitem:hover { background: rgba(255,255,255,0.03); }
-        .tb-nitem:last-child { border-bottom: none; }
+        .np-item:hover { background: rgba(255,255,255,0.02); }
+        .np-item:last-child { border-bottom: none; }
 
-        .tb-reply-inp {
-          flex: 1; padding: 7px 10px;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.09);
-          border-radius: 8px; outline: none;
-          color: #E2E8F0; font-size: 0.78rem; font-family: inherit;
-          resize: none; min-height: 36px;
-          transition: border-color 0.2s;
+        .np-dot {
+          width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+          margin-top: 6px;
+          background: linear-gradient(135deg, #818CF8, #6366F1);
+          box-shadow: 0 0 6px rgba(99,102,241,0.3);
         }
-        .tb-reply-inp:focus { border-color: rgba(96,165,250,0.5); }
-        .tb-reply-inp::placeholder { color: rgba(148,163,184,0.4); }
 
-        .tb-send-btn {
-          padding: 7px 12px; border-radius: 8px; border: none;
-          background: linear-gradient(135deg, #3B82F6, #6366F1);
-          color: #fff; font-size: 0.75rem; font-weight: 700;
-          cursor: pointer; display: flex; align-items: center;
-          gap: 4px; flex-shrink: 0; min-height: 36px;
-          transition: opacity 0.2s;
+        .np-msg-title {
+          margin: 0 0 3px; font-weight: 700; font-size: 0.84rem;
+          color: #E2E8F0; line-height: 1.45;
         }
-        .tb-send-btn:hover { opacity: 0.88; }
-        .tb-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .np-msg-body {
+          margin: 0 0 4px; font-size: 0.77rem;
+          color: rgba(148,163,184,0.55); line-height: 1.5;
+        }
+        .np-msg-time {
+          font-size: 0.6rem; color: rgba(148,163,184,0.3);
+          display: flex; align-items: center; gap: 3px;
+        }
 
-        /* ── Mobile adjustments ── */
-        @media (max-width: 480px) {
-          .tb { padding: 8px 12px; gap: 8px; }
-          .tb-icon-btn { width: 34px; height: 34px; min-width: 34px; }
-          .tb-brand { font-size: 1.05rem; }
+        .np-link {
+          display: inline-flex; align-items: center; gap: 5px;
+          margin-top: 6px; font-size: 0.73rem; font-weight: 600;
+          color: #818CF8; text-decoration: none;
+          background: rgba(99,102,241,0.06); padding: 4px 10px;
+          border-radius: 7px; transition: background 0.2s;
+        }
+        .np-link:hover { background: rgba(99,102,241,0.12); }
+
+        .np-replies {
+          border-left: 2px solid rgba(99,102,241,0.12);
+          padding-left: 12px; margin: 8px 0 8px 4px;
+        }
+        .np-reply-sender {
+          font-size: 0.63rem; font-weight: 700;
+        }
+        .np-reply-text {
+          margin: 2px 0 0; font-size: 0.74rem;
+          color: rgba(226,232,240,0.5); line-height: 1.4;
+        }
+
+        .np-input-row {
+          display: flex; gap: 6px; align-items: flex-end; margin-top: 10px;
+        }
+        .np-input {
+          flex: 1; padding: 9px 12px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px; outline: none;
+          color: #E2E8F0; font-size: 0.8rem; font-family: inherit;
+          resize: none; min-height: 38px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .np-input:focus {
+          border-color: rgba(99,102,241,0.35);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.06);
+        }
+        .np-input::placeholder { color: rgba(148,163,184,0.3); }
+
+        .np-send {
+          width: 38px; height: 38px; min-width: 38px;
+          border-radius: 12px; border: none;
+          background: linear-gradient(135deg, #6366F1, #4F46E5);
+          color: #fff; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(99,102,241,0.2);
+        }
+        .np-send:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.3); }
+        .np-send:active { transform: scale(0.95); }
+        .np-send:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ── Mobile tweaks ── */
+        @media (max-width: 380px) {
+          .tb-root { padding: 0 12px; height: 56px; }
+          .tb-icon { width: 34px; height: 34px; }
           .tb-avatar { width: 32px; height: 32px; min-width: 32px; }
+          .tb-logo { font-size: 1.15rem; }
         }
       `}</style>
 
-      <div className="tb">
+      <div className="tb-root">
+        {/* ── Left ── */}
+        <div className="tb-left">
+          <button className="tb-menu" onClick={toggleSidebar} aria-label="Menu">
+            <Menu size={22} />
+          </button>
+          <span className="tb-logo" onClick={() => navigate('/dashboard')}>
+            AcadeMe
+          </span>
+        </div>
 
-        {/* ── Hamburger (mobile only) ── */}
-        <button className="tb-ham" onClick={toggleSidebar} aria-label="Menu">
-          <Menu size={20} />
-        </button>
-
-        {/* ── Brand ── */}
-        <span className="tb-brand" onClick={() => navigate('/dashboard')}>
-          AcadeMe
-        </span>
-
-        {/* ── Right cluster ── */}
+        {/* ── Right ── */}
         <div className="tb-right">
 
-          {/* Instagram */}
+          {/* Instagram — Icon Only */}
           <a
             href="https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5"
             target="_blank"
             rel="noopener noreferrer"
-            className="tb-icon-btn tb-insta"
-            title="Follow on Instagram"
+            className="tb-icon tb-icon-insta"
+            data-tip="Instagram"
             aria-label="Instagram"
           >
-            <Instagram size={18} />
+            <InstagramIcon size={19} />
           </a>
 
-          {/* ARMS College Website */}
+          {/* ARMS College — Icon Only */}
           <a
             href="https://arms.sse.saveetha.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="tb-icon-btn tb-arms"
-            title="ARMS – Saveetha"
-            aria-label="College Website"
+            className="tb-icon tb-icon-arms"
+            data-tip="ARMS Portal"
+            aria-label="ARMS Portal"
           >
-            <School size={18} />
+            <CollegeIcon size={19} />
           </a>
 
-          {/* Divider */}
-          <div className="tb-divider" />
+          {/* Separator */}
+          <div className="tb-sep" />
 
-          {/* Bell */}
+          {/* Bell — Icon Only */}
           <button
-            className="tb-icon-btn tb-bell"
+            className="tb-icon tb-icon-bell"
             onClick={handleBellClick}
-            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+            data-tip="Notifications"
+            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
           >
-            <Bell size={18} />
+            <Bell size={19} />
             {unreadCount > 0 && (
-              <span className="tb-badge">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
+              <span className="tb-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
             )}
           </button>
 
-          {/* Divider */}
-          <div className="tb-divider" />
+          {/* Separator */}
+          <div className="tb-sep" />
 
-          {/* Name + branch (desktop) */}
-          <div className="tb-uinfo">
-            <span style={{
-              fontSize: '0.82rem', fontWeight: 700, color: '#E2E8F0',
-              maxWidth: '140px', overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {user?.name || 'User'}
-            </span>
-            {(user?.branch || user?.year) && (
-              <span style={{ fontSize: '0.68rem', color: 'rgba(148,163,184,0.55)' }}>
-                {[user.branch, user.year].filter(Boolean).join(' · ')}
-              </span>
-            )}
+          {/* Profile */}
+          <div
+            className="tb-profile"
+            onClick={() => { setShowNotifications(false); navigate('/profile'); }}
+          >
+            <div className="tb-uinfo">
+              <span className="tb-uname">{user?.name || 'User'}</span>
+              {(user?.branch || user?.year) && (
+                <span className="tb-umeta">
+                  {[user.branch, user.year].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </div>
+            <div className="tb-avatar">
+              {userAvatar ? (
+                <img src={userAvatar} alt="" />
+              ) : (
+                userInitial
+              )}
+            </div>
           </div>
-
-          {/* Avatar */}
-          <img
-            className="tb-avatar"
-            src={userAvatar}
-            alt={user?.name || 'Profile'}
-            onClick={() => {
-              setShowNotifications(false);
-              navigate('/profile');
-            }}
-          />
         </div>
       </div>
 
-      {/* ── Notification panel ── */}
+      {/* ══ Notification Panel ══ */}
       {showNotifications && (
         <>
-          <div
-            onClick={() => setShowNotifications(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-          />
-          <div className="tb-panel">
-            <div className="tb-phead">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bell size={15} color="#60A5FA" />
-                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#E2E8F0' }}>
-                  Notifications
-                </span>
+          <div className="np-overlay" onClick={() => setShowNotifications(false)} />
+          <div className="np-panel" ref={panelRef}>
+            <div className="np-head">
+              <div className="np-head-left">
+                <div className="np-head-dot" />
+                <span className="np-head-title">Notifications</span>
                 {notifications.length > 0 && (
-                  <span style={{
-                    fontSize: '0.62rem', fontWeight: 700,
-                    background: 'rgba(96,165,250,0.14)', color: '#60A5FA',
-                    padding: '2px 7px', borderRadius: '10px',
-                  }}>
-                    {notifications.length}
-                  </span>
+                  <span className="np-head-count">{notifications.length}</span>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <div className="np-head-actions">
                 {unreadCount > 0 && (
-                  <button
-                    onClick={markAllRead}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'rgba(148,163,184,0.5)', fontSize: '0.68rem',
-                      display: 'flex', alignItems: 'center', gap: '3px',
-                      padding: '3px 6px',
-                    }}
-                  >
-                    <CheckCheck size={11} /> Mark read
+                  <button className="np-mark-btn" onClick={markAllRead}>
+                    <CheckCheck size={12} /> Mark read
                   </button>
                 )}
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  aria-label="Close notifications"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '7px', width: '26px', height: '26px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#94A3B8',
-                  }}
-                >
-                  <X size={13} />
+                <button className="np-close" onClick={() => setShowNotifications(false)} aria-label="Close">
+                  <X size={14} />
                 </button>
               </div>
             </div>
 
-            <div className="tb-pscroll">
+            <div className="np-scroll">
               {notifications.length === 0 ? (
-                <div style={{
-                  padding: '3rem 1rem', textAlign: 'center',
-                  color: 'rgba(148,163,184,0.35)',
-                }}>
-                  <Bell size={28} style={{ display: 'block', margin: '0 auto 10px', opacity: 0.18 }} />
-                  <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.84rem' }}>
-                    No notifications
+                <div className="np-empty">
+                  <Bell size={36} className="np-empty-ico" />
+                  <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '0.9rem', color: 'rgba(148,163,184,0.4)' }}>
+                    All caught up!
                   </p>
-                  <p style={{ margin: 0, fontSize: '0.74rem' }}>You're all caught up!</p>
+                  <p style={{ margin: 0, fontSize: '0.75rem' }}>No new notifications</p>
                 </div>
               ) : (
                 notifications.map(notif => (
-                  <div key={notif.id} className="tb-nitem">
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between',
-                      gap: '8px', marginBottom: '6px',
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{
-                          margin: '0 0 3px', fontWeight: 700, fontSize: '0.83rem',
-                          color: '#E2E8F0', lineHeight: 1.4,
-                        }}>
+                  <div key={notif.id} className="np-item">
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div className="np-dot" />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Title / Message */}
+                        <p className="np-msg-title">
                           {notif.title || notif.message || 'Notification'}
                         </p>
                         {notif.body && notif.body !== notif.title && (
-                          <p style={{
-                            margin: 0, fontSize: '0.75rem',
-                            color: 'rgba(148,163,184,0.6)', lineHeight: 1.4,
-                          }}>
-                            {notif.body}
-                          </p>
+                          <p className="np-msg-body">{notif.body}</p>
                         )}
-                      </div>
-                      {notif.createdAt && (
-                        <span style={{
-                          fontSize: '0.62rem', color: 'rgba(148,163,184,0.35)',
-                          whiteSpace: 'nowrap', flexShrink: 0,
-                        }}>
-                          {fmtTime(notif.createdAt)}
-                        </span>
-                      )}
-                    </div>
+                        {notif.message && notif.message !== notif.title && !notif.body && (
+                          <p className="np-msg-body">{notif.message}</p>
+                        )}
 
-                    {notif.url && (
-                      <a
-                        href={notif.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          fontSize: '0.73rem', fontWeight: 600, color: '#60A5FA',
-                          textDecoration: 'none', marginBottom: '8px',
-                        }}
-                      >
-                        Open Resource →
-                      </a>
-                    )}
+                        {/* Time */}
+                        {notif.createdAt && (
+                          <span className="np-msg-time">
+                            {fmtTime(notif.createdAt)}
+                          </span>
+                        )}
 
-                    {notif.replies?.length > 0 && (
-                      <div style={{
-                        borderLeft: '2px solid rgba(96,165,250,0.22)',
-                        paddingLeft: '10px', marginBottom: '8px',
-                      }}>
-                        {notif.replies.map((r, i) => (
-                          <div key={i} style={{
-                            marginBottom: i < notif.replies.length - 1 ? '5px' : 0,
-                          }}>
-                            <span style={{
-                              fontSize: '0.65rem', fontWeight: 700,
-                              color: r.sender === 'admin' ? '#FBBF24' : '#60A5FA',
-                            }}>
-                              {r.sender === 'admin' ? 'Admin' : 'You'}
-                            </span>
-                            <p style={{
-                              margin: '2px 0 0', fontSize: '0.73rem',
-                              color: 'rgba(226,232,240,0.62)',
-                            }}>
-                              {r.text}
-                            </p>
+                        {/* Link */}
+                        {notif.url && (
+                          <div>
+                            <a href={notif.url} target="_blank" rel="noreferrer" className="np-link">
+                              <ExternalLink size={11} /> Open Link
+                            </a>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        )}
 
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                      <textarea
-                        className="tb-reply-inp"
-                        rows={1}
-                        placeholder="Reply..."
-                        value={replyText[notif.id] || ''}
-                        onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
-                      />
-                      <button
-                        className="tb-send-btn"
-                        onClick={() => handleReply(notif.id)}
-                        disabled={!replyText[notif.id]?.trim()}
-                      >
-                        <Send size={11} /> Send
-                      </button>
+                        {/* Replies */}
+                        {notif.replies?.length > 0 && (
+                          <div className="np-replies">
+                            {notif.replies.map((r, i) => (
+                              <div key={i} style={{ marginBottom: i < notif.replies.length - 1 ? '6px' : 0 }}>
+                                <span className="np-reply-sender" style={{
+                                  color: r.sender === 'admin' ? '#FBBF24' : '#818CF8',
+                                }}>
+                                  {r.sender === 'admin' ? 'Admin' : 'You'}
+                                </span>
+                                <p className="np-reply-text">{r.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reply Input */}
+                        <div className="np-input-row">
+                          <textarea
+                            className="np-input"
+                            rows={1}
+                            placeholder="Write a reply..."
+                            value={replyText[notif.id] || ''}
+                            onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleReply(notif.id);
+                              }
+                            }}
+                          />
+                          <button
+                            className="np-send"
+                            onClick={() => handleReply(notif.id)}
+                            disabled={!replyText[notif.id]?.trim()}
+                            aria-label="Send reply"
+                          >
+                            <Send size={14} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
