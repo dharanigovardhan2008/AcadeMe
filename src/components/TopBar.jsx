@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Menu, X, Send, CheckCheck, Instagram, School } from 'lucide-react';
+import { Bell, Menu, X, Send, CheckCheck, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -8,7 +8,7 @@ import {
   updateDoc, doc, arrayUnion,
 } from 'firebase/firestore';
 
-/* ── Safe Firestore Timestamp converter ── */
+/* ── Safe Firestore Timestamp ── */
 const toJSDate = (val) => {
   if (!val) return new Date(0);
   if (val.toDate) return val.toDate();
@@ -19,13 +19,18 @@ const toJSDate = (val) => {
 const fmtTime = (val) => {
   if (!val) return '';
   const d = toJSDate(val);
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
-    ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
 
 const TopBar = ({ toggleSidebar }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const panelRef = useRef(null);
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -78,426 +83,493 @@ const TopBar = ({ toggleSidebar }) => {
     }
   };
 
-  const userAvatar = user?.avatar ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=3B82F6&color=fff&size=128&bold=true`;
+  const userInitial = (user?.name || 'U').charAt(0).toUpperCase();
+  const userAvatar = user?.avatar;
 
   return (
     <>
       <style>{`
-        .tb {
-          position: sticky; top: 0; z-index: 30;
-          display: flex; align-items: center; gap: 10px;
-          padding: 10px 16px;
-          background: rgba(10,14,30,0.92);
-          backdrop-filter: blur(18px);
-          -webkit-backdrop-filter: blur(18px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-          min-height: 56px;
+        /* ══════════════════════════════════════
+           TOP BAR
+        ══════════════════════════════════════ */
+        .topbar {
+          position: sticky; top: 0; z-index: 50;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 20px;
+          height: 64px;
+          background: rgba(13, 13, 24, 0.85);
+          backdrop-filter: blur(20px) saturate(1.4);
+          -webkit-backdrop-filter: blur(20px) saturate(1.4);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
           box-sizing: border-box;
         }
 
-        /* ── Hamburger: mobile only ── */
-        .tb-ham {
-          display: flex; align-items: center; justify-content: center;
-          width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
+        /* ── Left Section ── */
+        .topbar-left {
+          display: flex; align-items: center; gap: 12px;
+        }
+
+        .topbar-hamburger {
+          display: none; align-items: center; justify-content: center;
+          width: 40px; height: 40px; border-radius: 12px;
+          background: transparent; border: none;
+          color: rgba(255,255,255,0.7); cursor: pointer;
+          transition: all 0.2s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .topbar-hamburger:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .topbar-hamburger:active { transform: scale(0.95); }
+        @media (max-width: 768px) { .topbar-hamburger { display: flex; } }
+
+        .topbar-brand {
+          font-weight: 800; font-size: 1.25rem;
+          background: linear-gradient(135deg, #818CF8, #6366F1, #4F46E5);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text; letter-spacing: -0.5px;
+          cursor: pointer; user-select: none;
+          transition: opacity 0.2s;
+        }
+        .topbar-brand:hover { opacity: 0.85; }
+
+        /* ── Right Section ── */
+        .topbar-right {
+          display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ── Quick Link Buttons ── */
+        .topbar-link {
+          display: flex; align-items: center; justify-content: center; gap: 6px;
+          height: 36px; padding: 0 12px; border-radius: 10px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.06);
+          color: rgba(255,255,255,0.6); font-size: 0.75rem; font-weight: 600;
+          text-decoration: none; cursor: pointer;
+          transition: all 0.2s; white-space: nowrap;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .topbar-link:hover {
+          background: rgba(255,255,255,0.1);
+          color: #fff; border-color: rgba(255,255,255,0.12);
+          transform: translateY(-1px);
+        }
+        .topbar-link:active { transform: scale(0.97); }
+
+        .topbar-link-insta:hover { color: #E1306C !important; border-color: rgba(225,48,108,0.25) !important; }
+        .topbar-link-arms:hover { color: #FBBF24 !important; border-color: rgba(251,191,36,0.25) !important; }
+
+        /* Hide text on small screens, keep icon */
+        .topbar-link-text { display: none; }
+        @media (min-width: 640px) { .topbar-link-text { display: inline; } }
+
+        /* ── Separator ── */
+        .topbar-sep {
+          width: 1px; height: 28px;
           background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.12);
-          cursor: pointer; color: #CBD5E1;
+          margin: 0 6px; flex-shrink: 0;
+        }
+
+        /* ── Bell Button ── */
+        .topbar-bell {
+          position: relative; display: flex; align-items: center; justify-content: center;
+          width: 40px; height: 40px; border-radius: 12px;
+          background: transparent; border: none;
+          color: rgba(255,255,255,0.6); cursor: pointer;
+          transition: all 0.2s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .topbar-bell:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .topbar-bell:active { transform: scale(0.95); }
+
+        .topbar-bell-badge {
+          position: absolute; top: 4px; right: 4px;
+          min-width: 18px; height: 18px; border-radius: 9px;
+          background: linear-gradient(135deg, #EF4444, #DC2626);
+          color: #fff; font-size: 0.6rem; font-weight: 800;
+          display: flex; align-items: center; justify-content: center;
+          padding: 0 4px; line-height: 1;
+          border: 2.5px solid rgba(13,13,24,1);
+          pointer-events: none;
+          animation: badge-pop 0.3s ease;
+        }
+        @keyframes badge-pop {
+          0% { transform: scale(0); }
+          60% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+
+        /* ── Profile Section ── */
+        .topbar-profile {
+          display: flex; align-items: center; gap: 10px;
+          cursor: pointer; padding: 4px; border-radius: 14px;
           transition: background 0.2s;
           -webkit-tap-highlight-color: transparent;
         }
-        .tb-ham:hover, .tb-ham:focus { background: rgba(255,255,255,0.14); color: #F1F5F9; outline: none; }
-        @media (min-width: 769px) { .tb-ham { display: none; } }
+        .topbar-profile:hover { background: rgba(255,255,255,0.06); }
 
-        /* ── Brand ── */
-        .tb-brand {
-          font-weight: 800; font-size: 1.15rem;
-          background: linear-gradient(135deg, #6366F1, #3B82F6);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          letter-spacing: -0.3px;
-          cursor: pointer;
-          user-select: none;
+        .topbar-user-info {
+          display: none; flex-direction: column; align-items: flex-end; gap: 0;
+        }
+        @media (min-width: 600px) { .topbar-user-info { display: flex; } }
+
+        .topbar-user-name {
+          font-size: 0.84rem; font-weight: 700; color: #F1F5F9;
+          max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; line-height: 1.3;
+        }
+        .topbar-user-meta {
+          font-size: 0.68rem; color: rgba(148,163,184,0.5);
+          line-height: 1.3;
         }
 
-        /* ── Right cluster ── */
-        .tb-right {
-          display: flex; align-items: center; gap: 4px;
-          margin-left: auto; flex-shrink: 0;
-        }
-
-        /* ── Icon buttons ── */
-        .tb-icon-btn {
+        .topbar-avatar {
+          width: 38px; height: 38px; min-width: 38px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
+          font-weight: 800; font-size: 0.9rem; color: #fff;
+          background: linear-gradient(135deg, #6366F1, #8B5CF6);
+          border: 2.5px solid rgba(99,102,241,0.3);
+          transition: all 0.25s; overflow: hidden;
+          flex-shrink: 0;
+        }
+        .topbar-avatar:hover {
+          border-color: rgba(99,102,241,0.7);
+          transform: scale(1.05);
+          box-shadow: 0 0 20px rgba(99,102,241,0.3);
+        }
+        .topbar-avatar img {
+          width: 100%; height: 100%; object-fit: cover;
+        }
+
+        /* ══════════════════════════════════════
+           NOTIFICATION PANEL
+        ══════════════════════════════════════ */
+        .notif-overlay {
+          position: fixed; inset: 0; z-index: 998;
+          background: rgba(0,0,0,0.3);
+          animation: notif-fade 0.15s ease;
+        }
+        @keyframes notif-fade { from { opacity: 0; } to { opacity: 1; } }
+
+        .notif-panel {
+          position: fixed; top: 72px; right: 16px;
+          width: min(400px, calc(100vw - 32px));
+          max-height: calc(100vh - 90px);
+          background: rgba(15, 15, 28, 0.98);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 20px;
+          box-shadow: 0 25px 70px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+          backdrop-filter: blur(30px);
+          display: flex; flex-direction: column;
+          overflow: hidden; z-index: 999;
+          animation: notif-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes notif-slide {
+          from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (max-width: 480px) {
+          .notif-panel { right: 8px; top: 68px; width: calc(100vw - 16px); border-radius: 16px; }
+        }
+
+        .notif-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 16px 18px 14px; flex-shrink: 0;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .notif-header-left { display: flex; align-items: center; gap: 10px; }
+        .notif-header-title { font-weight: 700; font-size: 0.95rem; color: #F1F5F9; }
+        .notif-header-count {
+          font-size: 0.62rem; font-weight: 700;
+          background: rgba(99,102,241,0.15); color: #818CF8;
+          padding: 2px 8px; border-radius: 10px;
+        }
+
+        .notif-scroll { overflow-y: auto; flex: 1; overscroll-behavior: contain; }
+        .notif-scroll::-webkit-scrollbar { width: 3px; }
+        .notif-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+        .notif-empty {
+          padding: 3rem 1rem; text-align: center; color: rgba(148,163,184,0.3);
+        }
+        .notif-empty-icon { display: block; margin: 0 auto 12px; opacity: 0.15; }
+
+        .notif-item {
+          padding: 14px 18px;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+          transition: background 0.15s;
+        }
+        .notif-item:hover { background: rgba(255,255,255,0.02); }
+        .notif-item:last-child { border-bottom: none; }
+
+        .notif-dot {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: linear-gradient(135deg, #6366F1, #818CF8);
+          flex-shrink: 0; margin-top: 5px;
+        }
+
+        .notif-replies {
+          border-left: 2px solid rgba(99,102,241,0.15);
+          padding-left: 12px; margin: 8px 0 8px 10px;
+        }
+
+        .notif-reply-row {
+          display: flex; gap: 6px; align-items: flex-end; margin-top: 10px;
+        }
+        .notif-reply-input {
+          flex: 1; padding: 8px 12px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px; outline: none;
+          color: #E2E8F0; font-size: 0.8rem; font-family: inherit;
+          resize: none; min-height: 38px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .notif-reply-input:focus {
+          border-color: rgba(99,102,241,0.4);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+        }
+        .notif-reply-input::placeholder { color: rgba(148,163,184,0.35); }
+
+        .notif-send-btn {
+          padding: 8px 14px; border-radius: 10px; border: none;
+          background: linear-gradient(135deg, #6366F1, #4F46E5);
+          color: #fff; font-size: 0.75rem; font-weight: 700;
+          cursor: pointer; display: flex; align-items: center;
+          gap: 4px; flex-shrink: 0; min-height: 38px;
+          transition: all 0.2s;
+        }
+        .notif-send-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .notif-send-btn:active { transform: scale(0.97); }
+        .notif-send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+        .notif-close-btn {
+          display: flex; align-items: center; justify-content: center;
+          width: 28px; height: 28px; border-radius: 8px;
           background: rgba(255,255,255,0.06);
           border: 1px solid rgba(255,255,255,0.08);
           cursor: pointer; color: #94A3B8;
           transition: all 0.2s;
-          -webkit-tap-highlight-color: transparent;
-          text-decoration: none;
         }
-        .tb-icon-btn:hover {
-          background: rgba(255,255,255,0.12);
-          color: #F1F5F9;
-          border-color: rgba(255,255,255,0.15);
-        }
+        .notif-close-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
-        /* Instagram hover color */
-        .tb-insta:hover { color: #E1306C !important; border-color: rgba(225,48,108,0.3) !important; }
+        .notif-mark-btn {
+          background: none; border: none; cursor: pointer;
+          color: rgba(148,163,184,0.45); font-size: 0.68rem;
+          display: flex; align-items: center; gap: 4px;
+          padding: 4px 8px; border-radius: 6px;
+          transition: all 0.2s;
+        }
+        .notif-mark-btn:hover { color: #818CF8; background: rgba(99,102,241,0.08); }
 
-        /* ARMS hover color */
-        .tb-arms:hover { color: #FBBF24 !important; border-color: rgba(251,191,36,0.3) !important; }
-
-        /* ── Bell specific ── */
-        .tb-bell { position: relative; }
-
-        /* ── Badge ── */
-        .tb-badge {
-          position: absolute; top: -5px; right: -5px;
-          min-width: 17px; height: 17px; border-radius: 10px;
-          background: #EF4444; color: #fff;
-          font-size: 0.58rem; font-weight: 800;
-          display: flex; align-items: center; justify-content: center;
-          padding: 0 3px; line-height: 1;
-          border: 2px solid rgba(10,14,30,1);
-          pointer-events: none;
-        }
-
-        /* ── Divider ── */
-        .tb-divider {
-          width: 1px; height: 24px;
-          background: rgba(255,255,255,0.08);
-          margin: 0 4px; flex-shrink: 0;
-        }
-
-        /* ── User info (desktop only) ── */
-        .tb-uinfo {
-          display: none; flex-direction: column;
-          align-items: flex-end; gap: 1px;
-        }
-        @media (min-width: 600px) { .tb-uinfo { display: flex; } }
-
-        /* ── Avatar ── */
-        .tb-avatar {
-          width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
-          object-fit: cover; cursor: pointer;
-          border: 2px solid rgba(96,165,250,0.4);
-          transition: border-color 0.2s, transform 0.2s;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .tb-avatar:hover { border-color: rgba(96,165,250,0.9); transform: scale(1.06); }
-
-        /* ── Notification panel ── */
-        .tb-panel {
-          position: fixed; top: 64px; right: 12px;
-          width: min(380px, calc(100vw - 24px));
-          max-height: 72vh;
-          background: rgba(11,15,32,0.98);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px;
-          box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
-          backdrop-filter: blur(24px);
-          display: flex; flex-direction: column;
-          overflow: hidden; z-index: 1000;
-          animation: tb-drop 0.2s ease;
-        }
-        @keyframes tb-drop {
-          from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .tb-phead {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 13px 15px 11px; flex-shrink: 0;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .tb-pscroll { overflow-y: auto; flex: 1; }
-        .tb-pscroll::-webkit-scrollbar { width: 3px; }
-        .tb-pscroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-        .tb-nitem {
-          padding: 13px 15px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          transition: background 0.15s;
-        }
-        .tb-nitem:hover { background: rgba(255,255,255,0.03); }
-        .tb-nitem:last-child { border-bottom: none; }
-
-        .tb-reply-inp {
-          flex: 1; padding: 7px 10px;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.09);
-          border-radius: 8px; outline: none;
-          color: #E2E8F0; font-size: 0.78rem; font-family: inherit;
-          resize: none; min-height: 36px;
-          transition: border-color 0.2s;
-        }
-        .tb-reply-inp:focus { border-color: rgba(96,165,250,0.5); }
-        .tb-reply-inp::placeholder { color: rgba(148,163,184,0.4); }
-
-        .tb-send-btn {
-          padding: 7px 12px; border-radius: 8px; border: none;
-          background: linear-gradient(135deg, #3B82F6, #6366F1);
-          color: #fff; font-size: 0.75rem; font-weight: 700;
-          cursor: pointer; display: flex; align-items: center;
-          gap: 4px; flex-shrink: 0; min-height: 36px;
-          transition: opacity 0.2s;
-        }
-        .tb-send-btn:hover { opacity: 0.88; }
-        .tb-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-        /* ── Mobile adjustments ── */
-        @media (max-width: 480px) {
-          .tb { padding: 8px 12px; gap: 8px; }
-          .tb-icon-btn { width: 34px; height: 34px; min-width: 34px; }
-          .tb-brand { font-size: 1.05rem; }
-          .tb-avatar { width: 32px; height: 32px; min-width: 32px; }
-        }
+        /* ── Instagram SVG (custom since lucide may not have it) ── */
+        .icon-insta { width: 16px; height: 16px; }
       `}</style>
 
-      <div className="tb">
+      <div className="topbar">
+        {/* ── Left ── */}
+        <div className="topbar-left">
+          <button className="topbar-hamburger" onClick={toggleSidebar} aria-label="Menu">
+            <Menu size={22} />
+          </button>
+          <span className="topbar-brand" onClick={() => navigate('/dashboard')}>
+            AcadeMe
+          </span>
+        </div>
 
-        {/* ── Hamburger (mobile only) ── */}
-        <button className="tb-ham" onClick={toggleSidebar} aria-label="Menu">
-          <Menu size={20} />
-        </button>
-
-        {/* ── Brand ── */}
-        <span className="tb-brand" onClick={() => navigate('/dashboard')}>
-          AcadeMe
-        </span>
-
-        {/* ── Right cluster ── */}
-        <div className="tb-right">
+        {/* ── Right ── */}
+        <div className="topbar-right">
 
           {/* Instagram */}
           <a
             href="https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5"
             target="_blank"
             rel="noopener noreferrer"
-            className="tb-icon-btn tb-insta"
-            title="Follow on Instagram"
+            className="topbar-link topbar-link-insta"
             aria-label="Instagram"
           >
-            <Instagram size={18} />
+            <svg className="icon-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            <span className="topbar-link-text">Instagram</span>
           </a>
 
-          {/* ARMS College Website */}
+          {/* ARMS */}
           <a
             href="https://arms.sse.saveetha.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="tb-icon-btn tb-arms"
-            title="ARMS – Saveetha"
-            aria-label="College Website"
+            className="topbar-link topbar-link-arms"
+            aria-label="ARMS Portal"
           >
-            <School size={18} />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+            <span className="topbar-link-text">ARMS</span>
           </a>
 
-          {/* Divider */}
-          <div className="tb-divider" />
+          {/* Separator */}
+          <div className="topbar-sep" />
 
           {/* Bell */}
           <button
-            className="tb-icon-btn tb-bell"
+            className="topbar-bell"
             onClick={handleBellClick}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           >
-            <Bell size={18} />
+            <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="tb-badge">
+              <span className="topbar-bell-badge">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
-          {/* Divider */}
-          <div className="tb-divider" />
+          {/* Separator */}
+          <div className="topbar-sep" />
 
-          {/* Name + branch (desktop) */}
-          <div className="tb-uinfo">
-            <span style={{
-              fontSize: '0.82rem', fontWeight: 700, color: '#E2E8F0',
-              maxWidth: '140px', overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {user?.name || 'User'}
-            </span>
-            {(user?.branch || user?.year) && (
-              <span style={{ fontSize: '0.68rem', color: 'rgba(148,163,184,0.55)' }}>
-                {[user.branch, user.year].filter(Boolean).join(' · ')}
-              </span>
-            )}
-          </div>
-
-          {/* Avatar */}
-          <img
-            className="tb-avatar"
-            src={userAvatar}
-            alt={user?.name || 'Profile'}
+          {/* Profile */}
+          <div
+            className="topbar-profile"
             onClick={() => {
               setShowNotifications(false);
               navigate('/profile');
             }}
-          />
+          >
+            <div className="topbar-user-info">
+              <span className="topbar-user-name">{user?.name || 'User'}</span>
+              {(user?.branch || user?.year) && (
+                <span className="topbar-user-meta">
+                  {[user.branch, user.year].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </div>
+            <div className="topbar-avatar">
+              {userAvatar ? (
+                <img src={userAvatar} alt={user?.name || 'Profile'} />
+              ) : (
+                userInitial
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Notification panel ── */}
+      {/* ══ Notification Panel ══ */}
       {showNotifications && (
         <>
-          <div
-            onClick={() => setShowNotifications(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-          />
-          <div className="tb-panel">
-            <div className="tb-phead">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bell size={15} color="#60A5FA" />
-                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#E2E8F0' }}>
-                  Notifications
-                </span>
+          <div className="notif-overlay" onClick={() => setShowNotifications(false)} />
+          <div className="notif-panel" ref={panelRef}>
+            <div className="notif-header">
+              <div className="notif-header-left">
+                <span className="notif-header-title">Notifications</span>
                 {notifications.length > 0 && (
-                  <span style={{
-                    fontSize: '0.62rem', fontWeight: 700,
-                    background: 'rgba(96,165,250,0.14)', color: '#60A5FA',
-                    padding: '2px 7px', borderRadius: '10px',
-                  }}>
-                    {notifications.length}
-                  </span>
+                  <span className="notif-header-count">{notifications.length}</span>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {unreadCount > 0 && (
-                  <button
-                    onClick={markAllRead}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'rgba(148,163,184,0.5)', fontSize: '0.68rem',
-                      display: 'flex', alignItems: 'center', gap: '3px',
-                      padding: '3px 6px',
-                    }}
-                  >
-                    <CheckCheck size={11} /> Mark read
+                  <button className="notif-mark-btn" onClick={markAllRead}>
+                    <CheckCheck size={12} /> Mark read
                   </button>
                 )}
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  aria-label="Close notifications"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '7px', width: '26px', height: '26px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#94A3B8',
-                  }}
-                >
-                  <X size={13} />
+                <button className="notif-close-btn" onClick={() => setShowNotifications(false)} aria-label="Close">
+                  <X size={14} />
                 </button>
               </div>
             </div>
 
-            <div className="tb-pscroll">
+            <div className="notif-scroll">
               {notifications.length === 0 ? (
-                <div style={{
-                  padding: '3rem 1rem', textAlign: 'center',
-                  color: 'rgba(148,163,184,0.35)',
-                }}>
-                  <Bell size={28} style={{ display: 'block', margin: '0 auto 10px', opacity: 0.18 }} />
-                  <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.84rem' }}>
-                    No notifications
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.74rem' }}>You're all caught up!</p>
+                <div className="notif-empty">
+                  <Bell size={32} className="notif-empty-icon" />
+                  <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.88rem' }}>All caught up!</p>
+                  <p style={{ margin: 0, fontSize: '0.76rem' }}>No new notifications</p>
                 </div>
               ) : (
                 notifications.map(notif => (
-                  <div key={notif.id} className="tb-nitem">
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between',
-                      gap: '8px', marginBottom: '6px',
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{
-                          margin: '0 0 3px', fontWeight: 700, fontSize: '0.83rem',
-                          color: '#E2E8F0', lineHeight: 1.4,
-                        }}>
-                          {notif.title || notif.message || 'Notification'}
-                        </p>
+                  <div key={notif.id} className="notif-item">
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div className="notif-dot" />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#E2E8F0', lineHeight: 1.4 }}>
+                            {notif.title || notif.message || 'Notification'}
+                          </p>
+                          <span style={{ fontSize: '0.62rem', color: 'rgba(148,163,184,0.4)', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '2px' }}>
+                            {fmtTime(notif.createdAt)}
+                          </span>
+                        </div>
+
                         {notif.body && notif.body !== notif.title && (
-                          <p style={{
-                            margin: 0, fontSize: '0.75rem',
-                            color: 'rgba(148,163,184,0.6)', lineHeight: 1.4,
-                          }}>
+                          <p style={{ margin: '0 0 6px', fontSize: '0.78rem', color: 'rgba(148,163,184,0.6)', lineHeight: 1.5 }}>
                             {notif.body}
                           </p>
                         )}
-                      </div>
-                      {notif.createdAt && (
-                        <span style={{
-                          fontSize: '0.62rem', color: 'rgba(148,163,184,0.35)',
-                          whiteSpace: 'nowrap', flexShrink: 0,
-                        }}>
-                          {fmtTime(notif.createdAt)}
-                        </span>
-                      )}
-                    </div>
 
-                    {notif.url && (
-                      <a
-                        href={notif.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          fontSize: '0.73rem', fontWeight: 600, color: '#60A5FA',
-                          textDecoration: 'none', marginBottom: '8px',
-                        }}
-                      >
-                        Open Resource →
-                      </a>
-                    )}
+                        {/* Message content if separate from title */}
+                        {notif.message && notif.message !== notif.title && !notif.body && (
+                          <p style={{ margin: '0 0 6px', fontSize: '0.78rem', color: 'rgba(148,163,184,0.6)', lineHeight: 1.5 }}>
+                            {notif.message}
+                          </p>
+                        )}
 
-                    {notif.replies?.length > 0 && (
-                      <div style={{
-                        borderLeft: '2px solid rgba(96,165,250,0.22)',
-                        paddingLeft: '10px', marginBottom: '8px',
-                      }}>
-                        {notif.replies.map((r, i) => (
-                          <div key={i} style={{
-                            marginBottom: i < notif.replies.length - 1 ? '5px' : 0,
-                          }}>
-                            <span style={{
-                              fontSize: '0.65rem', fontWeight: 700,
-                              color: r.sender === 'admin' ? '#FBBF24' : '#60A5FA',
-                            }}>
-                              {r.sender === 'admin' ? 'Admin' : 'You'}
-                            </span>
-                            <p style={{
-                              margin: '2px 0 0', fontSize: '0.73rem',
-                              color: 'rgba(226,232,240,0.62)',
-                            }}>
-                              {r.text}
-                            </p>
+                        {notif.url && (
+                          <a href={notif.url} target="_blank" rel="noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              fontSize: '0.73rem', fontWeight: 600, color: '#818CF8',
+                              textDecoration: 'none', marginBottom: '6px',
+                              background: 'rgba(99,102,241,0.08)', padding: '4px 10px',
+                              borderRadius: '6px', transition: 'background 0.2s',
+                            }}
+                          >
+                            <ExternalLink size={12} /> Open Link
+                          </a>
+                        )}
+
+                        {notif.replies?.length > 0 && (
+                          <div className="notif-replies">
+                            {notif.replies.map((r, i) => (
+                              <div key={i} style={{ marginBottom: i < notif.replies.length - 1 ? '6px' : 0 }}>
+                                <span style={{
+                                  fontSize: '0.65rem', fontWeight: 700,
+                                  color: r.sender === 'admin' ? '#FBBF24' : '#818CF8',
+                                }}>
+                                  {r.sender === 'admin' ? 'Admin' : 'You'}
+                                </span>
+                                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'rgba(226,232,240,0.55)', lineHeight: 1.4 }}>
+                                  {r.text}
+                                </p>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        )}
 
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                      <textarea
-                        className="tb-reply-inp"
-                        rows={1}
-                        placeholder="Reply..."
-                        value={replyText[notif.id] || ''}
-                        onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
-                      />
-                      <button
-                        className="tb-send-btn"
-                        onClick={() => handleReply(notif.id)}
-                        disabled={!replyText[notif.id]?.trim()}
-                      >
-                        <Send size={11} /> Send
-                      </button>
+                        <div className="notif-reply-row">
+                          <textarea
+                            className="notif-reply-input"
+                            rows={1}
+                            placeholder="Write a reply..."
+                            value={replyText[notif.id] || ''}
+                            onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleReply(notif.id);
+                              }
+                            }}
+                          />
+                          <button
+                            className="notif-send-btn"
+                            onClick={() => handleReply(notif.id)}
+                            disabled={!replyText[notif.id]?.trim()}
+                          >
+                            <Send size={12} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))
