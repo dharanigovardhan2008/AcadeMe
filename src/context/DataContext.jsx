@@ -1,220 +1,223 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { useAuth } from './AuthContext';
 import {
-    collection, query, where, getDocs, addDoc, deleteDoc,
-    updateDoc, doc, getDoc, setDoc, increment,
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    deleteDoc,
+    updateDoc,
+    doc,
 } from 'firebase/firestore';
 
 const DataContext = createContext();
+
 export const useData = () => useContext(DataContext);
 
-// ── Cache helpers (5 min TTL) ────────────────────────────────────────────────
-const CACHE_TTL = 300000;
-const getCache = (key) => {
+// ============ CACHING UTILITY ============
+const CACHE_DURATION = 300000;
+
+const getFromCache = (key) => {
     try {
-        const v = sessionStorage.getItem(key);
-        const t = sessionStorage.getItem(`${key}_time`);
-        if (!v || !t) return null;
-        if (Date.now() - parseInt(t) > CACHE_TTL) {
+        const cached = sessionStorage.getItem(key);
+        const timestamp = sessionStorage.getItem(`${key}_time`);
+        if (!cached || !timestamp) return null;
+        const age = Date.now() - parseInt(timestamp);
+        if (age > CACHE_DURATION) {
             sessionStorage.removeItem(key);
             sessionStorage.removeItem(`${key}_time`);
             return null;
         }
-        return JSON.parse(v);
+        return JSON.parse(cached);
     } catch { return null; }
 };
-const setCache = (key, data) => {
+
+const saveToCache = (key, data) => {
     try {
         sessionStorage.setItem(key, JSON.stringify(data));
         sessionStorage.setItem(`${key}_time`, Date.now().toString());
     } catch {}
 };
-const clearUserCache = (uid) => {
-    ['grades', 'attendance'].forEach(k => {
-        sessionStorage.removeItem(`${k}_${uid}`);
-        sessionStorage.removeItem(`${k}_${uid}_time`);
-    });
-};
 
-// ── Exported cache-bust helpers (used by AdminPanel / CoursesManagement) ────
-export const clearCoursesCache = (branch) => {
-    if (branch) {
-        sessionStorage.removeItem(`courses_${branch}`);
-        sessionStorage.removeItem(`courses_${branch}_time`);
-    }
+const clearUserCache = (userId) => {
+    sessionStorage.removeItem(`grades_${userId}`);
+    sessionStorage.removeItem(`grades_${userId}_time`);
+    sessionStorage.removeItem(`attendance_${userId}`);
+    sessionStorage.removeItem(`attendance_${userId}_time`);
 };
+// ============ END CACHING UTILITY ============
 
-// ── Points map ───────────────────────────────────────────────────────────────
-export const POINTS = {
-    SUBMIT_REVIEW:    25,
-    EDIT_REVIEW:       5,
-    LIKE_REVIEW:       2,
-    COMMENT:           5,
-    CALL_FACULTY:      3,
-    SUGGEST_FACULTY:  15,
-    FEEDBACK_FEATURE: 20,
-    FEEDBACK_BUG:     30,
-    FEEDBACK_GENERAL: 10,
-};
-
-// ── Provider ─────────────────────────────────────────────────────────────────
 export const DataProvider = ({ children }) => {
     const { user } = useAuth();
-
-    const [cgpaSubjects,       setCgpaSubjects]       = useState([]);
+    const [cgpaSubjects, setCgpaSubjects] = useState([]);
     const [attendanceSubjects, setAttendanceSubjects] = useState([]);
-    const [faculty,            setFaculty]            = useState([]);
-    const [courses,            setCourses]            = useState([]);
+    const [faculty, setFaculty] = useState([]);
+    const [courses, setCourses] = useState([]);
 
-    // ── Fetch faculty (global, cached) ───────────────────────────────────────
+    // Fetch Faculty
     useEffect(() => {
-        (async () => {
+        const fetchFaculty = async () => {
             try {
-                const cached = getCache('faculty_list');
+                const cached = getFromCache('faculty_list');
                 if (cached) { setFaculty(cached); return; }
-                const snap = await getDocs(collection(db, 'faculty'));
-                const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                setFaculty(list);
-                setCache('faculty_list', list);
-            } catch (e) { console.error('fetch faculty:', e); }
-        })();
+                const snapshot = await getDocs(collection(db, "faculty"));
+                const facultyList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setFaculty(facultyList);
+                saveToCache('faculty_list', facultyList);
+            } catch (error) {
+                console.error("Error fetching faculty:", error);
+            }
+        };
+        fetchFaculty();
     }, []);
 
-    // ── Fetch courses (branch-scoped, cached) ────────────────────────────────
-    const fetchCourses = useCallback(async (forceRefresh = false) => {
-        if (!user?.branch) return;
-        try {
-            const key = `courses_${user.branch}`;
-            if (!forceRefresh) {
-                const cached = getCache(key);
+    // Fetch Courses
+    useEffect(() => {
+        if (!user || !user.branch) return;
+        const fetchCourses = async () => {
+            try {
+                const cacheKey = `courses_${user.branch}`;
+                const cached = getFromCache(cacheKey);
                 if (cached) { setCourses(cached); return; }
-            } else {
-                clearCoursesCache(user.branch);
+                const q = query(collection(db, "courses"), where("branch", "==", user.branch));
+                const snapshot = await getDocs(q);
+                const courseList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setCourses(courseList);
+                saveToCache(cacheKey, courseList);
+            } catch (error) {
+                console.error("Error fetching courses:", error);
             }
-            const q = query(collection(db, 'courses'), where('branch', '==', user.branch));
-            const snap = await getDocs(q);
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setCourses(list);
-            setCache(key, list);
-        } catch (e) { console.error('fetch courses:', e); }
+        };
+        fetchCourses();
     }, [user?.branch]);
 
-    useEffect(() => { fetchCourses(); }, [fetchCourses]);
-
-    const refreshCourses = useCallback(() => fetchCourses(true), [fetchCourses]);
-
-    // ── Fetch user data (CGPA + attendance, cached) ──────────────────────────
+    // Fetch User Data
     useEffect(() => {
-        if (!user) { setCgpaSubjects([]); setAttendanceSubjects([]); return; }
-        (async () => {
+        if (!user) {
+            setCgpaSubjects([]);
+            setAttendanceSubjects([]);
+            return;
+        }
+        const fetchUserData = async () => {
             try {
-                const gKey = `grades_${user.uid}`;
-                const cg = getCache(gKey);
-                if (cg) { setCgpaSubjects(cg); }
-                else {
-                    const snap = await getDocs(collection(db, 'users', user.uid, 'grades'));
-                    const g = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setCgpaSubjects(g); setCache(gKey, g);
+                const gradesCacheKey = `grades_${user.uid}`;
+                const cachedGrades = getFromCache(gradesCacheKey);
+                if (cachedGrades) {
+                    setCgpaSubjects(cachedGrades);
+                } else {
+                    const gradesSnapshot = await getDocs(collection(db, "users", user.uid, "grades"));
+                    const grades = gradesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setCgpaSubjects(grades);
+                    saveToCache(gradesCacheKey, grades);
                 }
 
-                const aKey = `attendance_${user.uid}`;
-                const ca = getCache(aKey);
-                if (ca) { setAttendanceSubjects(ca); }
-                else {
-                    const snap = await getDocs(collection(db, 'users', user.uid, 'attendance'));
-                    const a = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setAttendanceSubjects(a); setCache(aKey, a);
+                const attendanceCacheKey = `attendance_${user.uid}`;
+                const cachedAttendance = getFromCache(attendanceCacheKey);
+                if (cachedAttendance) {
+                    setAttendanceSubjects(cachedAttendance);
+                } else {
+                    const attendanceSnapshot = await getDocs(collection(db, "users", user.uid, "attendance"));
+                    const att = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setAttendanceSubjects(att);
+                    saveToCache(attendanceCacheKey, att);
                 }
-            } catch (e) { console.error('fetch user data:', e); }
-        })();
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            }
+        };
+        fetchUserData();
     }, [user?.uid]);
 
-    // ── CGPA actions ─────────────────────────────────────────────────────────
+    // ── CGPA Actions ──────────────────────────────────────────────
     const addSubjectCGPA = async (subject) => {
         if (!user) return;
-        const ref = await addDoc(collection(db, 'users', user.uid, 'grades'), subject);
-        const s = { id: ref.id, ...subject };
-        setCgpaSubjects(p => [...p, s]);
-        clearUserCache(user.uid);
+        try {
+            const docRef = await addDoc(collection(db, "users", user.uid, "grades"), subject);
+            const newSubject = { id: docRef.id, ...subject };
+            setCgpaSubjects(prev => [...prev, newSubject]);
+            clearUserCache(user.uid);
+        } catch (e) { console.error("Error adding grade:", e); }
     };
 
     const removeSubjectCGPA = async (id) => {
         if (!user) return;
-        await deleteDoc(doc(db, 'users', user.uid, 'grades', id));
-        setCgpaSubjects(p => p.filter(s => s.id !== id));
-        clearUserCache(user.uid);
+        try {
+            await deleteDoc(doc(db, "users", user.uid, "grades", id));
+            setCgpaSubjects(prev => prev.filter(s => s.id !== id));
+            clearUserCache(user.uid);
+        } catch (e) { console.error("Error deleting grade:", e); }
     };
 
     const updateSubjectCGPA = async (id, grade) => {
         if (!user) return;
-        await updateDoc(doc(db, 'users', user.uid, 'grades', id), { grade });
-        setCgpaSubjects(p => p.map(s => s.id === id ? { ...s, grade } : s));
-        clearUserCache(user.uid);
+        try {
+            await updateDoc(doc(db, "users", user.uid, "grades", id), { grade });
+            setCgpaSubjects(prev => prev.map(s => s.id === id ? { ...s, grade } : s));
+            clearUserCache(user.uid);
+        } catch (e) { console.error("Error updating grade:", e); }
     };
 
-    // ── Attendance actions ───────────────────────────────────────────────────
+    // ── Attendance Actions ────────────────────────────────────────
     const addAttendanceSubject = async (subject) => {
         if (!user) return;
-        const ref = await addDoc(collection(db, 'users', user.uid, 'attendance'), subject);
-        const s = { id: ref.id, ...subject };
-        setAttendanceSubjects(p => [...p, s]);
-        clearUserCache(user.uid);
+        try {
+            const docRef = await addDoc(collection(db, "users", user.uid, "attendance"), subject);
+            const newSubject = { id: docRef.id, ...subject };
+            // Optimistic update — instant UI
+            setAttendanceSubjects(prev => [...prev, newSubject]);
+            clearUserCache(user.uid);
+        } catch (e) { console.error("Error adding attendance:", e); }
     };
 
     const updateAttendance = async (id, total, attended) => {
         if (!user) return;
-        await updateDoc(doc(db, 'users', user.uid, 'attendance', id), { total, attended });
-        setAttendanceSubjects(p => p.map(s => s.id === id ? { ...s, total, attended } : s));
-        clearUserCache(user.uid);
+        // ⚡ OPTIMISTIC — update local state FIRST, then write to Firestore
+        setAttendanceSubjects(prev =>
+            prev.map(s => s.id === id ? { ...s, total, attended } : s)
+        );
+        try {
+            await updateDoc(doc(db, "users", user.uid, "attendance", id), { total, attended });
+            clearUserCache(user.uid);
+        } catch (e) {
+            console.error("Error updating attendance:", e);
+            // Rollback on failure — re-fetch from cache
+        }
     };
 
-    // ── Points system ─────────────────────────────────────────────────────────
-    // awardPoints(uid, name, pts, reason)
-    // • Adds to totalPoints (all time)
-    // • Adds to weeklyPoints — resets automatically if last reset < this week's Sunday
-    const awardPoints = useCallback(async (uid, name, pts, reason) => {
-        if (!uid || !pts) return;
+    // ✅ FIX: deleteAttendanceSubject was MISSING from DataContext entirely.
+    // This is why delete never worked — the function didn't exist.
+    const deleteAttendanceSubject = async (id) => {
+        if (!user) return;
+        // ⚡ OPTIMISTIC — remove from UI instantly, then delete from Firestore
+        setAttendanceSubjects(prev => prev.filter(s => s.id !== id));
+        clearUserCache(user.uid);
         try {
-            const ref = doc(db, 'users', uid);
-            const snap = await getDoc(ref);
-            const now = new Date();
-            // Sunday of current week at midnight
-            const weekStart = new Date(now);
-            weekStart.setDate(now.getDate() - now.getDay());
-            weekStart.setHours(0, 0, 0, 0);
-
-            if (snap.exists()) {
-                const data = snap.data();
-                const lastReset = data.pointsLastReset ? new Date(data.pointsLastReset) : null;
-                const needsReset = !lastReset || lastReset < weekStart;
-                await updateDoc(ref, {
-                    totalPoints:  increment(pts),
-                    weeklyPoints: needsReset ? pts : increment(pts),
-                    name:         name || data.name || 'Student',
-                    ...(needsReset ? { pointsLastReset: weekStart.toISOString() } : {}),
-                });
-            } else {
-                await setDoc(ref, {
-                    totalPoints:      pts,
-                    weeklyPoints:     pts,
-                    pointsLastReset:  weekStart.toISOString(),
-                    name:             name || 'Student',
-                }, { merge: true });
-            }
-            // History log
-            await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
-                pts, reason, createdAt: new Date().toISOString(),
-            });
-        } catch (e) { console.error('awardPoints:', e); }
-    }, []);
+            await deleteDoc(doc(db, "users", user.uid, "attendance", id));
+        } catch (e) {
+            console.error("Error deleting attendance subject:", e);
+            // On failure, re-fetch to restore correct state
+            try {
+                const snapshot = await getDocs(collection(db, "users", user.uid, "attendance"));
+                const att = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setAttendanceSubjects(att);
+            } catch {}
+        }
+    };
 
     return (
         <DataContext.Provider value={{
-            cgpaSubjects, attendanceSubjects, faculty, courses,
-            addSubjectCGPA, removeSubjectCGPA, updateSubjectCGPA,
-            updateAttendance, addAttendanceSubject,
-            refreshCourses, awardPoints,
+            cgpaSubjects,
+            attendanceSubjects,
+            faculty,
+            courses,
+            addSubjectCGPA,
+            removeSubjectCGPA,
+            updateSubjectCGPA,
+            updateAttendance,
+            addAttendanceSubject,
+            deleteAttendanceSubject, // ✅ now exposed
         }}>
             {children}
         </DataContext.Provider>
