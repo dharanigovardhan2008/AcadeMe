@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import FeedbackModal from './FeedbackModal';
-import logo from '../assets/logo.jpg';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, isAdmin, logout } = useAuth();
@@ -32,17 +31,17 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
 
     const navItems = [
-        { path: '/dashboard',      label: 'Dashboard',      icon: Home,          color: '#60A5FA', glow: '#3B82F6' },
-        { path: '/courses',        label: 'My Courses',     icon: BookOpen,       color: '#34D399', glow: '#10B981' },
-        { path: '/common-courses', label: 'Common Courses', icon: Layers,         color: '#A78BFA', glow: '#8B5CF6' },
-        { path: '/calc',           label: 'CGPA Calc',      icon: Calculator,     color: '#FBBF24', glow: '#F59E0B' },
-        { path: '/attendance',     label: 'Attendance',     icon: Calendar,       color: '#F87171', glow: '#EF4444' },
-        { path: '/faculty',        label: 'Faculty Dir.',   icon: Users,          color: '#38BDF8', glow: '#0EA5E9' },
-        { path: '/reviews',        label: 'Reviews',        icon: MessageSquare,  color: '#FB923C', glow: '#F97316' },
-        { path: '/resources',      label: 'Resources Hub',  icon: BookOpen,       color: '#4ADE80', glow: '#22C55E' },
-        { path: '/leaderboard',    label: 'Leaderboard',    icon: Trophy,         color: '#FFD700', glow: '#F59E0B' },
-        { path: '/profile',        label: 'Profile',        icon: User,           color: '#E879F9', glow: '#D946EF' },
-        { path: '/settings',       label: 'Settings',       icon: Settings,       color: '#94A3B8', glow: '#64748B' },
+        { path: '/dashboard',      label: 'Dashboard',          icon: Home,          color: '#60A5FA', glow: '#3B82F6' },
+        { path: '/courses',        label: 'My Courses',         icon: BookOpen,       color: '#34D399', glow: '#10B981' },
+        { path: '/common-courses', label: 'Common Courses',     icon: Layers,         color: '#A78BFA', glow: '#8B5CF6' },
+        { path: '/calc',           label: 'CGPA Calculator',    icon: Calculator,     color: '#FBBF24', glow: '#F59E0B' },
+        { path: '/attendance',     label: 'Attendance Tracker', icon: Calendar,       color: '#F87171', glow: '#EF4444' },
+        { path: '/faculty',        label: 'Faculty Directory',  icon: Users,          color: '#38BDF8', glow: '#0EA5E9' },
+        { path: '/reviews',        label: 'Faculty Reviews',    icon: MessageSquare,  color: '#FB923C', glow: '#F97316' },
+        { path: '/resources',      label: 'Resources Hub',      icon: BookOpen,       color: '#4ADE80', glow: '#22C55E' },
+        { path: '/leaderboard',    label: 'Leaderboard',        icon: Trophy,         color: '#FFD700', glow: '#F59E0B' },
+        { path: '/profile',        label: 'Profile',            icon: User,           color: '#E879F9', glow: '#D946EF' },
+        { path: '/settings',       label: 'Settings',           icon: Settings,       color: '#94A3B8', glow: '#64748B' },
     ];
 
     if (isAdmin || user?.role === 'admin') {
@@ -73,7 +72,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
 .sb {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    width: 268px;
+    width: 285px;
     height: 100vh;
     position: fixed;
     left: 0; top: 0;
@@ -176,61 +175,10 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     100% { transform: translateY(-10vh) scale(0.4); opacity: 0; }
 }
 
-.sb-logo {
-    padding: 1.5rem 1.2rem 0.9rem;
-    display: flex; align-items: center; gap: 0.85rem;
-    position: relative; z-index: 2; flex-shrink: 0;
-}
-.sb-logo-ring {
-    position: relative;
-    width: 42px; height: 42px; flex-shrink: 0;
-}
-.sb-logo-ring::before {
-    content: '';
-    position: absolute; inset: -2px;
-    border-radius: 14px;
-    background: conic-gradient(from 0deg, #3B82F6, #8B5CF6, #10B981, #3B82F6);
-    animation: ringRotate 4s linear infinite;
-    z-index: 0;
-}
-@keyframes ringRotate { to { transform: rotate(360deg); } }
-.sb-logo-ring::after {
-    content: '';
-    position: absolute; inset: 1px;
-    border-radius: 12px;
-    background: #07091a;
-    z-index: 1;
-}
-.sb-logo-ring img {
-    position: relative;
-    width: 100%; height: 100%;
-    object-fit: cover; border-radius: 12px;
-    z-index: 2; display: block;
-}
-.sb-logo-text {
-    font-size: 1.18rem; font-weight: 800; letter-spacing: -0.04em;
-    background: linear-gradient(130deg, #fff 10%, #93C5FD 55%, #C4B5FD 90%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    position: relative; z-index: 2;
-}
-.sb-logo-badge {
-    margin-left: auto;
-    display: flex; align-items: center; gap: 4px;
-    font-size: 0.56rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    color: #34D399;
-    background: rgba(16,185,129,0.1);
-    border: 1px solid rgba(16,185,129,0.22);
-    padding: 3px 8px 3px 6px; border-radius: 20px;
-    animation: badgePulse 3s ease-in-out infinite;
-    position: relative; z-index: 2;
-}
-@keyframes badgePulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-    50%      { box-shadow: 0 0 10px rgba(16,185,129,0.3); }
-}
+
 
 .sb-clock {
-    margin: 0 1rem 0.85rem;
+    margin: 1.2rem 1rem 0.85rem;
     padding: 9px 13px;
     background: rgba(255,255,255,0.025);
     border: 1px solid rgba(255,255,255,0.055);
@@ -306,7 +254,7 @@ ${staggerCSS}
     color: rgba(255,255,255,0.36); font-size: 0.82rem; font-weight: 500;
     position: relative; overflow: hidden; border: 1px solid transparent;
     transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease, transform 0.28s cubic-bezier(0.16,1,0.3,1);
-    cursor: pointer; white-space: nowrap;
+    cursor: pointer; white-space: normal; line-height: 1.3;
 }
 .sb-link::before {
     content: '';
@@ -337,16 +285,23 @@ ${staggerCSS}
 .sb-link.active .sb-bar { transform: translateY(-50%) scaleY(1); }
 
 .sb-icon {
-    width: 30px; height: 30px; border-radius: 9px;
+    width: 32px; height: 32px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; background: rgba(255,255,255,0.042);
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.08);
     transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), background 0.22s ease, box-shadow 0.3s ease;
 }
-.sb-link:hover .sb-icon { background: rgba(255,255,255,0.07); }
+.sb-link:hover .sb-icon {
+    background: rgba(255,255,255,0.11);
+    border-color: rgba(255,255,255,0.14);
+    transform: scale(1.12);
+}
 .sb-link.active .sb-icon {
-    background: rgba(255,255,255,0.08);
-    transform: scale(1.1) rotate(-4deg);
-    box-shadow: 0 0 14px var(--glow);
+    background: rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.18);
+    transform: scale(1.15) rotate(-4deg);
+    box-shadow: 0 0 16px var(--glow), 0 0 6px var(--glow);
 }
 
 .sb-chev {
@@ -491,17 +446,6 @@ ${staggerCSS}
                     }} />
                 ))}
 
-                {/* Logo */}
-                <div className="sb-logo">
-                    <div className="sb-logo-ring">
-                        <img src={logo} alt="AcadeMe" />
-                    </div>
-                    <span className="sb-logo-text">AcadeMe</span>
-                    <span className="sb-logo-badge">
-                        <div className="sb-live-dot" />
-                        Live
-                    </span>
-                </div>
 
                 {/* Clock */}
                 <div className="sb-clock">
