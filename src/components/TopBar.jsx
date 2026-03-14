@@ -1,360 +1,616 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Menu, X, Send, CheckCheck } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
 import {
-    collection, query, where, onSnapshot,
-    updateDoc, doc, arrayUnion,
-} from 'firebase/firestore';
+  Calculator, Calendar, Users, BookOpen,
+  TrendingUp, MessageSquare, ArrowRight,
+  Megaphone, ExternalLink, ChevronRight,
+  Award, Clock, Zap, Star, Target,
+  GraduationCap, Sparkles, BarChart3,
+} from 'lucide-react';
+import DashboardLayout from '../components/DashboardLayout';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { db } from '../firebase';
+import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 
-const TopBar = ({ toggleSidebar }) => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
-
-    const [notifications,     setNotifications]     = useState([]);
-    const [showNotifications, setShowNotifications] = useState(false);
-    const [replyText,         setReplyText]         = useState({});
-    const [unreadCount,       setUnreadCount]       = useState(0);
-
-    useEffect(() => {
-        if (!user) return;
-        const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
-        const unsub = onSnapshot(q, (snap) => {
-            const list = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-                    return dateB - dateA;
-                });
-            setNotifications(list);
-            const key = `acadeMe_notif_count_${user.uid}`;
-            const seen = parseInt(localStorage.getItem(key) || '0');
-            setUnreadCount(Math.max(0, list.length - seen));
-        }, console.error);
-        return () => unsub();
-    }, [user]);
-
-    const markAllRead = () => {
-        if (!user) return;
-        localStorage.setItem(`acadeMe_notif_count_${user.uid}`, notifications.length.toString());
-        setUnreadCount(0);
-    };
-
-    const handleBellClick = () => {
-        const willOpen = !showNotifications;
-        if (willOpen) markAllRead();
-        setShowNotifications(willOpen);
-    };
-
-    const handleReply = async (msgId) => {
-        const text = replyText[msgId];
-        if (!text?.trim()) return;
-        try {
-            await updateDoc(doc(db, 'notifications', msgId), {
-                replies: arrayUnion({ sender: 'user', text, timestamp: new Date().toISOString() }),
-                read: false,
-            });
-            setReplyText(prev => ({ ...prev, [msgId]: '' }));
-        } catch (e) { console.error(e); }
-    };
-
-    useEffect(() => {
-        if (!showNotifications) return;
-        const onKey = (e) => e.key === 'Escape' && setShowNotifications(false);
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-    }, [showNotifications]);
-
-    const userAvatar = user?.avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=3B82F6&color=fff&size=128&bold=true`;
-
-    const fmtTime = (iso) => {
-        if (!iso) return '';
-        const d = new Date(iso);
-        return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) +
-               ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    return (
-        <>
-            <style>{`
-                .tb {
-                    position: sticky; top: 0; z-index: 30;
-                    display: flex; align-items: center; justify-content: space-between;
-                    padding: 10px 16px;
-                    background: rgba(10,14,30,0.88);
-                    backdrop-filter: blur(18px);
-                    -webkit-backdrop-filter: blur(18px);
-                    border-bottom: 1px solid rgba(255,255,255,0.07);
-                    min-height: 60px;
-                    box-sizing: border-box;
-                }
-
-                .tb-left {
-                    display: flex; align-items: center; gap: 12px;
-                }
-
-                .tb-ham {
-                    display: flex; align-items: center; justify-content: center;
-                    width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
-                    background: rgba(255,255,255,0.08);
-                    border: 1px solid rgba(255,255,255,0.12);
-                    cursor: pointer;
-                    color: #CBD5E1;
-                    transition: background 0.2s;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                .tb-ham:hover, .tb-ham:focus { background: rgba(255,255,255,0.14); color: #F1F5F9; outline: none; }
-                @media (min-width: 768px) { .tb-ham { display: none; } }
-
-                .tb-brand {
-                    font-size: 1.05rem; font-weight: 800;
-                    background: linear-gradient(135deg, #60A5FA, #A78BFA);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                    letter-spacing: -0.3px;
-                }
-
-                .tb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-                .tb-bell {
-                    position: relative;
-                    display: flex; align-items: center; justify-content: center;
-                    width: 38px; height: 38px; min-width: 38px; border-radius: 10px;
-                    background: rgba(255,255,255,0.07);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    cursor: pointer;
-                    color: #CBD5E1;
-                    transition: background 0.2s, color 0.2s;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                .tb-bell:hover { background: rgba(255,255,255,0.13); color: #F1F5F9; }
-
-                .tb-badge {
-                    position: absolute; top: -5px; right: -5px;
-                    min-width: 17px; height: 17px; border-radius: 10px;
-                    background: #EF4444; color: #fff;
-                    font-size: 0.58rem; font-weight: 800;
-                    display: flex; align-items: center; justify-content: center;
-                    padding: 0 3px; line-height: 1;
-                    border: 2px solid rgba(10,14,30,1);
-                }
-
-                .tb-uinfo { display: none; flex-direction: column; align-items: flex-end; gap: 1px; }
-                @media (min-width: 600px) { .tb-uinfo { display: flex; } }
-
-                .tb-avatar {
-                    width: 36px; height: 36px; min-width: 36px; border-radius: 50%;
-                    object-fit: cover; cursor: pointer;
-                    border: 2px solid rgba(96,165,250,0.4);
-                    transition: border-color 0.2s, transform 0.2s;
-                    -webkit-tap-highlight-color: transparent;
-                }
-                .tb-avatar:hover { border-color: rgba(96,165,250,0.9); transform: scale(1.06); }
-
-                .tb-panel {
-                    position: fixed; top: 68px; right: 12px;
-                    width: min(380px, calc(100vw - 24px));
-                    max-height: 72vh;
-                    background: rgba(11,15,32,0.98);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 18px;
-                    box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
-                    backdrop-filter: blur(24px);
-                    display: flex; flex-direction: column;
-                    overflow: hidden; z-index: 1000;
-                    animation: tb-drop 0.2s ease;
-                }
-                @keyframes tb-drop {
-                    from { opacity:0; transform:translateY(-8px) scale(0.97); }
-                    to   { opacity:1; transform:translateY(0) scale(1); }
-                }
-                .tb-phead {
-                    display: flex; align-items: center; justify-content: space-between;
-                    padding: 13px 15px 11px; flex-shrink: 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.07);
-                }
-                .tb-pscroll { overflow-y: auto; flex: 1; }
-                .tb-pscroll::-webkit-scrollbar { width: 3px; }
-                .tb-pscroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-                .tb-nitem {
-                    padding: 13px 15px;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                    transition: background 0.15s;
-                }
-                .tb-nitem:hover { background: rgba(255,255,255,0.03); }
-                .tb-nitem:last-child { border-bottom: none; }
-
-                .tb-reply-inp {
-                    flex: 1; padding: 7px 10px;
-                    background: rgba(255,255,255,0.06);
-                    border: 1px solid rgba(255,255,255,0.09);
-                    border-radius: 8px; outline: none;
-                    color: #E2E8F0; font-size: 0.78rem; font-family: inherit;
-                    resize: none; min-height: 38px;
-                    transition: border-color 0.2s;
-                }
-                .tb-reply-inp:focus { border-color: rgba(96,165,250,0.5); }
-                .tb-reply-inp::placeholder { color: rgba(148,163,184,0.4); }
-
-                .tb-send-btn {
-                    padding: 7px 12px; border-radius: 8px; border: none;
-                    background: linear-gradient(135deg,#3B82F6,#6366F1);
-                    color: #fff; font-size: 0.75rem; font-weight: 700;
-                    cursor: pointer; display: flex; align-items: center;
-                    gap: 4px; flex-shrink: 0; min-height: 38px;
-                    transition: opacity 0.2s;
-                }
-                .tb-send-btn:hover { opacity: 0.88; }
-                .tb-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-            `}</style>
-
-            <div className="tb">
-
-                {/* ── Left: Hamburger + Brand ── */}
-                <div className="tb-left">
-                    <button className="tb-ham" onClick={toggleSidebar} aria-label="Menu">
-                        <Menu size={20} />
-                    </button>
-                    <span className="tb-brand">acadeMe</span>
-                </div>
-
-                {/* ── Right: Bell + Name + Avatar ── */}
-                <div className="tb-right">
-
-                    <button className="tb-bell" onClick={handleBellClick} aria-label="Notifications">
-                        <Bell size={18} />
-                        {unreadCount > 0 && (
-                            <span className="tb-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                        )}
-                    </button>
-
-                    <div className="tb-uinfo">
-                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E2E8F0', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {user?.name || 'User'}
-                        </span>
-                        <span style={{ fontSize: '0.68rem', color: 'rgba(148,163,184,0.55)' }}>
-                            {[user?.branch, user?.year].filter(Boolean).join(' · ')}
-                        </span>
-                    </div>
-
-                    <img
-                        className="tb-avatar"
-                        src={userAvatar}
-                        alt={user?.name || 'Profile'}
-                        onClick={() => navigate('/profile')}
-                        onError={(e) => {
-                            e.target.src = `https://ui-avatars.com/api/?name=U&background=3B82F6&color=fff`;
-                        }}
-                    />
-                </div>
-            </div>
-
-            {/* ── Notification panel ── */}
-            {showNotifications && (
-                <>
-                    <div onClick={() => setShowNotifications(false)}
-                        style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
-
-                    <div className="tb-panel">
-                        <div className="tb-phead">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Bell size={15} color="#60A5FA" />
-                                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#E2E8F0' }}>Notifications</span>
-                                {notifications.length > 0 && (
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, background: 'rgba(96,165,250,0.14)', color: '#60A5FA', padding: '2px 7px', borderRadius: '10px' }}>
-                                        {notifications.length}
-                                    </span>
-                                )}
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                {unreadCount > 0 && (
-                                    <button onClick={markAllRead}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(148,163,184,0.5)', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '3px', padding: '3px 6px' }}>
-                                        <CheckCheck size={11} /> Mark read
-                                    </button>
-                                )}
-                                <button onClick={() => setShowNotifications(false)}
-                                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '7px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#94A3B8' }}>
-                                    <X size={13} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="tb-pscroll">
-                            {notifications.length === 0 ? (
-                                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'rgba(148,163,184,0.35)' }}>
-                                    <Bell size={28} style={{ display: 'block', margin: '0 auto 10px', opacity: 0.18 }} />
-                                    <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.84rem' }}>No notifications</p>
-                                    <p style={{ margin: 0, fontSize: '0.74rem' }}>You're all caught up!</p>
-                                </div>
-                            ) : notifications.map(notif => (
-                                <div key={notif.id} className="tb-nitem">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <p style={{ margin: '0 0 3px', fontWeight: 700, fontSize: '0.83rem', color: '#E2E8F0', lineHeight: 1.4 }}>
-                                                {notif.title || notif.message || 'Notification'}
-                                            </p>
-                                            {notif.body && notif.body !== notif.title && (
-                                                <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(148,163,184,0.6)', lineHeight: 1.4 }}>{notif.body}</p>
-                                            )}
-                                        </div>
-                                        {notif.createdAt && (
-                                            <span style={{ fontSize: '0.62rem', color: 'rgba(148,163,184,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                                {fmtTime(notif.createdAt)}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {notif.url && (
-                                        <a href={notif.url} target="_blank" rel="noreferrer"
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.73rem', fontWeight: 600, color: '#60A5FA', textDecoration: 'none', marginBottom: '8px' }}>
-                                            Open Resource →
-                                        </a>
-                                    )}
-
-                                    {notif.replies?.length > 0 && (
-                                        <div style={{ borderLeft: '2px solid rgba(96,165,250,0.22)', paddingLeft: '10px', marginBottom: '8px' }}>
-                                            {notif.replies.map((r, i) => (
-                                                <div key={i} style={{ marginBottom: i < notif.replies.length - 1 ? '5px' : 0 }}>
-                                                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: r.sender === 'admin' ? '#FBBF24' : '#60A5FA' }}>
-                                                        {r.sender === 'admin' ? 'Admin' : 'You'}
-                                                    </span>
-                                                    <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'rgba(226,232,240,0.62)' }}>{r.text}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                                        <textarea
-                                            className="tb-reply-inp"
-                                            rows={1}
-                                            placeholder="Reply..."
-                                            value={replyText[notif.id] || ''}
-                                            onChange={e => setReplyText(p => ({ ...p, [notif.id]: e.target.value }))}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleReply(notif.id);
-                                                }
-                                            }}
-                                        />
-                                        <button className="tb-send-btn" onClick={() => handleReply(notif.id)} disabled={!replyText[notif.id]?.trim()}>
-                                            <Send size={11} /> Send
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </>
-            )}
-        </>
-    );
+/* ── Cache (unchanged) ── */
+const CACHE_DURATION = 300000;
+const getFromCache = (key) => {
+  try {
+    const c = sessionStorage.getItem(key);
+    const t = sessionStorage.getItem(`${key}_time`);
+    if (!c || !t) return null;
+    if (Date.now() - parseInt(t, 10) > CACHE_DURATION) {
+      sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}_time`);
+      return null;
+    }
+    return JSON.parse(c);
+  } catch { return null; }
+};
+const saveToCache = (key, data) => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(data));
+    sessionStorage.setItem(`${key}_time`, Date.now().toString());
+  } catch {}
 };
 
-export default TopBar;
+const toSafeDate = (val) => {
+  if (!val) return new Date(0);
+  if (val.toDate) return val.toDate();
+  if (val.seconds) return new Date(val.seconds * 1000);
+  return new Date(val);
+};
+const timeAgo = (val) => {
+  const d = toSafeDate(val);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
+/* ── SVG Icons ── */
+const InstagramIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+const CollegeIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+  </svg>
+);
+
+/* ── Ring ── */
+const Ring = ({ value, max = 100, size = 72, stroke = 5, color, children }) => {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c - (Math.min(value / max, 1) * c);
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s ease' }} />
+      </svg>
+      <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column' }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/* ══════════ DASHBOARD ══════════ */
+const Dashboard = () => {
+  const { user } = useAuth();
+  const { cgpaSubjects = [], attendanceSubjects = [], faculty = [] } = useData() || {};
+  const navigate = useNavigate();
+  const [updates, setUpdates] = useState([]);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => { setTimeout(() => setReady(true), 30); }, []);
+
+  useEffect(() => {
+    const fetch_ = async () => {
+      try {
+        const cached = getFromCache('dashboard_updates');
+        if (cached) setUpdates(cached);
+        const q = query(collection(db, 'updates'), orderBy('date', 'desc'), limit(3));
+        const snap = await getDocs(q);
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        saveToCache('dashboard_updates', list);
+        setUpdates(list);
+      } catch (err) { console.error('Updates Error:', err); }
+    };
+    fetch_();
+  }, []);
+
+  const cgpa = useMemo(() => {
+    if (!cgpaSubjects?.length) return 0;
+    const gp = { S:10, A:9, B:8, C:7, D:6, E:5, F:0 };
+    return (cgpaSubjects.reduce((s, x) => s + (gp[x.grade]||0), 0) / cgpaSubjects.length).toFixed(2);
+  }, [cgpaSubjects]);
+
+  const att = useMemo(() => {
+    if (!attendanceSubjects?.length) return 0;
+    const t = attendanceSubjects.reduce((s, x) => s + Number(x.total||0), 0);
+    const a = attendanceSubjects.reduce((s, x) => s + Number(x.attended||0), 0);
+    return t ? ((a/t)*100).toFixed(0) : 0;
+  }, [attendanceSubjects]);
+
+  const attOk = att >= 80;
+  const firstName = user?.name ? user.name.split(' ')[0] : 'Student';
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+  })();
+
+  const emoji = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? '☀️' : h < 17 ? '🌤️' : '🌙';
+  })();
+
+  const quotes = [
+    "The future belongs to those who believe in the beauty of their dreams.",
+    "Success is not final, failure is not fatal: courage to continue is what counts.",
+    "Education is the most powerful weapon to change the world.",
+    "The only way to do great work is to love what you do.",
+    "Believe you can and you're halfway there.",
+    "It always seems impossible until it's done.",
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
+  ];
+  const todayQuote = quotes[new Date().getDay() % quotes.length];
+
+  const grade = cgpa >= 9 ? 'S' : cgpa >= 8 ? 'A' : cgpa >= 7 ? 'B' : cgpa >= 6 ? 'C' : '–';
+
+  const actions = [
+    { label: 'My Courses', desc: 'Enrolled courses', icon: BookOpen, path: '/courses', color: '#818CF8' },
+    { label: 'CGPA Calc', desc: 'Calculate GPA', icon: Calculator, path: '/calc', color: '#60A5FA' },
+    { label: 'Attendance', desc: 'Track records', icon: Calendar, path: '/attendance', color: '#34D399' },
+    { label: 'Faculty', desc: 'Browse directory', icon: Users, path: '/faculty', color: '#F472B6' },
+  ];
+
+  const extLinks = [
+    {
+      label: 'ARMS Portal',
+      desc: 'Saveetha academic portal',
+      url: 'https://arms.sse.saveetha.com/',
+      icon: CollegeIcon,
+      color: '#FBBF24',
+      bg: 'rgba(251,191,36,0.06)',
+      border: 'rgba(251,191,36,0.1)',
+    },
+    {
+      label: 'Instagram',
+      desc: 'Follow for updates',
+      url: 'https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5',
+      icon: InstagramIcon,
+      color: '#E1306C',
+      bg: 'rgba(225,48,108,0.06)',
+      border: 'rgba(225,48,108,0.1)',
+    },
+  ];
+
+  return (
+    <DashboardLayout>
+      <style>{`
+        .d {
+          max-width: 1100px; margin: 0 auto;
+          opacity: ${ready ? 1 : 0};
+          transform: translateY(${ready ? '0' : '12px'});
+          transition: opacity 0.5s, transform 0.5s;
+        }
+
+        /* ── Glass Card ── */
+        .gc {
+          background: rgba(255,255,255,0.025);
+          border: 1px solid rgba(255,255,255,0.045);
+          border-radius: 18px;
+          transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .gc:hover { border-color: rgba(255,255,255,0.07); }
+        .gc-c { cursor: pointer; }
+        .gc-c:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .gc-c:active { transform: translateY(0) scale(0.995); }
+
+        /* ═══ HERO ═══ */
+        .hero {
+          padding: 1.4rem; margin-bottom: 1rem;
+          position: relative; overflow: hidden;
+          background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(59,130,246,0.05), rgba(139,92,246,0.07));
+          border-color: rgba(99,102,241,0.08); border-radius: 22px;
+        }
+        .hero::before {
+          content:''; position:absolute; top:-80px; right:-60px;
+          width:260px; height:260px;
+          background: radial-gradient(circle, rgba(99,102,241,0.1), transparent 70%);
+          border-radius:50%; pointer-events:none;
+        }
+        .hero-z { position: relative; z-index: 1; }
+        .hero-sub {
+          display: flex; align-items: center; gap: 5px;
+          font-size: 0.7rem; color: rgba(255,255,255,0.35);
+          font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 5px;
+        }
+        .hero h1 {
+          font-size: clamp(1.3rem, 4.5vw, 1.9rem);
+          font-weight: 800; margin: 0; line-height: 1.25; color: #F8FAFC;
+        }
+        .hero h1 em {
+          font-style: normal;
+          background: linear-gradient(135deg, #818CF8, #6366F1);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero-date {
+          display: flex; align-items: center; gap: 5px;
+          color: rgba(255,255,255,0.3); margin-top: 8px;
+          font-size: clamp(0.72rem, 2vw, 0.82rem);
+        }
+        .hero-q {
+          margin-top: 1rem; padding: 12px 14px;
+          background: rgba(255,255,255,0.025); border-radius: 12px;
+          border-left: 3px solid rgba(99,102,241,0.4);
+          font-style: italic; color: rgba(255,255,255,0.4);
+          font-size: clamp(0.72rem, 2vw, 0.82rem); line-height: 1.6;
+          display: flex; gap: 8px; align-items: flex-start;
+        }
+        @media (min-width: 768px) { .hero { padding: 2rem 2.2rem; margin-bottom: 1.25rem; } }
+
+        /* ═══ OVERVIEW ═══ */
+        .ov-grid {
+          display: grid; grid-template-columns: 1fr;
+          gap: 0.65rem; margin-bottom: 1rem;
+        }
+        @media (min-width: 600px) { .ov-grid { grid-template-columns: 1fr 1fr; gap: 0.85rem; } }
+        @media (min-width: 768px) { .ov-grid { gap: 1rem; margin-bottom: 1.25rem; } }
+
+        .ov {
+          padding: 1.3rem; border-radius: 18px;
+          display: flex; align-items: center; gap: 16px;
+        }
+        .ov-info { flex: 1; }
+        .ov-lbl {
+          font-size: 0.68rem; font-weight: 600;
+          color: rgba(255,255,255,0.35);
+          text-transform: uppercase; letter-spacing: 0.7px; margin: 0 0 4px;
+        }
+        .ov-val {
+          font-size: clamp(1.8rem, 5.5vw, 2.4rem);
+          font-weight: 900; margin: 0; line-height: 1;
+        }
+        .ov-sub {
+          font-size: 0.72rem; color: rgba(255,255,255,0.28);
+          margin: 6px 0 0; display: flex; align-items: center; gap: 4px;
+        }
+        @media (min-width: 768px) { .ov { padding: 1.6rem; } }
+
+        /* ═══ MINI STATS ═══ */
+        .st-grid {
+          display: grid; grid-template-columns: repeat(2, 1fr);
+          gap: 0.65rem; margin-bottom: 1rem;
+        }
+        @media (min-width: 600px) { .st-grid { gap: 0.85rem; } }
+        @media (min-width: 900px) { .st-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; } }
+
+        .st {
+          padding: 1.1rem; border-radius: 18px;
+          position: relative; overflow: hidden;
+        }
+        .st-ico {
+          width: 38px; height: 38px; border-radius: 11px;
+          display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
+        }
+        .st-v {
+          font-size: clamp(1.4rem, 4vw, 1.7rem);
+          font-weight: 800; line-height: 1; margin: 0;
+        }
+        .st-l {
+          font-size: clamp(0.65rem, 1.8vw, 0.72rem);
+          color: rgba(255,255,255,0.3); margin: 5px 0 0; font-weight: 500;
+        }
+        .st-tag {
+          position: absolute; top: 10px; right: 10px;
+          font-size: 0.55rem; font-weight: 700; padding: 2px 7px;
+          border-radius: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .st-blob {
+          position: absolute; bottom: -18px; right: -18px;
+          width: 60px; height: 60px; border-radius: 50%;
+          opacity: 0.04; pointer-events: none;
+        }
+        @media (min-width: 768px) {
+          .st { padding: 1.3rem; }
+          .st-ico { width: 42px; height: 42px; }
+        }
+
+        /* ═══ ANNOUNCEMENTS ═══ */
+        .ann { margin-bottom: 1rem; }
+        .ann-c { padding: 1.1rem; border-color: rgba(251,191,36,0.06); border-radius: 18px; }
+        .ann-h { display: flex; align-items: center; gap: 8px; margin-bottom: 0.85rem; }
+        .ann-h-ico {
+          width: 32px; height: 32px; border-radius: 9px;
+          background: rgba(251,191,36,0.08);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .ann-i {
+          padding: 12px; background: rgba(255,255,255,0.02);
+          border-radius: 12px; border-left: 3px solid rgba(251,191,36,0.35);
+          transition: background 0.2s;
+        }
+        .ann-i:hover { background: rgba(255,255,255,0.035); }
+        .ann-lnk {
+          display: inline-flex; align-items: center; gap: 4px;
+          margin-top: 6px; font-size: 0.72rem; font-weight: 600;
+          color: #818CF8; text-decoration: none;
+          background: rgba(99,102,241,0.05); padding: 3px 8px;
+          border-radius: 6px; transition: background 0.2s;
+        }
+        .ann-lnk:hover { background: rgba(99,102,241,0.1); }
+        @media (min-width: 768px) { .ann-c { padding: 1.3rem; } .ann { margin-bottom: 1.25rem; } }
+
+        /* ═══ REVIEWS CTA ═══ */
+        .rev { margin-bottom: 1rem; }
+        .rev-c {
+          padding: 1.3rem; border-radius: 18px; cursor: pointer;
+          position: relative; overflow: hidden;
+          border-color: rgba(236,72,153,0.06);
+        }
+        .rev-c:hover { border-color: rgba(236,72,153,0.15); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(236,72,153,0.05); }
+        .rev-glow {
+          position: absolute; top: -50%; right: -15%;
+          width: 220px; height: 220px;
+          background: radial-gradient(circle, rgba(236,72,153,0.06), transparent 70%);
+          border-radius: 50%; pointer-events: none;
+        }
+        .rev-body {
+          display: flex; justify-content: space-between;
+          align-items: center; flex-wrap: wrap; gap: 14px;
+          position: relative; z-index: 1;
+        }
+        .rev-left { display: flex; gap: 12px; align-items: center; }
+        .rev-ico {
+          width: 46px; height: 46px; flex-shrink: 0;
+          background: linear-gradient(135deg, #EC4899, #BE185D);
+          border-radius: 14px; display: flex; align-items: center; justify-content: center;
+        }
+        .rev-cta {
+          display: flex; align-items: center; gap: 5px;
+          font-weight: 700; font-size: 0.78rem;
+          background: rgba(236,72,153,0.06); color: #F472B6;
+          padding: 8px 16px; border-radius: 20px; white-space: nowrap;
+        }
+        .rev-c:hover .rev-cta { background: rgba(236,72,153,0.12); }
+        @media (min-width: 768px) { .rev-c { padding: 1.6rem; } .rev { margin-bottom: 1.25rem; } }
+
+        /* ═══ QUICK ACTIONS ═══ */
+        .qa-t {
+          font-size: clamp(1rem, 3vw, 1.15rem);
+          font-weight: 700; margin: 0 0 0.85rem;
+          display: flex; align-items: center; gap: 7px;
+        }
+        .qa-g {
+          display: grid; grid-template-columns: repeat(2, 1fr);
+          gap: 0.65rem; margin-bottom: 1rem;
+        }
+        @media (min-width: 600px) { .qa-g { gap: 0.85rem; } }
+        @media (min-width: 900px) { .qa-g { grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; } }
+
+        .qa {
+          padding: 1.1rem; border-radius: 18px; cursor: pointer;
+          text-align: center; position: relative; overflow: hidden;
+        }
+        .qa:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.18); }
+        .qa:active { transform: translateY(-1px) scale(0.98); }
+        .qa-ico {
+          width: 46px; height: 46px; border-radius: 13px;
+          margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+          transition: transform 0.2s;
+        }
+        .qa:hover .qa-ico { transform: scale(1.08) rotate(2deg); }
+        .qa-lb { font-weight: 700; font-size: clamp(0.75rem, 2vw, 0.85rem); margin: 0 0 2px; color: #F1F5F9; }
+        .qa-ds { font-size: 0.64rem; color: rgba(255,255,255,0.22); margin: 0; display: none; }
+        @media (min-width: 768px) { .qa { padding: 1.3rem; } .qa-ds { display: block; } .qa-ico { width: 52px; height: 52px; } }
+        .qa-ar {
+          position: absolute; bottom: 8px; right: 8px;
+          opacity: 0; transform: translateX(-3px);
+          transition: all 0.2s; color: rgba(255,255,255,0.12);
+        }
+        .qa:hover .qa-ar { opacity: 1; transform: translateX(0); }
+
+        /* ═══ EXTERNAL LINKS ═══ */
+        .ext-t {
+          font-size: clamp(1rem, 3vw, 1.15rem);
+          font-weight: 700; margin: 0 0 0.85rem;
+          display: flex; align-items: center; gap: 7px;
+        }
+        .ext-g {
+          display: grid; grid-template-columns: 1fr;
+          gap: 0.65rem; padding-bottom: 2rem;
+        }
+        @media (min-width: 600px) { .ext-g { grid-template-columns: 1fr 1fr; gap: 0.85rem; } }
+
+        .ext {
+          padding: 1.1rem; border-radius: 18px; cursor: pointer;
+          display: flex; align-items: center; gap: 14px;
+          text-decoration: none;
+        }
+        .ext:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+        .ext:active { transform: scale(0.98); }
+        .ext-ico {
+          width: 44px; height: 44px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .ext-info { flex: 1; min-width: 0; }
+        .ext-lb { font-weight: 700; font-size: 0.85rem; margin: 0 0 2px; color: #F1F5F9; }
+        .ext-ds { font-size: 0.68rem; color: rgba(255,255,255,0.3); margin: 0; }
+        .ext-arrow { flex-shrink: 0; color: rgba(255,255,255,0.15); transition: all 0.2s; }
+        .ext:hover .ext-arrow { color: rgba(255,255,255,0.4); transform: translateX(2px); }
+        @media (min-width: 768px) { .ext { padding: 1.3rem; } .ext-ico { width: 48px; height: 48px; } }
+
+        /* ═══ ANIMATION ═══ */
+        .an { animation: fu 0.45s ease forwards; opacity: 0; }
+        @keyframes fu { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        .dl1{animation-delay:.04s} .dl2{animation-delay:.08s}
+        .dl3{animation-delay:.12s} .dl4{animation-delay:.16s}
+        .dl5{animation-delay:.2s} .dl6{animation-delay:.24s}
+        .dl7{animation-delay:.28s}
+      `}</style>
+
+      <div className="d">
+
+        {/* ═══ HERO ═══ */}
+        <div className="gc hero an dl1">
+          <div className="hero-z">
+            <div className="hero-sub"><Sparkles size={12} /> {greeting}</div>
+            <h1>Welcome back, <em>{firstName}</em> {emoji}</h1>
+            <div className="hero-date">
+              <Clock size={12} />
+              {new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}
+            </div>
+            <div className="hero-q">
+              <Sparkles size={14} style={{ flexShrink:0, color:'#6366F1', opacity:0.4, marginTop:1 }} />
+              <span>{todayQuote}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ OVERVIEW ═══ */}
+        <div className="ov-grid an dl2">
+          <div className="gc ov" style={{ borderColor: 'rgba(96,165,250,0.06)' }}>
+            <div className="ov-info">
+              <p className="ov-lbl">Current CGPA</p>
+              <h2 className="ov-val" style={{ color: '#60A5FA' }}>{cgpa}</h2>
+              <p className="ov-sub"><BarChart3 size={12} /> {cgpaSubjects.length} subjects</p>
+            </div>
+            <Ring value={parseFloat(cgpa)} max={10} color="#60A5FA">
+              <Award size={18} color="#60A5FA" />
+            </Ring>
+          </div>
+          <div className="gc ov" style={{ borderColor: attOk ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)' }}>
+            <div className="ov-info">
+              <p className="ov-lbl">Attendance</p>
+              <h2 className="ov-val" style={{ color: attOk ? '#34D399' : '#F87171' }}>{att}%</h2>
+              <p className="ov-sub">
+                <Target size={12} /> Status:
+                <span style={{ color: attOk ? '#34D399' : '#F87171', fontWeight:700, marginLeft:3 }}>
+                  {attOk ? 'Safe' : 'Low'}
+                </span>
+              </p>
+            </div>
+            <Ring value={parseFloat(att)} max={100} color={attOk ? '#34D399' : '#F87171'}>
+              <span style={{ fontSize:'0.95rem', fontWeight:800, color: attOk ? '#34D399' : '#F87171' }}>{att}%</span>
+            </Ring>
+          </div>
+        </div>
+
+        {/* ═══ MINI STATS ═══ */}
+        <div className="st-grid an dl3">
+          <div className="gc st">
+            <div className="st-ico" style={{ background:'rgba(129,140,248,0.08)', color:'#818CF8' }}><BookOpen size={18} /></div>
+            <h3 className="st-v" style={{ color:'#818CF8' }}>{cgpaSubjects.length}</h3>
+            <p className="st-l">Active Subjects</p>
+            <div className="st-blob" style={{ background:'#818CF8' }} />
+          </div>
+          <div className="gc st gc-c" onClick={() => navigate('/faculty')}>
+            <div className="st-ico" style={{ background:'rgba(244,114,182,0.08)', color:'#F472B6' }}><Users size={18} /></div>
+            <span className="st-tag" style={{ background:'rgba(244,114,182,0.08)', color:'#F472B6' }}>View →</span>
+            <h3 className="st-v" style={{ color:'#F472B6' }}>{faculty.length}+</h3>
+            <p className="st-l">Faculty</p>
+            <div className="st-blob" style={{ background:'#F472B6' }} />
+          </div>
+          <div className="gc st">
+            <div className="st-ico" style={{ background:'rgba(251,191,36,0.08)', color:'#FBBF24' }}><Star size={18} /></div>
+            <h3 className="st-v" style={{ color:'#FBBF24' }}>{grade}</h3>
+            <p className="st-l">Grade</p>
+            <div className="st-blob" style={{ background:'#FBBF24' }} />
+          </div>
+          <div className="gc st">
+            <div className="st-ico" style={{ background:'rgba(52,211,153,0.08)', color:'#34D399' }}><GraduationCap size={18} /></div>
+            <h3 className="st-v" style={{ color:'#34D399' }}>{user?.year || '—'}</h3>
+            <p className="st-l">Year</p>
+            <div className="st-blob" style={{ background:'#34D399' }} />
+          </div>
+        </div>
+
+        {/* ═══ ANNOUNCEMENTS ═══ */}
+        {updates.length > 0 && (
+          <div className="ann an dl4">
+            <div className="gc ann-c">
+              <div className="ann-h">
+                <div className="ann-h-ico"><Megaphone size={15} color="#FBBF24" /></div>
+                <div>
+                  <h2 style={{ fontSize:'clamp(0.9rem,3vw,1.05rem)', fontWeight:700, margin:0 }}>Announcements</h2>
+                  <p style={{ margin:0, fontSize:'0.62rem', color:'rgba(255,255,255,0.2)' }}>Latest updates</p>
+                </div>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                {updates.map(u => (
+                  <div key={u.id} className="ann-i">
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:6, marginBottom:3, flexWrap:'wrap' }}>
+                      <h4 style={{ fontWeight:700, fontSize:'0.82rem', margin:0, color:'#F1F5F9', flex:1, lineHeight:1.4 }}>{u.title}</h4>
+                      <span style={{ fontSize:'0.58rem', color:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', gap:3, whiteSpace:'nowrap' }}>
+                        <Clock size={9} /> {timeAgo(u.date)}
+                      </span>
+                    </div>
+                    <p style={{ fontSize:'0.76rem', color:'rgba(255,255,255,0.38)', margin:'3px 0 0', lineHeight:1.5 }}>{u.message}</p>
+                    {u.link && (
+                      <a href={u.link} target="_blank" rel="noreferrer" className="ann-lnk">
+                        <ExternalLink size={10} /> Open
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ REVIEWS CTA ═══ */}
+        <div className="rev an dl5">
+          <div className="gc rev-c" onClick={() => navigate('/reviews')}>
+            <div className="rev-glow" />
+            <div className="rev-body">
+              <div className="rev-left">
+                <div className="rev-ico"><MessageSquare size={22} color="white" /></div>
+                <div>
+                  <h3 style={{ fontSize:'clamp(0.95rem,3vw,1.12rem)', fontWeight:700, margin:'0 0 3px' }}>Faculty Reviews</h3>
+                  <p style={{ color:'rgba(255,255,255,0.3)', fontSize:'clamp(0.7rem,2vw,0.8rem)', margin:0 }}>Rate & read honest feedback</p>
+                </div>
+              </div>
+              <div className="rev-cta">Explore <ArrowRight size={15} /></div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ QUICK ACTIONS ═══ */}
+        <div className="an dl6">
+          <h2 className="qa-t"><Zap size={16} color="#FBBF24" /> Quick Actions</h2>
+          <div className="qa-g">
+            {actions.map((a, i) => (
+              <div key={i} className="gc qa gc-c" onClick={() => navigate(a.path)}>
+                <div className="qa-ico" style={{ background: `${a.color}12` }}>
+                  <a.icon size={20} color={a.color} />
+                </div>
+                <p className="qa-lb">{a.label}</p>
+                <p className="qa-ds">{a.desc}</p>
+                <ChevronRight size={14} className="qa-ar" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ═══ EXTERNAL LINKS (Instagram + ARMS) ═══ */}
+        <div className="an dl7">
+          <h2 className="ext-t"><ExternalLink size={16} color="#818CF8" /> Quick Links</h2>
+          <div className="ext-g">
+            {extLinks.map((link, i) => (
+              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                className="gc ext gc-c" style={{ borderColor: link.border }}>
+                <div className="ext-ico" style={{ background: link.bg, color: link.color }}>
+                  <link.icon size={22} />
+                </div>
+                <div className="ext-info">
+                  <p className="ext-lb">{link.label}</p>
+                  <p className="ext-ds">{link.desc}</p>
+                </div>
+                <ArrowRight size={16} className="ext-arrow" />
+              </a>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default Dashboard;
