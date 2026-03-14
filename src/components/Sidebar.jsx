@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Home, Calculator, Calendar, Users, BookOpen, User, Settings,
     Shield, LogOut, Youtube, Instagram, Mail, MessageCircle,
-    MessageSquare, Layers, Globe, ChevronRight, Sparkles, Trophy, Zap
+    MessageSquare, Layers, Globe, ChevronRight, Sparkles, Trophy
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import FeedbackModal from './FeedbackModal';
@@ -101,21 +101,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     z-index: 0;
 }
 
-.sb-beam {
-    position: absolute;
-    left: 0; top: -80px;
-    width: 100%; height: 80px;
-    background: linear-gradient(180deg, transparent 0%, rgba(59,130,246,0.04) 40%, rgba(139,92,246,0.07) 70%, transparent 100%);
-    animation: scanDown 6s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 1;
-}
-@keyframes scanDown {
-    0%   { top: -80px; opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { top: 100vh; opacity: 0; }
-}
+
 
 .sb-edge {
     position: absolute;
@@ -160,20 +146,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     66%      { transform: translate(-10px,12px) scale(0.94); }
 }
 
-.sb-spark {
-    position: absolute;
-    width: 3px; height: 3px;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1;
-    animation: sparkFloat linear infinite;
-}
-@keyframes sparkFloat {
-    0%   { transform: translateY(110vh) scale(0); opacity: 0; }
-    8%   { opacity: 0.6; transform: translateY(95vh) scale(1); }
-    92%  { opacity: 0.3; }
-    100% { transform: translateY(-10vh) scale(0.4); opacity: 0; }
-}
+
 
 
 
@@ -356,14 +329,7 @@ ${staggerCSS}
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
 }
 .sb-user-role { font-size: 0.65rem; color: rgba(255,255,255,0.3); line-height: 1.3; }
-.sb-zap {
-    margin-left: auto; color: #FBBF24; opacity: 0.5; flex-shrink: 0;
-    animation: zapFloat 2.2s ease-in-out infinite;
-}
-@keyframes zapFloat {
-    0%,100% { transform: translateY(0) scale(1); opacity: 0.5; }
-    50%      { transform: translateY(-3px) scale(1.15); opacity: 0.9; }
-}
+
 
 .sb-socials {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 0.5rem;
@@ -434,17 +400,7 @@ ${staggerCSS}
                 <div className="sb-orb sb-orb-1" />
                 <div className="sb-orb sb-orb-2" />
                 <div className="sb-orb sb-orb-3" />
-                <div className="sb-beam" />
                 <div className="sb-edge" />
-
-                {[...Array(7)].map((_, i) => (
-                    <div key={i} className="sb-spark" style={{
-                        left: `${8 + i * 13}%`,
-                        background: ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#E1306C','#60A5FA','#A78BFA'][i],
-                        animationDuration: `${9 + i * 2.2}s`,
-                        animationDelay: `${-i * 1.6}s`,
-                    }} />
-                ))}
 
 
                 {/* Clock */}
@@ -503,7 +459,6 @@ ${staggerCSS}
                             <div className="sb-user-name">{user?.name || 'User'}</div>
                             <div className="sb-user-role">{user?.branch || 'Student'}</div>
                         </div>
-                        <Zap size={14} className="sb-zap" />
                     </div>
 
                     <div className="sb-socials">
