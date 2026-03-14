@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Calculator, Calendar, Users, BookOpen,
   TrendingUp, MessageSquare, ArrowRight,
-  Megaphone, ExternalLink, Sparkles,
-  ChevronRight, Award, Clock, Zap,
-  Star, BarChart3, Target, GraduationCap,
+  Megaphone, ExternalLink, ChevronRight,
+  Award, Clock, Zap, Star, Target,
+  GraduationCap, Sparkles, BarChart3,
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -13,21 +13,18 @@ import { useData } from '../context/DataContext';
 import { db } from '../firebase';
 import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 
-/* ══════════════════════════════════════════════
-   CACHE LOGIC (unchanged)
-══════════════════════════════════════════════ */
+/* ── Cache (unchanged) ── */
 const CACHE_DURATION = 300000;
 const getFromCache = (key) => {
   try {
-    const cached = sessionStorage.getItem(key);
-    const ts = sessionStorage.getItem(`${key}_time`);
-    if (!cached || !ts) return null;
-    if (Date.now() - parseInt(ts, 10) > CACHE_DURATION) {
-      sessionStorage.removeItem(key);
-      sessionStorage.removeItem(`${key}_time`);
+    const c = sessionStorage.getItem(key);
+    const t = sessionStorage.getItem(`${key}_time`);
+    if (!c || !t) return null;
+    if (Date.now() - parseInt(t, 10) > CACHE_DURATION) {
+      sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}_time`);
       return null;
     }
-    return JSON.parse(cached);
+    return JSON.parse(c);
   } catch { return null; }
 };
 const saveToCache = (key, data) => {
@@ -44,7 +41,6 @@ const toSafeDate = (val) => {
   if (val.seconds) return new Date(val.seconds * 1000);
   return new Date(val);
 };
-
 const timeAgo = (val) => {
   const d = toSafeDate(val);
   const diff = Date.now() - d.getTime();
@@ -55,32 +51,21 @@ const timeAgo = (val) => {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
 
-/* ══════════════════════════════════════════════
-   CIRCULAR PROGRESS COMPONENT
-══════════════════════════════════════════════ */
-const CircularProgress = ({ value, max = 100, size = 80, strokeWidth = 6, color, children }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+/* ── Circular Progress ── */
+const Ring = ({ value, max = 100, size = 76, stroke = 5, color, children }) => {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
   const pct = Math.min((value / max) * 100, 100);
-  const offset = circumference - (pct / 100) * circumference;
-
+  const off = circ - (pct / 100) * circ;
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="rgba(255,255,255,0.06)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s ease' }}
-        />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={color} strokeWidth={stroke}
+          strokeDasharray={circ} strokeDashoffset={off}
+          strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1.2s ease' }} />
       </svg>
       <div style={{
         position: 'absolute', inset: 0,
@@ -93,17 +78,15 @@ const CircularProgress = ({ value, max = 100, size = 80, strokeWidth = 6, color,
   );
 };
 
-/* ══════════════════════════════════════════════
-   DASHBOARD
-══════════════════════════════════════════════ */
+/* ══════════ DASHBOARD ══════════ */
 const Dashboard = () => {
   const { user } = useAuth();
   const { cgpaSubjects = [], attendanceSubjects = [], faculty = [] } = useData() || {};
   const navigate = useNavigate();
   const [updates, setUpdates] = useState([]);
-  const [mounted, setMounted] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { setTimeout(() => setReady(true), 50); }, []);
 
   useEffect(() => {
     const fetchUpdates = async () => {
@@ -111,9 +94,9 @@ const Dashboard = () => {
         const cached = getFromCache('dashboard_updates');
         if (cached) setUpdates(cached);
         const q = query(collection(db, 'updates'), orderBy('date', 'desc'), limit(3));
-        const snapshot = await getDocs(q);
+        const snap = await getDocs(q);
         const list = [];
-        snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
         saveToCache('dashboard_updates', list);
         setUpdates(list);
       } catch (err) { console.error('Updates Error:', err); }
@@ -121,7 +104,6 @@ const Dashboard = () => {
     fetchUpdates();
   }, []);
 
-  /* ── Calculations (unchanged) ── */
   const currentCGPA = useMemo(() => {
     if (!cgpaSubjects?.length) return 0;
     const gp = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
@@ -136,590 +118,491 @@ const Dashboard = () => {
     return total ? ((attended / total) * 100).toFixed(0) : 0;
   }, [attendanceSubjects]);
 
-  const attendanceStatus = currentAttendance >= 80 ? 'Safe' : 'Low';
-  const userName = user?.name ? user.name.split(' ')[0] : 'Student';
+  const attStatus = currentAttendance >= 80 ? 'Safe' : 'Low';
+  const firstName = user?.name ? user.name.split(' ')[0] : 'Student';
 
-  const getGreeting = () => {
+  const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return 'Good Morning';
     if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
-  };
+  })();
 
-  const getEmoji = () => {
+  const emoji = (() => {
     const h = new Date().getHours();
     if (h < 12) return '☀️';
     if (h < 17) return '🌤️';
     return '🌙';
-  };
+  })();
 
-  const quickActions = [
-    { label: 'My Courses', desc: 'View enrolled courses', icon: BookOpen, path: '/courses', gradient: 'linear-gradient(135deg, #6366F1, #4F46E5)', bg: 'rgba(99,102,241,0.1)' },
-    { label: 'CGPA Calculator', desc: 'Calculate your GPA', icon: Calculator, path: '/calc', gradient: 'linear-gradient(135deg, #3B82F6, #2563EB)', bg: 'rgba(59,130,246,0.1)' },
-    { label: 'Attendance', desc: 'Track your attendance', icon: Calendar, path: '/attendance', gradient: 'linear-gradient(135deg, #10B981, #059669)', bg: 'rgba(16,185,129,0.1)' },
-    { label: 'Faculty', desc: 'Browse directory', icon: Users, path: '/faculty', gradient: 'linear-gradient(135deg, #F472B6, #EC4899)', bg: 'rgba(244,114,182,0.1)' },
-  ];
-
-  const motivationalQuotes = [
+  const quotes = [
     "The future belongs to those who believe in the beauty of their dreams.",
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
     "Education is the most powerful weapon which you can use to change the world.",
     "The only way to do great work is to love what you do.",
+    "Believe you can and you're halfway there.",
+    "It always seems impossible until it's done.",
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
   ];
-  const todayQuote = motivationalQuotes[new Date().getDay() % motivationalQuotes.length];
+  const todayQuote = quotes[new Date().getDay() % quotes.length];
+
+  const actions = [
+    { label: 'My Courses', desc: 'Enrolled courses', icon: BookOpen, path: '/courses', color: '#818CF8' },
+    { label: 'CGPA Calc', desc: 'Calculate GPA', icon: Calculator, path: '/calc', color: '#60A5FA' },
+    { label: 'Attendance', desc: 'Track records', icon: Calendar, path: '/attendance', color: '#34D399' },
+    { label: 'Faculty', desc: 'Directory', icon: Users, path: '/faculty', color: '#F472B6' },
+  ];
+
+  const perfGrade = currentCGPA >= 9 ? 'S' : currentCGPA >= 8 ? 'A' : currentCGPA >= 7 ? 'B' : currentCGPA >= 6 ? 'C' : '–';
 
   return (
     <DashboardLayout>
       <style>{`
-        /* ══════════════════════════════════════
-           DESIGN SYSTEM
-        ══════════════════════════════════════ */
-        .d-root {
-          max-width: 1280px;
-          margin: 0 auto;
-          padding: 0 0 3rem;
-          opacity: ${mounted ? 1 : 0};
-          transform: translateY(${mounted ? '0' : '12px'});
-          transition: opacity 0.5s ease, transform 0.5s ease;
+        /* ══ SHARED DESIGN TOKENS ══
+           Matches TopBar exactly:
+           - rgba(10,10,22) base
+           - rgba(255,255,255,0.05) borders
+           - 20px border-radius
+           - #6366F1 / #818CF8 primary
+           - Same glassmorphism
+        ══════════════════════════ */
+
+        .dash {
+          max-width: 1200px; margin: 0 auto;
+          opacity: ${ready ? 1 : 0};
+          transform: translateY(${ready ? '0' : '14px'});
+          transition: opacity 0.6s ease, transform 0.6s ease;
         }
 
-        /* ── Glass Card Base ── */
-        .d-glass {
+        /* ── Glass Card ── */
+        .g {
           background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.05);
           border-radius: 20px;
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
           transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
-        .d-glass:hover {
-          border-color: rgba(255,255,255,0.1);
-        }
-        .d-glass-clickable {
-          cursor: pointer;
-        }
-        .d-glass-clickable:hover {
+        .g:hover { border-color: rgba(255,255,255,0.08); }
+        .g-click { cursor: pointer; }
+        .g-click:hover {
           transform: translateY(-3px);
-          box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+          box-shadow: 0 14px 40px rgba(0,0,0,0.25);
         }
-        .d-glass-clickable:active {
-          transform: translateY(-1px) scale(0.995);
-        }
+        .g-click:active { transform: translateY(-1px) scale(0.995); }
 
-        /* ══ HERO SECTION ══ */
-        .d-hero {
-          padding: 1.5rem;
-          margin-bottom: 1.25rem;
+        /* ══ HERO ══ */
+        .hero {
+          padding: 1.5rem; margin-bottom: 1.25rem;
           position: relative; overflow: hidden;
           background: linear-gradient(135deg,
-            rgba(99,102,241,0.15) 0%,
-            rgba(59,130,246,0.08) 50%,
-            rgba(139,92,246,0.1) 100%
-          );
-          border: 1px solid rgba(99,102,241,0.12);
+            rgba(99,102,241,0.12), rgba(59,130,246,0.06), rgba(139,92,246,0.08));
+          border-color: rgba(99,102,241,0.1);
           border-radius: 24px;
         }
-        .d-hero::before {
-          content: '';
-          position: absolute; top: -100px; right: -100px;
-          width: 350px; height: 350px;
-          background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+        .hero::before {
+          content: ''; position: absolute; top: -100px; right: -80px;
+          width: 300px; height: 300px;
+          background: radial-gradient(circle, rgba(99,102,241,0.12), transparent 70%);
           border-radius: 50%; pointer-events: none;
         }
-        .d-hero::after {
-          content: '';
-          position: absolute; bottom: -80px; left: -50px;
-          width: 250px; height: 250px;
-          background: radial-gradient(circle, rgba(59,130,246,0.08), transparent 70%);
+        .hero::after {
+          content: ''; position: absolute; bottom: -60px; left: -40px;
+          width: 200px; height: 200px;
+          background: radial-gradient(circle, rgba(59,130,246,0.06), transparent 70%);
           border-radius: 50%; pointer-events: none;
         }
-        .d-hero-content { position: relative; z-index: 1; }
-        .d-hero-greeting {
-          display: flex; align-items: center; gap: 8px;
-          font-size: 0.82rem; color: rgba(255,255,255,0.5);
-          font-weight: 500; margin-bottom: 6px;
-          text-transform: uppercase; letter-spacing: 1px;
+        .hero-inner { position: relative; z-index: 1; }
+        .hero-sub {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 0.75rem; color: rgba(255,255,255,0.4);
+          font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px;
+          margin-bottom: 6px;
         }
-        .d-hero h1 {
-          font-size: clamp(1.5rem, 5vw, 2.2rem);
-          font-weight: 800; margin: 0; line-height: 1.2;
-          color: #F8FAFC;
+        .hero h1 {
+          font-size: clamp(1.4rem, 5vw, 2.1rem);
+          font-weight: 800; margin: 0; line-height: 1.25; color: #F8FAFC;
         }
-        .d-hero h1 span {
+        .hero h1 em {
+          font-style: normal;
           background: linear-gradient(135deg, #818CF8, #6366F1);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        .d-hero-date {
+        .hero-date {
           display: flex; align-items: center; gap: 6px;
-          color: rgba(255,255,255,0.4);
-          margin-top: 10px; font-size: clamp(0.78rem, 2vw, 0.88rem);
+          color: rgba(255,255,255,0.35); margin-top: 10px;
+          font-size: clamp(0.75rem, 2vw, 0.85rem);
         }
-        .d-hero-quote {
+        .hero-quote {
           margin-top: 1.25rem; padding: 14px 16px;
-          background: rgba(255,255,255,0.04);
-          border-radius: 14px;
+          background: rgba(255,255,255,0.03); border-radius: 14px;
           border-left: 3px solid #6366F1;
-          font-style: italic;
-          color: rgba(255,255,255,0.55);
-          font-size: clamp(0.78rem, 2vw, 0.88rem);
-          line-height: 1.6;
+          font-style: italic; color: rgba(255,255,255,0.5);
+          font-size: clamp(0.76rem, 2vw, 0.86rem); line-height: 1.6;
           display: flex; align-items: flex-start; gap: 10px;
         }
-        .d-hero-quote-icon {
-          flex-shrink: 0; color: #6366F1; opacity: 0.5; margin-top: 2px;
-        }
-        @media (min-width: 768px) {
-          .d-hero { padding: 2.5rem; margin-bottom: 1.5rem; }
-        }
+        @media (min-width: 768px) { .hero { padding: 2.5rem; } }
 
-        /* ══ STATS SECTION ══ */
-        .d-stats {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0.75rem;
-          margin-bottom: 1.25rem;
+        /* ══ OVERVIEW (CGPA + Attendance) ══ */
+        .overview {
+          display: grid; grid-template-columns: 1fr;
+          gap: 0.75rem; margin-bottom: 1.25rem;
         }
-        @media (min-width: 640px) { .d-stats { gap: 1rem; } }
-        @media (min-width: 900px) {
-          .d-stats { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
-        }
+        @media (min-width: 640px) { .overview { grid-template-columns: 1fr 1fr; gap: 1rem; } }
+        @media (min-width: 768px) { .overview { gap: 1.25rem; margin-bottom: 1.5rem; } }
 
-        .d-stat {
-          padding: 1.25rem;
-          position: relative; overflow: hidden;
-          border-radius: 20px;
-        }
-        .d-stat::after {
-          content: ''; position: absolute; top: -30px; right: -30px;
-          width: 100px; height: 100px; border-radius: 50%;
-          opacity: 0.06; pointer-events: none;
-          transition: opacity 0.3s;
-        }
-        .d-stat:hover::after { opacity: 0.12; }
-
-        .d-stat-header {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .d-stat-icon {
-          width: 40px; height: 40px; border-radius: 12px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-        .d-stat-badge {
-          font-size: 0.62rem; font-weight: 700;
-          padding: 3px 8px; border-radius: 8px;
-          text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .d-stat-value {
-          font-size: clamp(1.6rem, 5vw, 2rem);
-          font-weight: 800; line-height: 1; margin: 0;
-        }
-        .d-stat-label {
-          font-size: clamp(0.7rem, 2vw, 0.78rem);
-          color: rgba(255,255,255,0.4);
-          margin: 6px 0 0; font-weight: 500;
-        }
-        @media (min-width: 768px) {
-          .d-stat { padding: 1.5rem; }
-          .d-stat-icon { width: 46px; height: 46px; }
-        }
-
-        /* ══ OVERVIEW CARDS (CGPA + Attendance side by side on desktop) ══ */
-        .d-overview {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 0.75rem;
-          margin-bottom: 1.25rem;
-        }
-        @media (min-width: 768px) {
-          .d-overview { grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
-        }
-
-        .d-overview-card {
+        .ov-card {
           padding: 1.5rem; border-radius: 20px;
           display: flex; align-items: center; gap: 20px;
           position: relative; overflow: hidden;
         }
-        .d-overview-info { flex: 1; min-width: 0; }
-        .d-overview-title {
-          font-size: 0.78rem; font-weight: 600;
-          color: rgba(255,255,255,0.45);
+        .ov-card::before {
+          content: ''; position: absolute; bottom: -40px; right: -40px;
+          width: 120px; height: 120px; border-radius: 50%;
+          opacity: 0.04; pointer-events: none;
+        }
+        .ov-info { flex: 1; min-width: 0; }
+        .ov-label {
+          font-size: 0.72rem; font-weight: 600;
+          color: rgba(255,255,255,0.4);
           text-transform: uppercase; letter-spacing: 0.8px;
           margin: 0 0 6px;
         }
-        .d-overview-value {
-          font-size: clamp(2rem, 6vw, 2.8rem);
+        .ov-value {
+          font-size: clamp(2rem, 6vw, 2.6rem);
           font-weight: 900; margin: 0; line-height: 1;
         }
-        .d-overview-sub {
-          font-size: 0.78rem; color: rgba(255,255,255,0.35);
-          margin: 8px 0 0;
-          display: flex; align-items: center; gap: 4px;
+        .ov-sub {
+          font-size: 0.76rem; color: rgba(255,255,255,0.3);
+          margin: 8px 0 0; display: flex; align-items: center; gap: 5px;
+        }
+        @media (min-width: 768px) { .ov-card { padding: 2rem; } }
+
+        /* ══ MINI STATS ══ */
+        .stats {
+          display: grid; grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem; margin-bottom: 1.25rem;
+        }
+        @media (min-width: 640px) { .stats { gap: 1rem; } }
+        @media (min-width: 900px) {
+          .stats { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+        }
+
+        .stat {
+          padding: 1.2rem; position: relative; overflow: hidden; border-radius: 20px;
+        }
+        .stat-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+        }
+        .stat-val {
+          font-size: clamp(1.5rem, 4vw, 1.9rem);
+          font-weight: 800; line-height: 1; margin: 0;
+        }
+        .stat-lbl {
+          font-size: clamp(0.68rem, 1.8vw, 0.76rem);
+          color: rgba(255,255,255,0.35); margin: 6px 0 0; font-weight: 500;
+        }
+        .stat-badge {
+          position: absolute; top: 12px; right: 12px;
+          font-size: 0.58rem; font-weight: 700;
+          padding: 3px 8px; border-radius: 8px;
+          text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .stat-blob {
+          position: absolute; bottom: -20px; right: -20px;
+          width: 70px; height: 70px; border-radius: 50%;
+          opacity: 0.05; pointer-events: none;
         }
         @media (min-width: 768px) {
-          .d-overview-card { padding: 2rem; }
+          .stat { padding: 1.4rem; }
+          .stat-icon { width: 44px; height: 44px; }
         }
 
         /* ══ ANNOUNCEMENTS ══ */
-        .d-announce {
-          margin-bottom: 1.25rem;
-        }
-        .d-announce-card {
+        .ann { margin-bottom: 1.25rem; }
+        .ann-card {
           padding: 1.25rem; border-radius: 20px;
-          border: 1px solid rgba(251,191,36,0.1);
+          border-color: rgba(251,191,36,0.08);
         }
-        .d-announce-header {
-          display: flex; align-items: center; gap: 10px;
-          margin-bottom: 1rem;
+        .ann-head {
+          display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;
         }
-        .d-announce-header-icon {
+        .ann-head-icon {
           width: 36px; height: 36px; border-radius: 10px;
-          background: rgba(251,191,36,0.12);
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
+          background: rgba(251,191,36,0.1);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .d-announce-title {
-          font-size: clamp(0.95rem, 3vw, 1.1rem);
-          font-weight: 700; margin: 0;
-        }
-        .d-announce-item {
-          padding: 14px; background: rgba(255,255,255,0.03);
-          border-radius: 14px;
-          border-left: 3px solid rgba(251,191,36,0.5);
+        .ann-item {
+          padding: 14px; background: rgba(255,255,255,0.025);
+          border-radius: 14px; border-left: 3px solid rgba(251,191,36,0.4);
           transition: background 0.2s;
         }
-        .d-announce-item:hover { background: rgba(255,255,255,0.05); }
-        .d-announce-item-title {
-          font-weight: 700; font-size: 0.88rem; margin: 0;
-          color: #F1F5F9; line-height: 1.4;
-        }
-        .d-announce-item-msg {
-          font-size: 0.82rem; color: rgba(255,255,255,0.5);
-          margin: 6px 0 0; line-height: 1.5;
-        }
-        .d-announce-item-time {
-          font-size: 0.68rem; color: rgba(255,255,255,0.25);
-          display: flex; align-items: center; gap: 4px;
-        }
-        .d-announce-link {
+        .ann-item:hover { background: rgba(255,255,255,0.04); }
+        .ann-link {
           display: inline-flex; align-items: center; gap: 5px;
-          margin-top: 8px; font-size: 0.78rem; color: #818CF8;
-          text-decoration: none; font-weight: 600;
-          padding: 4px 12px; border-radius: 8px;
-          background: rgba(99,102,241,0.08);
-          transition: background 0.2s;
+          margin-top: 8px; font-size: 0.76rem; font-weight: 600;
+          color: #818CF8; text-decoration: none;
+          background: rgba(99,102,241,0.06); padding: 4px 10px;
+          border-radius: 8px; transition: background 0.2s;
         }
-        .d-announce-link:hover { background: rgba(99,102,241,0.15); }
+        .ann-link:hover { background: rgba(99,102,241,0.12); }
         @media (min-width: 768px) {
-          .d-announce-card { padding: 1.5rem; }
-          .d-announce { margin-bottom: 1.5rem; }
+          .ann-card { padding: 1.5rem; } .ann { margin-bottom: 1.5rem; }
         }
 
         /* ══ REVIEWS CTA ══ */
-        .d-reviews {
-          margin-bottom: 1.25rem;
-        }
-        .d-reviews-card {
-          padding: 1.5rem; border-radius: 20px;
+        .rev { margin-bottom: 1.25rem; }
+        .rev-card {
+          padding: 1.5rem; border-radius: 20px; cursor: pointer;
           position: relative; overflow: hidden;
-          border: 1px solid rgba(236,72,153,0.1);
-          cursor: pointer;
+          border-color: rgba(236,72,153,0.08);
         }
-        .d-reviews-card:hover {
-          border-color: rgba(236,72,153,0.25);
+        .rev-card:hover {
+          border-color: rgba(236,72,153,0.2);
           transform: translateY(-2px);
-          box-shadow: 0 15px 40px rgba(236,72,153,0.08);
+          box-shadow: 0 14px 40px rgba(236,72,153,0.06);
         }
-        .d-reviews-glow {
+        .rev-glow {
           position: absolute; top: -60%; right: -20%;
-          width: 300px; height: 300px;
-          background: radial-gradient(circle, rgba(236,72,153,0.08), transparent 70%);
+          width: 280px; height: 280px;
+          background: radial-gradient(circle, rgba(236,72,153,0.07), transparent 70%);
           border-radius: 50%; pointer-events: none;
         }
-        .d-reviews-body {
+        .rev-body {
           display: flex; justify-content: space-between;
           align-items: center; flex-wrap: wrap; gap: 16px;
           position: relative; z-index: 1;
         }
-        .d-reviews-left { display: flex; gap: 14px; align-items: center; }
-        .d-reviews-icon {
+        .rev-left { display: flex; gap: 14px; align-items: center; }
+        .rev-icon {
           width: 50px; height: 50px; flex-shrink: 0;
           background: linear-gradient(135deg, #EC4899, #BE185D);
           border-radius: 16px; display: flex;
           align-items: center; justify-content: center;
-          box-shadow: 0 8px 24px rgba(236,72,153,0.2);
+          box-shadow: 0 6px 20px rgba(236,72,153,0.15);
         }
-        .d-reviews-text h3 {
-          font-size: clamp(1rem, 3vw, 1.2rem);
-          font-weight: 700; margin: 0 0 4px;
-        }
-        .d-reviews-text p {
-          color: rgba(255,255,255,0.4);
-          font-size: clamp(0.75rem, 2vw, 0.85rem); margin: 0;
-        }
-        .d-reviews-cta {
+        .rev-cta {
           display: flex; align-items: center; gap: 6px;
           font-weight: 700; font-size: 0.82rem;
-          background: rgba(236,72,153,0.1);
-          color: #F472B6;
-          padding: 10px 18px; border-radius: 24px;
-          white-space: nowrap;
+          background: rgba(236,72,153,0.08); color: #F472B6;
+          padding: 10px 18px; border-radius: 24px; white-space: nowrap;
           transition: background 0.2s;
         }
-        .d-reviews-card:hover .d-reviews-cta {
-          background: rgba(236,72,153,0.18);
-        }
+        .rev-card:hover .rev-cta { background: rgba(236,72,153,0.15); }
         @media (min-width: 768px) {
-          .d-reviews-card { padding: 2rem; }
-          .d-reviews-icon { width: 56px; height: 56px; }
-          .d-reviews { margin-bottom: 1.5rem; }
+          .rev-card { padding: 2rem; }
+          .rev-icon { width: 56px; height: 56px; }
+          .rev { margin-bottom: 1.5rem; }
         }
 
         /* ══ QUICK ACTIONS ══ */
-        .d-quick-header {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 1rem;
-        }
-        .d-quick-title {
-          font-size: clamp(1.1rem, 3vw, 1.3rem);
-          font-weight: 700; margin: 0;
+        .qa-title {
+          font-size: clamp(1.05rem, 3vw, 1.25rem);
+          font-weight: 700; margin: 0 0 1rem;
           display: flex; align-items: center; gap: 8px;
         }
-        .d-quick-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.75rem;
-          padding-bottom: 2rem;
+        .qa-grid {
+          display: grid; grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem; padding-bottom: 2rem;
         }
-        @media (min-width: 640px) { .d-quick-grid { gap: 1rem; } }
-        @media (min-width: 900px) {
-          .d-quick-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
-        }
+        @media (min-width: 640px) { .qa-grid { gap: 1rem; } }
+        @media (min-width: 900px) { .qa-grid { grid-template-columns: repeat(4, 1fr); gap: 1.25rem; } }
 
-        .d-quick-card {
-          padding: 1.25rem; border-radius: 20px;
-          cursor: pointer; position: relative; overflow: hidden;
-          text-align: center;
+        .qa-card {
+          padding: 1.25rem; border-radius: 20px; cursor: pointer;
+          text-align: center; position: relative; overflow: hidden;
         }
-        .d-quick-card:hover {
+        .qa-card:hover {
           transform: translateY(-4px);
-          box-shadow: 0 12px 36px rgba(0,0,0,0.25);
+          box-shadow: 0 12px 36px rgba(0,0,0,0.2);
         }
-        .d-quick-card:active { transform: translateY(-1px) scale(0.98); }
+        .qa-card:active { transform: translateY(-1px) scale(0.98); }
 
-        .d-quick-icon-wrap {
-          width: 52px; height: 52px; border-radius: 16px;
+        .qa-icon {
+          width: 50px; height: 50px; border-radius: 14px;
           margin: 0 auto 12px;
           display: flex; align-items: center; justify-content: center;
           transition: transform 0.3s ease;
         }
-        .d-quick-card:hover .d-quick-icon-wrap { transform: scale(1.1) rotate(3deg); }
+        .qa-card:hover .qa-icon { transform: scale(1.1) rotate(3deg); }
 
-        .d-quick-label {
-          font-weight: 700; font-size: clamp(0.8rem, 2vw, 0.9rem);
-          margin: 0 0 4px; color: #F1F5F9;
+        .qa-label {
+          font-weight: 700; font-size: clamp(0.78rem, 2vw, 0.88rem);
+          margin: 0 0 3px; color: #F1F5F9;
         }
-        .d-quick-desc {
-          font-size: 0.7rem; color: rgba(255,255,255,0.3);
+        .qa-desc {
+          font-size: 0.68rem; color: rgba(255,255,255,0.25);
           margin: 0; display: none;
         }
         @media (min-width: 768px) {
-          .d-quick-card { padding: 1.5rem; }
-          .d-quick-icon-wrap { width: 58px; height: 58px; }
-          .d-quick-desc { display: block; }
+          .qa-card { padding: 1.5rem; }
+          .qa-icon { width: 56px; height: 56px; }
+          .qa-desc { display: block; }
         }
 
-        .d-quick-arrow {
+        .qa-arrow {
           position: absolute; bottom: 10px; right: 10px;
           opacity: 0; transform: translateX(-4px);
-          transition: all 0.25s ease;
-          color: rgba(255,255,255,0.2);
+          transition: all 0.25s; color: rgba(255,255,255,0.15);
         }
-        .d-quick-card:hover .d-quick-arrow { opacity: 1; transform: translateX(0); }
+        .qa-card:hover .qa-arrow { opacity: 1; transform: translateX(0); }
 
-        /* ══ ANIMATION HELPERS ══ */
-        .d-anim {
-          animation: d-fadeUp 0.5s ease forwards;
-          opacity: 0;
-        }
-        @keyframes d-fadeUp {
+        /* ══ ANIMATIONS ══ */
+        .anim { animation: fadeUp 0.5s ease forwards; opacity: 0; }
+        @keyframes fadeUp {
           from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .d-delay-1 { animation-delay: 0.05s; }
-        .d-delay-2 { animation-delay: 0.1s; }
-        .d-delay-3 { animation-delay: 0.15s; }
-        .d-delay-4 { animation-delay: 0.2s; }
-        .d-delay-5 { animation-delay: 0.25s; }
-        .d-delay-6 { animation-delay: 0.3s; }
-        .d-delay-7 { animation-delay: 0.35s; }
-
-        /* ══ SCROLLBAR ══ */
-        .d-root::-webkit-scrollbar { width: 4px; }
-        .d-root::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+        .d1 { animation-delay: 0.05s; }
+        .d2 { animation-delay: 0.1s; }
+        .d3 { animation-delay: 0.15s; }
+        .d4 { animation-delay: 0.2s; }
+        .d5 { animation-delay: 0.25s; }
+        .d6 { animation-delay: 0.3s; }
       `}</style>
 
-      <div className="d-root">
+      <div className="dash">
 
-        {/* ════════════════════ HERO ════════════════════ */}
-        <div className="d-hero d-anim d-delay-1">
-          <div className="d-hero-content">
-            <div className="d-hero-greeting">
-              <Sparkles size={14} />
-              {getGreeting()}
+        {/* ═══════ HERO ═══════ */}
+        <div className="g hero anim d1">
+          <div className="hero-inner">
+            <div className="hero-sub">
+              <Sparkles size={13} /> {greeting}
             </div>
-            <h1>
-              Welcome back, <span>{userName}</span> {getEmoji()}
-            </h1>
-            <div className="d-hero-date">
-              <Clock size={14} />
+            <h1>Welcome back, <em>{firstName}</em> {emoji}</h1>
+            <div className="hero-date">
+              <Clock size={13} />
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
               })}
             </div>
-            <div className="d-hero-quote">
-              <Sparkles size={16} className="d-hero-quote-icon" />
+            <div className="hero-quote">
+              <Sparkles size={15} style={{ flexShrink: 0, color: '#6366F1', opacity: 0.5, marginTop: 2 }} />
               <span>{todayQuote}</span>
             </div>
           </div>
         </div>
 
-        {/* ════════════════════ OVERVIEW CARDS ════════════════════ */}
-        <div className="d-overview d-anim d-delay-2">
-          {/* CGPA Card */}
-          <div className="d-glass d-overview-card" style={{ borderColor: 'rgba(96,165,250,0.1)' }}>
-            <div className="d-overview-info">
-              <p className="d-overview-title">Current CGPA</p>
-              <h2 className="d-overview-value" style={{ color: '#60A5FA' }}>
-                {currentCGPA}
-              </h2>
-              <p className="d-overview-sub">
-                <BarChart3 size={13} />
-                {cgpaSubjects.length} subjects graded
-              </p>
+        {/* ═══════ OVERVIEW (CGPA + Attendance) ═══════ */}
+        <div className="overview anim d2">
+          <div className="g ov-card" style={{ borderColor: 'rgba(96,165,250,0.08)' }}>
+            <div className="ov-info">
+              <p className="ov-label">Current CGPA</p>
+              <h2 className="ov-value" style={{ color: '#60A5FA' }}>{currentCGPA}</h2>
+              <p className="ov-sub"><BarChart3 size={13} /> {cgpaSubjects.length} subjects graded</p>
             </div>
-            <CircularProgress value={parseFloat(currentCGPA)} max={10} size={80} strokeWidth={6} color="#60A5FA">
-              <Award size={22} color="#60A5FA" />
-            </CircularProgress>
+            <Ring value={parseFloat(currentCGPA)} max={10} color="#60A5FA">
+              <Award size={20} color="#60A5FA" />
+            </Ring>
           </div>
 
-          {/* Attendance Card */}
-          <div className="d-glass d-overview-card" style={{ borderColor: `${attendanceStatus === 'Safe' ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)'}` }}>
-            <div className="d-overview-info">
-              <p className="d-overview-title">Attendance</p>
-              <h2 className="d-overview-value" style={{ color: attendanceStatus === 'Safe' ? '#34D399' : '#F87171' }}>
+          <div className="g ov-card" style={{
+            borderColor: attStatus === 'Safe' ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)',
+          }}>
+            <div className="ov-info">
+              <p className="ov-label">Attendance</p>
+              <h2 className="ov-value" style={{ color: attStatus === 'Safe' ? '#34D399' : '#F87171' }}>
                 {currentAttendance}%
               </h2>
-              <p className="d-overview-sub">
-                <Target size={13} />
-                Status: <span style={{
-                  color: attendanceStatus === 'Safe' ? '#34D399' : '#F87171',
-                  fontWeight: 700, marginLeft: '2px',
-                }}>{attendanceStatus}</span>
+              <p className="ov-sub">
+                <Target size={13} /> Status:
+                <span style={{ color: attStatus === 'Safe' ? '#34D399' : '#F87171', fontWeight: 700, marginLeft: 3 }}>
+                  {attStatus}
+                </span>
               </p>
             </div>
-            <CircularProgress
-              value={parseFloat(currentAttendance)} max={100} size={80} strokeWidth={6}
-              color={attendanceStatus === 'Safe' ? '#34D399' : '#F87171'}
-            >
+            <Ring value={parseFloat(currentAttendance)} max={100}
+              color={attStatus === 'Safe' ? '#34D399' : '#F87171'}>
               <span style={{
-                fontSize: '1.1rem', fontWeight: 800,
-                color: attendanceStatus === 'Safe' ? '#34D399' : '#F87171',
+                fontSize: '1rem', fontWeight: 800,
+                color: attStatus === 'Safe' ? '#34D399' : '#F87171',
               }}>
                 {currentAttendance}%
               </span>
-            </CircularProgress>
+            </Ring>
           </div>
         </div>
 
-        {/* ════════════════════ MINI STATS ════════════════════ */}
-        <div className="d-stats d-anim d-delay-3">
-          <div className="d-glass d-stat" style={{ '--stat-color': '#6366F1' }}>
-            <div className="d-stat-header">
-              <div className="d-stat-icon" style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8' }}>
-                <BookOpen size={20} />
-              </div>
+        {/* ═══════ MINI STATS ═══════ */}
+        <div className="stats anim d3">
+          <div className="g stat">
+            <div className="stat-icon" style={{ background: 'rgba(129,140,248,0.1)', color: '#818CF8' }}>
+              <BookOpen size={19} />
             </div>
-            <h3 className="d-stat-value" style={{ color: '#818CF8' }}>{cgpaSubjects.length}</h3>
-            <p className="d-stat-label">Active Subjects</p>
-            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(99,102,241,0.06)' }} />
+            <h3 className="stat-val" style={{ color: '#818CF8' }}>{cgpaSubjects.length}</h3>
+            <p className="stat-lbl">Active Subjects</p>
+            <div className="stat-blob" style={{ background: '#818CF8' }} />
           </div>
 
-          <div className="d-glass d-stat d-glass-clickable" onClick={() => navigate('/faculty')} style={{ '--stat-color': '#F472B6' }}>
-            <div className="d-stat-header">
-              <div className="d-stat-icon" style={{ background: 'rgba(244,114,182,0.12)', color: '#F472B6' }}>
-                <Users size={20} />
-              </div>
-              <span className="d-stat-badge" style={{ background: 'rgba(244,114,182,0.12)', color: '#F472B6' }}>
-                View →
-              </span>
+          <div className="g stat g-click" onClick={() => navigate('/faculty')}>
+            <div className="stat-icon" style={{ background: 'rgba(244,114,182,0.1)', color: '#F472B6' }}>
+              <Users size={19} />
             </div>
-            <h3 className="d-stat-value" style={{ color: '#F472B6' }}>{faculty.length}+</h3>
-            <p className="d-stat-label">Faculty Members</p>
-            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(244,114,182,0.06)' }} />
+            <span className="stat-badge" style={{ background: 'rgba(244,114,182,0.1)', color: '#F472B6' }}>
+              View →
+            </span>
+            <h3 className="stat-val" style={{ color: '#F472B6' }}>{faculty.length}+</h3>
+            <p className="stat-lbl">Faculty Members</p>
+            <div className="stat-blob" style={{ background: '#F472B6' }} />
           </div>
 
-          <div className="d-glass d-stat">
-            <div className="d-stat-header">
-              <div className="d-stat-icon" style={{ background: 'rgba(251,191,36,0.12)', color: '#FBBF24' }}>
-                <Star size={20} />
-              </div>
+          <div className="g stat">
+            <div className="stat-icon" style={{ background: 'rgba(251,191,36,0.1)', color: '#FBBF24' }}>
+              <Star size={19} />
             </div>
-            <h3 className="d-stat-value" style={{ color: '#FBBF24' }}>
-              {currentCGPA >= 8 ? 'A+' : currentCGPA >= 6 ? 'B+' : 'C+'}
-            </h3>
-            <p className="d-stat-label">Performance</p>
-            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(251,191,36,0.06)' }} />
+            <h3 className="stat-val" style={{ color: '#FBBF24' }}>{perfGrade}</h3>
+            <p className="stat-lbl">Performance</p>
+            <div className="stat-blob" style={{ background: '#FBBF24' }} />
           </div>
 
-          <div className="d-glass d-stat">
-            <div className="d-stat-header">
-              <div className="d-stat-icon" style={{ background: 'rgba(52,211,153,0.12)', color: '#34D399' }}>
-                <GraduationCap size={20} />
-              </div>
+          <div className="g stat">
+            <div className="stat-icon" style={{ background: 'rgba(52,211,153,0.1)', color: '#34D399' }}>
+              <GraduationCap size={19} />
             </div>
-            <h3 className="d-stat-value" style={{ color: '#34D399' }}>
-              {user?.year || '—'}
-            </h3>
-            <p className="d-stat-label">Current Year</p>
-            <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(52,211,153,0.06)' }} />
+            <h3 className="stat-val" style={{ color: '#34D399' }}>{user?.year || '—'}</h3>
+            <p className="stat-lbl">Current Year</p>
+            <div className="stat-blob" style={{ background: '#34D399' }} />
           </div>
         </div>
 
-        {/* ════════════════════ ANNOUNCEMENTS ════════════════════ */}
+        {/* ═══════ ANNOUNCEMENTS ═══════ */}
         {updates.length > 0 && (
-          <div className="d-announce d-anim d-delay-4">
-            <div className="d-glass d-announce-card">
-              <div className="d-announce-header">
-                <div className="d-announce-header-icon">
-                  <Megaphone size={18} color="#FBBF24" />
-                </div>
+          <div className="ann anim d4">
+            <div className="g ann-card">
+              <div className="ann-head">
+                <div className="ann-head-icon"><Megaphone size={17} color="#FBBF24" /></div>
                 <div>
-                  <h2 className="d-announce-title">Announcements</h2>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>
+                  <h2 style={{ fontSize: 'clamp(0.95rem,3vw,1.1rem)', fontWeight: 700, margin: 0 }}>
+                    Announcements
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)' }}>
                     Latest updates & notices
                   </p>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {updates.map(update => (
-                  <div key={update.id} className="d-announce-item">
+                {updates.map(u => (
+                  <div key={u.id} className="ann-item">
                     <div style={{
                       display: 'flex', justifyContent: 'space-between',
-                      alignItems: 'flex-start', gap: '8px', marginBottom: '4px',
+                      alignItems: 'flex-start', gap: 8, marginBottom: 4, flexWrap: 'wrap',
                     }}>
-                      <h4 className="d-announce-item-title">{update.title}</h4>
-                      <span className="d-announce-item-time">
-                        <Clock size={10} />
-                        {timeAgo(update.date)}
+                      <h4 style={{ fontWeight: 700, fontSize: '0.86rem', margin: 0, color: '#F1F5F9', flex: 1, lineHeight: 1.4 }}>
+                        {u.title}
+                      </h4>
+                      <span style={{
+                        fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)',
+                        display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>
+                        <Clock size={10} /> {timeAgo(u.date)}
                       </span>
                     </div>
-                    <p className="d-announce-item-msg">{update.message}</p>
-                    {update.link && (
-                      <a href={update.link} target="_blank" rel="noreferrer" className="d-announce-link">
-                        <ExternalLink size={12} /> Open Resource
+                    <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', margin: '4px 0 0', lineHeight: 1.5 }}>
+                      {u.message}
+                    </p>
+                    {u.link && (
+                      <a href={u.link} target="_blank" rel="noreferrer" className="ann-link">
+                        <ExternalLink size={11} /> Open Resource
                       </a>
                     )}
                   </div>
@@ -729,48 +612,39 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ════════════════════ FACULTY REVIEWS CTA ════════════════════ */}
-        <div className="d-reviews d-anim d-delay-5">
-          <div className="d-glass d-reviews-card" onClick={() => navigate('/reviews')}>
-            <div className="d-reviews-glow" />
-            <div className="d-reviews-body">
-              <div className="d-reviews-left">
-                <div className="d-reviews-icon">
-                  <MessageSquare size={24} color="white" />
-                </div>
-                <div className="d-reviews-text">
-                  <h3>Faculty Reviews</h3>
-                  <p>Rate professors & read honest feedback</p>
+        {/* ═══════ REVIEWS CTA ═══════ */}
+        <div className="rev anim d5">
+          <div className="g rev-card" onClick={() => navigate('/reviews')}>
+            <div className="rev-glow" />
+            <div className="rev-body">
+              <div className="rev-left">
+                <div className="rev-icon"><MessageSquare size={24} color="white" /></div>
+                <div>
+                  <h3 style={{ fontSize: 'clamp(1rem,3vw,1.2rem)', fontWeight: 700, margin: '0 0 4px' }}>
+                    Faculty Reviews
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 'clamp(0.73rem,2vw,0.85rem)', margin: 0 }}>
+                    Rate professors & read honest feedback
+                  </p>
                 </div>
               </div>
-              <div className="d-reviews-cta">
-                Explore <ArrowRight size={16} />
-              </div>
+              <div className="rev-cta">Explore <ArrowRight size={16} /></div>
             </div>
           </div>
         </div>
 
-        {/* ════════════════════ QUICK ACTIONS ════════════════════ */}
-        <div className="d-anim d-delay-6">
-          <div className="d-quick-header">
-            <h2 className="d-quick-title">
-              <Zap size={20} color="#FBBF24" />
-              Quick Actions
-            </h2>
-          </div>
-          <div className="d-quick-grid">
-            {quickActions.map((item, idx) => (
-              <div
-                key={idx}
-                className="d-glass d-quick-card d-glass-clickable"
-                onClick={() => navigate(item.path)}
-              >
-                <div className="d-quick-icon-wrap" style={{ background: item.bg }}>
-                  <item.icon size={24} style={{ color: item.gradient.includes('#6366F1') ? '#818CF8' : item.gradient.includes('#3B82F6') ? '#60A5FA' : item.gradient.includes('#10B981') ? '#34D399' : '#F472B6' }} />
+        {/* ═══════ QUICK ACTIONS ═══════ */}
+        <div className="anim d6">
+          <h2 className="qa-title"><Zap size={18} color="#FBBF24" /> Quick Actions</h2>
+          <div className="qa-grid">
+            {actions.map((a, i) => (
+              <div key={i} className="g qa-card g-click" onClick={() => navigate(a.path)}>
+                <div className="qa-icon" style={{ background: `${a.color}15` }}>
+                  <a.icon size={22} color={a.color} />
                 </div>
-                <p className="d-quick-label">{item.label}</p>
-                <p className="d-quick-desc">{item.desc}</p>
-                <ChevronRight size={16} className="d-quick-arrow" />
+                <p className="qa-label">{a.label}</p>
+                <p className="qa-desc">{a.desc}</p>
+                <ChevronRight size={15} className="qa-arrow" />
               </div>
             ))}
           </div>
