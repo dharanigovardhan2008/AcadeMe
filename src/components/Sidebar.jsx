@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Home, Calculator, Calendar, Users, BookOpen, User,
-    Settings, Shield, LogOut, Youtube, Instagram, Mail,
-    MessageCircle, MessageSquare, Layers, Trophy,
+    Settings, Shield, LogOut, MessageCircle, MessageSquare, Layers, Trophy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import FeedbackModal from './FeedbackModal';
@@ -14,28 +13,30 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const navigate = useNavigate();
     const [showFeedback, setShowFeedback] = useState(false);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
+    // Listen for TopBar's open-feedback event so both buttons open the same modal
+    React.useEffect(() => {
+        const handler = () => setShowFeedback(true);
+        window.addEventListener('open-feedback', handler);
+        return () => window.removeEventListener('open-feedback', handler);
+    }, []);
+
+    const handleLogout = () => { logout(); navigate('/login'); };
 
     const userAvatar = user?.avatar ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
 
     const navItems = [
-        // ── Leaderboard at TOP (most visible) ──────────────────────────
-        { path: '/leaderboard',    label: 'Leaderboard',       icon: Trophy,        badge: '🏆' },
-        // ── Core nav ───────────────────────────────────────────────────
+        { path: '/leaderboard',    label: 'Leaderboard',       icon: Trophy },
         { path: '/dashboard',      label: 'Dashboard',         icon: Home },
-        { path: '/courses',        label: 'My Courses',         icon: BookOpen },
-        { path: '/common-courses', label: 'Common Courses',     icon: Layers },
-        { path: '/calc',           label: 'CGPA Calculator',    icon: Calculator },
-        { path: '/attendance',     label: 'Attendance',         icon: Calendar },
-        { path: '/faculty',        label: 'Faculty Directory',  icon: Users },
-        { path: '/reviews',        label: 'Faculty Reviews',    icon: MessageSquare },
-        { path: '/resources',      label: 'Resources Hub',      icon: BookOpen },
-        { path: '/profile',        label: 'Profile',            icon: User },
-        { path: '/settings',       label: 'Settings',           icon: Settings },
+        { path: '/courses',        label: 'My Courses',        icon: BookOpen },
+        { path: '/common-courses', label: 'Common Courses',    icon: Layers },
+        { path: '/calc',           label: 'CGPA Calculator',   icon: Calculator },
+        { path: '/attendance',     label: 'Attendance',        icon: Calendar },
+        { path: '/faculty',        label: 'Faculty Directory', icon: Users },
+        { path: '/reviews',        label: 'Faculty Reviews',   icon: MessageSquare },
+        { path: '/resources',      label: 'Resources Hub',     icon: BookOpen },
+        { path: '/profile',        label: 'Profile',           icon: User },
+        { path: '/settings',       label: 'Settings',          icon: Settings },
     ];
 
     if (isAdmin || user?.role === 'admin') {
@@ -43,102 +44,93 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     }
 
     return (
-        <aside style={{
-            width: '280px',
-            height: '100vh',
-            position: 'fixed',
-            left: 0, top: 0,
-            background: 'rgba(255,255,255,0.03)',
-            backdropFilter: 'blur(20px)',
-            borderRight: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: 50,
-            transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s ease-in-out',
-        }} className="sidebar-desktop">
-
-            {/* Logo */}
+        <aside
+            className="sidebar-desktop"
+            style={{
+                width: '280px', height: '100vh',
+                position: 'fixed', left: 0, top: 0,
+                background: 'rgba(255,255,255,0.03)',
+                backdropFilter: 'blur(20px)',
+                borderRight: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex', flexDirection: 'column',
+                zIndex: 50,
+                transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+                transition: 'transform 0.3s ease-in-out',
+            }}
+        >
+            {/* ── Logo ── */}
             <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
                     <img src={logo} alt="AcadeMe" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
                 <h2 className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>AcadeMe</h2>
             </div>
 
-            {/* Nav */}
+            {/* ── Nav ── */}
             <nav style={{ flex: 1, padding: '0 1rem', overflowY: 'auto' }}>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     {navItems.map((item, idx) => (
-                        <li key={item.path} style={{ marginBottom: idx === 0 ? '0.75rem' : '0.5rem' }}>
+                        <li key={item.path} style={{ marginBottom: '0.5rem' }}>
                             <NavLink
                                 to={item.path}
                                 onClick={toggleSidebar}
                                 style={({ isActive }) => ({
                                     display: 'flex', alignItems: 'center', gap: '1rem',
                                     padding: '12px 16px', borderRadius: '12px',
+                                    textDecoration: 'none', transition: 'all 0.3s ease',
+                                    fontSize: '0.9rem',
                                     color: isActive ? 'white' : 'var(--text-secondary)',
+                                    // Leaderboard (idx 0) gets gold accent, rest get blue
                                     background: idx === 0
-                                        ? (isActive ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.07)')
+                                        ? (isActive ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.06)')
                                         : (isActive ? 'rgba(59,130,246,0.15)' : 'transparent'),
                                     border: idx === 0
-                                        ? `1px solid ${isActive ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.2)'}`
+                                        ? `1px solid ${isActive ? 'rgba(251,191,36,0.45)' : 'rgba(251,191,36,0.18)'}`
                                         : (isActive ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent'),
                                     borderLeft: idx === 0
-                                        ? `4px solid ${isActive ? '#FBBF24' : 'rgba(251,191,36,0.4)'}`
+                                        ? `4px solid ${isActive ? '#FBBF24' : 'rgba(251,191,36,0.35)'}`
                                         : (isActive ? '4px solid var(--primary)' : '1px solid transparent'),
-                                    textDecoration: 'none',
-                                    transition: 'all 0.3s ease',
-                                    fontSize: '0.9rem',
-                                    fontWeight: idx === 0 ? '600' : '400',
                                 })}
                             >
-                                <item.icon size={20} color={idx === 0 ? '#FBBF24' : undefined} style={{ flexShrink: 0 }} />
-                                <span style={{ flex: 1 }}>{item.label}</span>
-                                {item.badge && (
-                                    <span style={{ fontSize: '0.9rem' }}>{item.badge}</span>
-                                )}
+                                <item.icon size={20} color={idx === 0 ? '#FBBF24' : undefined} />
+                                {item.label}
                             </NavLink>
+
                             {/* Divider after Leaderboard */}
                             {idx === 0 && (
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0.5rem 0.5rem 0' }} />
+                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', margin: '0.5rem 0.5rem 0' }} />
                             )}
                         </li>
                     ))}
                 </ul>
             </nav>
 
-            {/* Bottom */}
-            <div style={{ padding: '0 1rem 1rem 1rem', flexShrink: 0 }}>
-                {/* Social + Feedback */}
-                <div style={{
-                    display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-                    marginBottom: '1rem', padding: '10px',
-                    background: 'rgba(255,255,255,0.05)', borderRadius: '12px',
-                }}>
-                    <a href="https://youtube.com/@genxmind-m8r?si=xHZeCJ3ZRTMjmePF" target="_blank" rel="noreferrer"
-                        style={{ color: '#EF4444', display: 'flex', alignItems: 'center' }} title="YouTube">
-                        <Youtube size={20} />
-                    </a>
-                    <a href="https://www.instagram.com/dharani_govardhan_chowdary?igsh=bzF3eG9wNHkwbHB5" target="_blank" rel="noreferrer"
-                        style={{ color: '#E1306C', display: 'flex', alignItems: 'center' }} title="Instagram">
-                        <Instagram size={20} />
-                    </a>
-                    <a href="mailto:genxmind1@gmail.com"
-                        style={{ color: '#FBBF24', display: 'flex', alignItems: 'center' }} title="Email Us">
-                        <Mail size={20} />
-                    </a>
-                    <button onClick={() => setShowFeedback(true)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', display: 'flex', alignItems: 'center' }}
-                        title="Send Suggestion / Feedback">
-                        <MessageCircle size={20} />
-                    </button>
-                </div>
+            {/* ── Bottom ── */}
+            <div style={{ padding: '0 1rem 1rem' }}>
+
+                {/* Feedback — only social link remaining */}
+                <button
+                    onClick={() => setShowFeedback(true)}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.08)'}
+                    style={{
+                        width: '100%', padding: '11px 16px', marginBottom: '0.75rem',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        background: 'rgba(59,130,246,0.08)',
+                        border: '1px solid rgba(59,130,246,0.2)',
+                        borderRadius: '12px', cursor: 'pointer',
+                        color: '#60A5FA', fontSize: '0.9rem', fontWeight: '500',
+                        transition: 'background 0.2s ease',
+                    }}
+                >
+                    <MessageCircle size={18} />
+                    Send Feedback
+                </button>
 
                 {/* User card */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '10px', marginBottom: '1rem',
+                    padding: '10px', marginBottom: '0.75rem',
                     background: 'rgba(255,255,255,0.05)', borderRadius: '12px',
                     border: '1px solid rgba(255,255,255,0.05)',
                 }}>
@@ -155,15 +147,17 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </div>
 
                 {/* Logout */}
-                <button onClick={handleLogout}
+                <button
+                    onClick={handleLogout}
+                    className="hover-danger"
                     style={{
-                        width: '100%', padding: '12px', display: 'flex', alignItems: 'center', gap: '1rem',
+                        width: '100%', padding: '12px',
+                        display: 'flex', alignItems: 'center', gap: '1rem',
                         background: 'rgba(239,68,68,0.1)', color: '#FCA5A5',
                         border: '1px solid rgba(239,68,68,0.2)',
-                        borderRadius: '12px', cursor: 'pointer', transition: 'all 0.3s ease',
-                        fontSize: '0.9rem',
+                        borderRadius: '12px', cursor: 'pointer',
+                        transition: 'all 0.3s ease', fontSize: '0.9rem',
                     }}
-                    className="hover-danger"
                 >
                     <LogOut size={20} />
                     Logout
@@ -171,9 +165,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             </div>
 
             <style>{`
-                @media (min-width: 768px) {
-                    .sidebar-desktop { transform: translateX(0) !important; }
-                }
+                @media (min-width: 768px) { .sidebar-desktop { transform: translateX(0) !important; } }
                 .hover-danger:hover { background: rgba(239,68,68,0.2) !important; }
             `}</style>
 
