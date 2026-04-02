@@ -11,7 +11,7 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://acade-me.vercel.app/register</loc>
+    <loc>https://acade-me.vercel.app/signup</loc>
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
@@ -21,14 +21,9 @@
     <changefreq>daily</changefreq>
   </url>
   <url>
-    <loc>https://acade-me.vercel.app/my-courses</loc>
+    <loc>https://acade-me.vercel.app/attendance</loc>
     <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://acade-me.vercel.app/common-courses</loc>
-    <priority>0.7</priority>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://acade-me.vercel.app/cgpa-calculator</loc>
@@ -36,9 +31,9 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://acade-me.vercel.app/attendance</loc>
-    <priority>0.8</priority>
-    <changefreq>daily</changefreq>
+    <loc>https://acade-me.vercel.app/common-courses</loc>
+    <priority>0.7</priority>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://acade-me.vercel.app/faculty-directory</loc>
@@ -51,14 +46,19 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://acade-me.vercel.app/resources</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
     <loc>https://acade-me.vercel.app/leaderboard</loc>
     <priority>0.6</priority>
     <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://acade-me.vercel.app/mandatory-courses</loc>
+    <priority>0.7</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+  <url>
+    <loc>https://acade-me.vercel.app/resources</loc>
+    <priority>0.8</priority>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://acade-me.vercel.app/profile</loc>
