@@ -1,8 +1,7 @@
-/* ✅ Firebase imports FIRST */
+/* Firebase imports FIRST */
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
 
-/* Firebase config */
 firebase.initializeApp({
   apiKey: "AIzaSyDzyWDeWecDdgIXmqQB01xexaVTjOFFfvE",
   authDomain: "edutrackr-5def9.firebaseapp.com",
@@ -14,35 +13,30 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-/* Background notification handler */
 messaging.onBackgroundMessage((payload) => {
   console.log("📩 Background notification:", payload);
 
   const title = payload.notification?.title || "AcadeMe";
   const options = {
-    body: payload.notification?.body || "New update available",
+    body: payload.notification?.body || "New update",
     icon: "/icon-192.png",
     badge: "/badge-96.png",
     tag: "acade-me-" + Date.now(),
     renotify: true,
     requireInteraction: true,
     vibrate: [200, 100, 200],
-    data: {
-      url: payload.fcmOptions?.link || "https://acade-me.vercel.app"
-    }
+    data: { url: "https://acade-me.vercel.app" }
   };
 
   self.registration.showNotification(title, options);
 });
 
-/* Notification click → open app */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-
   const url = event.notification.data?.url || "https://acade-me.vercel.app";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    clients.matchAll({ type: "window" }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes("acade-me") && "focus" in client) {
           return client.focus();
@@ -53,28 +47,23 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-/* Service Worker Lifecycle */
-const CACHE_NAME = "acade-me-cache-v3";
+/* Cache */
+const CACHE_NAME = "acade-me-v3";
 
-self.addEventListener("install", (event) => {
-  console.log("✅ SW Installed");
+self.addEventListener("install", (e) => {
+  console.log("SW installed");
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
-  console.log("✅ SW Activated");
-  event.waitUntil(
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
     caches.keys().then((names) =>
-      Promise.all(
-        names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))
-      )
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
     )
   );
-  event.waitUntil(clients.claim());
+  e.waitUntil(clients.claim());
 });
 
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+self.addEventListener("fetch", (e) => {
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
