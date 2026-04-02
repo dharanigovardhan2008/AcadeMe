@@ -13,10 +13,6 @@ import {
   isSupported,
 } from "firebase/messaging";
 
-// ══════════════════════════════════════════════════════════════
-// 🔥 FIREBASE CONFIG
-// ══════════════════════════════════════════════════════════════
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -32,10 +28,6 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
-// ══════════════════════════════════════════════════════════════
-// 🔔 FCM MESSAGING (Lazy Init - Safe for all browsers)
-// ══════════════════════════════════════════════════════════════
-
 let messagingInstance = null;
 
 const getMessagingInstance = async () => {
@@ -46,37 +38,29 @@ const getMessagingInstance = async () => {
   return messagingInstance;
 };
 
-// ══════════════════════════════════════════════════════════════
-// 🔑 REQUEST PERMISSION & SAVE TOKEN
-// ══════════════════════════════════════════════════════════════
-
 export const requestNotificationPermission = async (userId) => {
   try {
-    // Check if browser supports FCM
     const messaging = await getMessagingInstance();
     if (!messaging) {
       console.log("❌ FCM not supported in this browser");
       return null;
     }
 
-    // Ask for permission
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       console.log("❌ Notification permission denied");
       return null;
     }
 
-    // Register service worker
     const registration = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
 
-    // Get FCM token - Try both VAPID key variable names
     const vapidKey =
       import.meta.env.VITE_FIREBASE_VAPID_KEY ||
       import.meta.env.VITE_VAPID_KEY;
 
     if (!vapidKey) {
-      console.error("❌ VAPID key is missing! Add VITE_FIREBASE_VAPID_KEY to .env");
+      console.error("❌ VAPID key missing! Add VITE_FIREBASE_VAPID_KEY to .env");
       return null;
     }
 
@@ -92,9 +76,7 @@ export const requestNotificationPermission = async (userId) => {
 
     console.log("✅ FCM Token generated:", token.substring(0, 20) + "...");
 
-    // Save token to BOTH locations (notify.py reads both)
     if (userId) {
-      // Location 1: fcm_tokens collection
       await setDoc(
         doc(db, "fcm_tokens", userId),
         {
@@ -107,7 +89,6 @@ export const requestNotificationPermission = async (userId) => {
         { merge: true }
       );
 
-      // Location 2: users collection
       await setDoc(
         doc(db, "users", userId),
         {
@@ -117,7 +98,7 @@ export const requestNotificationPermission = async (userId) => {
         { merge: true }
       );
 
-      console.log("✅ FCM token saved to Firestore (both locations)");
+      console.log("✅ FCM token saved to Firestore");
     }
 
     return token;
@@ -127,10 +108,6 @@ export const requestNotificationPermission = async (userId) => {
   }
 };
 
-// ══════════════════════════════════════════════════════════════
-// 📩 FOREGROUND MESSAGE HANDLER
-// ══════════════════════════════════════════════════════════════
-
 export const onForegroundMessage = async (callback) => {
   const messaging = await getMessagingInstance();
   if (!messaging) return;
@@ -138,7 +115,6 @@ export const onForegroundMessage = async (callback) => {
   onMessage(messaging, (payload) => {
     console.log("📩 Foreground notification:", payload);
 
-    // Show browser notification even when app is open
     const notification = payload.notification;
     if (notification && Notification.permission === "granted") {
       const title = notification.title || "AcadeMe";
@@ -152,7 +128,6 @@ export const onForegroundMessage = async (callback) => {
       new Notification(title, options);
     }
 
-    // Also call custom callback if provided
     if (callback) callback(payload);
   });
 };
