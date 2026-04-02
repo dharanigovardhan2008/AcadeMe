@@ -1,9 +1,13 @@
 services:
-  - type: worker
+  - type: web
     name: academe-notifier
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python notify.py
+    plan: free
+    autoDeploy: true
     envVars:
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        value: serviceAccount.json
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        sync: false
