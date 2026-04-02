@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
+import { requestNotificationPermission, onForegroundMessage } from "./firebase"; // ✅ ADD THIS
 
 import ErrorBoundary from "./components/ErrorBoundary";
 import useAnimationSystem from "./hooks/useAnimationSystem";
@@ -28,8 +29,6 @@ import Leaderboard from "./pages/Leaderboard";
 import AdminModal from "./components/AdminModal";
 
 // ── ProtectedRoute ───────────────────────────────────────────────────────────
-// KEY FIX: while loading=true we show a spinner — never redirect to /login
-// This prevents the flash-redirect when Firebase auth resolves slowly
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -58,9 +57,43 @@ const ProtectedRoute = ({ children }) => {
 // ── AppContent ───────────────────────────────────────────────────────────────
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const { user } = useAuth(); // ✅ ADD THIS
 
   useAnimationSystem();
 
+  // ✅ NEW: Request notification permission when user logs in
+  useEffect(() => {
+    if (user?.uid) {
+      // Small delay to avoid blocking UI
+      const timer = setTimeout(() => {
+        requestNotificationPermission(user.uid)
+          .then((token) => {
+            if (token) {
+              console.log("✅ Notifications enabled");
+            } else {
+              console.log("ℹ️ Notifications not enabled (user may have denied)");
+            }
+          })
+          .catch((err) => {
+            console.error("❌ Notification setup failed:", err);
+          });
+      }, 2000); // Wait 2 seconds after login
+
+      return () => clearTimeout(timer);
+    }
+  }, [user?.uid]);
+
+  // ✅ NEW: Handle foreground notifications (when app is open)
+  useEffect(() => {
+    if (user?.uid) {
+      onForegroundMessage((payload) => {
+        console.log("📩 Notification received while app is open:", payload);
+        // Notification will auto-show via the onForegroundMessage handler in firebase.js
+      });
+    }
+  }, [user?.uid]);
+
+  // Admin modal shortcut
   useEffect(() => {
     const handler = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === "A") {
@@ -95,7 +128,6 @@ const AppContent = () => {
         <Route path="/admin"            element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
         <Route path="/leaderboard"      element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
 
-        {/* Bug #38: wildcard → /login not / (prevents splash loop) */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
