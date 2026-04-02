@@ -6,22 +6,53 @@ import json
 import threading
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import sys
+import traceback
+
+print("=" * 50)
+print("🚀 AcadeMe Notification Service Starting...")
+print("=" * 50)
 
 # ══════════════════════════════════════════════════════════════
-# 🔥 FIREBASE INITIALIZATION
+# 🔥 FIREBASE INITIALIZATION WITH ERROR HANDLING
 # ══════════════════════════════════════════════════════════════
 
-cred_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
-if not cred_json:
-    raise Exception("GOOGLE_CREDENTIALS_JSON env var is missing!")
+try:
+    print("\n1️⃣ Checking environment variables...")
+    cred_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    
+    if not cred_json:
+        print("❌ ERROR: GOOGLE_CREDENTIALS_JSON not found!")
+        print("Available env vars:", list(os.environ.keys()))
+        sys.exit(1)
+    
+    print("✅ GOOGLE_CREDENTIALS_JSON found")
+    print(f"   Length: {len(cred_json)} characters")
+    
+    print("\n2️⃣ Parsing JSON credentials...")
+    try:
+        cred_dict = json.loads(cred_json)
+        print("✅ JSON parsed successfully")
+        print(f"   Project ID: {cred_dict.get('project_id', 'N/A')}")
+    except json.JSONDecodeError as e:
+        print(f"❌ ERROR: Invalid JSON format!")
+        print(f"   Error: {e}")
+        print(f"   First 100 chars: {cred_json[:100]}")
+        sys.exit(1)
+    
+    print("\n3️⃣ Initializing Firebase...")
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    print("✅ Firebase initialized successfully")
+    
+except Exception as e:
+    print(f"\n❌ FATAL ERROR during initialization:")
+    print(f"   {type(e).__name__}: {e}")
+    traceback.print_exc()
+    sys.exit(1)
 
-cred_dict = json.loads(cred_json)
-cred = credentials.Certificate(cred_dict)
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-
-print("🚀 AcadeMe Notification Service Started!")
-print(f"⏰ Server Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"\n✅ Server Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ══════════════════════════════════════════════════════════════
 # 📊 TRACKING STATE
@@ -131,7 +162,6 @@ def send_to_all(title, body):
 
     except Exception as e:
         print(f"❌ Send error: {e}")
-        import traceback
         traceback.print_exc()
 
 
@@ -190,7 +220,7 @@ def send_to_user(user_id, title, body):
 
 
 # ══════════════════════════════════════════════════════════════
-# 👀 WATCHERS (Only 3 triggers)
+# 👀 WATCHERS
 # ══════════════════════════════════════════════════════════════
 
 def load_existing_ids(collection_name):
@@ -303,7 +333,7 @@ def watch_notifications():
 
 
 # ══════════════════════════════════════════════════════════════
-# 💓 KEEP ALIVE (Free - No external service needed)
+# 💓 KEEP ALIVE
 # ══════════════════════════════════════════════════════════════
 
 def keep_alive():
@@ -333,7 +363,7 @@ def keep_alive():
 
 
 # ══════════════════════════════════════════════════════════════
-# 🌐 STATUS PAGE
+# 🌐 WEB SERVER
 # ══════════════════════════════════════════════════════════════
 
 class Handler(BaseHTTPRequestHandler):
@@ -415,4 +445,67 @@ class Handler(BaseHTTPRequestHandler):
         </body>
         </html>
         """
+        self.wfile.write(html.encode())
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        pass
+
+
+def run_server():
+    port = int(os.environ.get('PORT', 8080))
+    
+    try:
+        print(f"\n4️⃣ Starting web server on port {port}...")
+        server = HTTPServer(('0.0.0.0', port), Handler)
+        print(f"✅ Server listening on 0.0.0.0:{port}")
+        print("=" * 50)
+        server.serve_forever()
+    except Exception as e:
+        print(f"\n❌ FATAL ERROR starting server:")
+        print(f"   {type(e).__name__}: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
+
+# ══════════════════════════════════════════════════════════════
+# 🚀 MAIN
+# ══════════════════════════════════════════════════════════════
+
+if __name__ == '__main__':
+    try:
+        print("\n📂 Loading existing data...")
+        load_existing_ids("updates")
+        load_existing_ids("resources")
+        load_existing_ids("notifications")
+
+        watchers = [
+            ("Updates", watch_updates),
+            ("Resources", watch_resources),
+            ("Messages", watch_notifications),
+        ]
+
+        for name, func in watchers:
+            t = threading.Thread(target=func, daemon=True, name=f"Watch-{name}")
+            t.start()
+            print(f"👀 Watching: {name}")
+
+        keeper = threading.Thread(target=keep_alive, daemon=True)
+        keeper.start()
+        print("💓 Keep-alive started\n")
+
+        print("🔔 Notifications enabled for:")
+        print("   📢 Updates")
+        print("   📚 Resources")
+        print("   💬 Admin Messages\n")
+
+        run_server()
         
+    except Exception as e:
+        print(f"\n❌ FATAL ERROR in main:")
+        print(f"   {type(e).__name__}: {e}")
+        traceback.print_exc()
+        sys.exit(1)
