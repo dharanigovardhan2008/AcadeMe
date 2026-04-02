@@ -37,45 +37,19 @@ const NotificationPrompt = () => {
       if (token) {
         // Success!
         setShow(false);
-        localStorage.setItem('notificationPromptShown', 'true');
-        
-        // Show success message briefly
-        const successDiv = document.createElement('div');
-        successDiv.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-          color: white;
-          padding: 16px 24px;
-          border-radius: 12px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-          z-index: 10000;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          animation: slideIn 0.3s ease;
-        `;
-        successDiv.innerHTML = `
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span style="font-weight: 600;">Notifications Enabled!</span>
-        `;
-        document.body.appendChild(successDiv);
+        localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
 
-        setTimeout(() => {
-          successDiv.style.animation = 'slideOut 0.3s ease';
-          setTimeout(() => successDiv.remove(), 300);
-        }, 3000);
+        // Show success message
+        showSuccessToast();
       } else {
         // User denied or error
         setShow(false);
-        localStorage.setItem('notificationPromptShown', 'true');
+        localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
       }
     } catch (error) {
       console.error('Notification error:', error);
       setShow(false);
+      localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
     } finally {
       setLoading(false);
     }
@@ -83,12 +57,50 @@ const NotificationPrompt = () => {
 
   const handleDismiss = () => {
     setShow(false);
-    localStorage.setItem('notificationPromptShown', 'true');
+    localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
   };
 
   const handleLater = () => {
     setShow(false);
-    // Don't save to localStorage, so it can show again on next visit
+    localStorage.setItem('notificationPromptShown', 'true'); // ✅ CHANGED: Now saves, so never shows again
+  };
+
+  // ✅ NEW: Also save when clicking outside
+  const handleOverlayClick = () => {
+    setShow(false);
+    localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
+  };
+
+  const showSuccessToast = () => {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideInRight 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    toast.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span style="font-weight: 600;">Notifications Enabled!</span>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'slideOutRight 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   };
 
   if (!show) return null;
@@ -96,25 +108,25 @@ const NotificationPrompt = () => {
   return (
     <>
       <style>{`
-        @keyframes slideIn {
+        @keyframes slideInRight {
           from {
             opacity: 0;
-            transform: translateY(-20px);
+            transform: translateX(100px);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(0);
           }
         }
 
-        @keyframes slideOut {
+        @keyframes slideOutRight {
           from {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(0);
           }
           to {
             opacity: 0;
-            transform: translateY(-20px);
+            transform: translateX(100px);
           }
         }
 
@@ -162,8 +174,19 @@ const NotificationPrompt = () => {
             0 20px 60px rgba(0, 0, 0, 0.5),
             0 0 0 1px rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(20px);
-          animation: slideIn 0.4s ease;
+          animation: slideUp 0.4s ease;
           position: relative;
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .bell-icon-wrapper {
@@ -262,6 +285,7 @@ const NotificationPrompt = () => {
         .btn-enable:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+          transform: none;
         }
 
         .btn-secondary {
@@ -335,7 +359,8 @@ const NotificationPrompt = () => {
         }
       `}</style>
 
-      <div className="notification-prompt-overlay" onClick={handleLater}>
+      {/* ✅ CHANGED: onClick now saves to localStorage */}
+      <div className="notification-prompt-overlay" onClick={handleOverlayClick}>
         <div className="notification-prompt-card" onClick={(e) => e.stopPropagation()}>
           
           {/* Close button */}
@@ -399,7 +424,7 @@ const NotificationPrompt = () => {
             </button>
 
             <button className="btn-secondary" onClick={handleLater}>
-              Maybe Later
+              No Thanks
             </button>
           </div>
         </div>
