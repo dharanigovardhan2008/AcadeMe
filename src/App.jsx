@@ -3,12 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
-import { requestNotificationPermission, onForegroundMessage } from "./firebase"; // ✅ ADD THIS
+import { onForegroundMessage } from "./firebase"; // Keep this
 
 import ErrorBoundary from "./components/ErrorBoundary";
 import useAnimationSystem from "./hooks/useAnimationSystem";
 
 import DownloadAppBanner from "./components/DownloadAppBanner";
+import NotificationPrompt from "./components/NotificationPrompt"; // ✅ ADD THIS
 import SplashScreen from "./pages/SplashScreen";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -57,38 +58,18 @@ const ProtectedRoute = ({ children }) => {
 // ── AppContent ───────────────────────────────────────────────────────────────
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
-  const { user } = useAuth(); // ✅ ADD THIS
+  const { user } = useAuth();
 
   useAnimationSystem();
 
-  // ✅ NEW: Request notification permission when user logs in
-  useEffect(() => {
-    if (user?.uid) {
-      // Small delay to avoid blocking UI
-      const timer = setTimeout(() => {
-        requestNotificationPermission(user.uid)
-          .then((token) => {
-            if (token) {
-              console.log("✅ Notifications enabled");
-            } else {
-              console.log("ℹ️ Notifications not enabled (user may have denied)");
-            }
-          })
-          .catch((err) => {
-            console.error("❌ Notification setup failed:", err);
-          });
-      }, 2000); // Wait 2 seconds after login
+  // ✅ REMOVE the old automatic notification request
+  // We'll use the popup instead
 
-      return () => clearTimeout(timer);
-    }
-  }, [user?.uid]);
-
-  // ✅ NEW: Handle foreground notifications (when app is open)
+  // Handle foreground notifications
   useEffect(() => {
     if (user?.uid) {
       onForegroundMessage((payload) => {
         console.log("📩 Notification received while app is open:", payload);
-        // Notification will auto-show via the onForegroundMessage handler in firebase.js
       });
     }
   }, [user?.uid]);
@@ -107,6 +88,9 @@ const AppContent = () => {
 
   return (
     <>
+      {/* ✅ ADD THIS - Shows notification popup automatically */}
+      <NotificationPrompt />
+
       <Routes>
         {/* Public */}
         <Route path="/"       element={<SplashScreen />} />
