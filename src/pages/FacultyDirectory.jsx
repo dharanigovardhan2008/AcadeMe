@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, BookOpen, Phone, User, X, Plus, Trash2, Edit2, Code, Filter, RefreshCcw, Star } from 'lucide-react';
+import { Search, BookOpen, Phone, X, Plus, Trash2, Edit2, Code, Filter, RefreshCcw, Star } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 import GlassButton from '../components/GlassButton';
 import GlassInput from '../components/GlassInput';
@@ -17,6 +17,63 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
 @keyframes fdGlow { 0%,100%{opacity:.55} 50%{opacity:1} }
 @keyframes fdUp   { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fdIn   { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+
+.fd-shell {
+    display:flex;
+    flex-direction:column;
+    gap:1.1rem;
+}
+
+.fd-header {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:1rem;
+}
+
+.fd-title-copy {
+    flex:1 1 260px;
+    min-width:0;
+}
+
+.fd-toolbar {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    gap:.75rem;
+}
+
+.fd-filter-row {
+    display:flex;
+    align-items:flex-start;
+    gap:6px;
+}
+
+.fd-summary {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    flex-wrap:wrap;
+}
+
+.fd-stat {
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+    padding:.55rem .8rem;
+    border-radius:14px;
+    border:1px solid rgba(96,165,250,.18);
+    background:linear-gradient(135deg, rgba(15,23,42,.65), rgba(30,41,59,.4));
+    color:#cbd5e1;
+    font-size:.78rem;
+    font-weight:600;
+}
+
+.fd-grid-wrap {
+    display:grid;
+    gap:1rem;
+}
 
 /* neon avatar ring */
 .fd-av-ring {
@@ -37,8 +94,39 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
     transition:transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
     animation:fdUp .4s ease both;
     text-align:center;
+    min-width:0;
 }
 .fd-card:hover { transform:translateY(-5px) scale(1.025); }
+.fd-card-panel {
+    padding:1rem .9rem;
+    text-align:center;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.15rem;
+}
+.fd-card-courses {
+    margin-top:.75rem;
+    width:100%;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:.4rem;
+}
+.fd-card-course-pill {
+    padding:.28rem .55rem;
+    border-radius:999px;
+    background:rgba(96,165,250,.12);
+    border:1px solid rgba(96,165,250,.22);
+    color:#bfdbfe;
+    font-size:.68rem;
+    line-height:1.2;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
 
 /* chip filter */
 .fd-chips { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:2px 0; flex-wrap:nowrap; }
@@ -88,9 +176,12 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
 
 /* card text sizes for tiny screens */
 @media (max-width:380px) {
+    .fd-shell { gap:.9rem; }
+    .fd-grid { grid-template-columns:1fr; }
     .fd-av-inner { width:52px; height:52px; font-size:1.15rem; }
     .fd-card-name { font-size:.82rem !important; }
     .fd-card-sub  { font-size:.68rem !important; }
+    .fd-card-course-pill { font-size:.63rem; }
 }
 
 /* admin form grid */
@@ -102,18 +193,30 @@ import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, query, order
 @media (max-width:520px) {
     .fd-overlay { align-items:flex-end; padding:0; }
     .fd-modal { max-height:88vh; border-radius:22px 22px 0 0 !important; max-width:100%; }
+    .fd-header { align-items:stretch; }
+    .fd-header button { width:100%; justify-content:center; }
+}
+
+@media (min-width:768px) {
+    .fd-toolbar {
+        grid-template-columns:minmax(0, 1.4fr) minmax(240px, .9fr);
+        align-items:center;
+    }
+}
+
+@media (max-width:767px) {
+    .fd-filter-row {
+        flex-direction:column;
+        align-items:stretch;
+    }
 }
 `;
     document.head.appendChild(s);
 }());
 
 /* ── helpers ─────────────────────────────────────────────── */
-const GRADS = [
-    ['#6366f1','#a855f7'], ['#ec4899','#f43f5e'], ['#10b981','#06b6d4'],
-    ['#f59e0b','#ef4444'], ['#3b82f6','#6366f1'], ['#14b8a6','#0ea5e9'],
-    ['#8b5cf6','#ec4899'], ['#f97316','#f59e0b'],
-];
-const getGrad = name => GRADS[(name?.charCodeAt(0) || 0) % GRADS.length];
+const FACULTY_GRADIENT = ['#3b82f6', '#8b5cf6'];
+const getGrad = () => FACULTY_GRADIENT;
 const getInitials = name => {
     const p = (name || '').trim().split(' ').filter(Boolean);
     return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (p[0]?.[0] || '?').toUpperCase();
@@ -197,6 +300,11 @@ const FacultyDirectory = () => {
         return ['All', ...new Set(codes.filter(c => c))].sort();
     }, [facultyList]);
 
+    const facultyWithReviews = useMemo(
+        () => Object.values(ratingMap).filter(data => data.count > 0).length,
+        [ratingMap]
+    );
+
     const filtered = facultyList.filter(f => {
         const searchLower = search.toLowerCase().trim();
         const matchesSearch =
@@ -249,16 +357,17 @@ const FacultyDirectory = () => {
     return (
         <DashboardLayout>
             <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .3s' }}>
+                <div className="fd-shell">
 
-                {/* ── header card ── */}
-                <GlassCard style={{ marginBottom: '1.1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                        <div>
+                    {/* ── header card ── */}
+                    <GlassCard>
+                        <div className="fd-header">
+                            <div className="fd-title-copy">
                             <h1 style={{ fontSize: 'clamp(1.4rem,5vw,1.9rem)', fontWeight: 800, margin: '0 0 4px', letterSpacing: '-.5px' }}>
                                 Faculty Directory
                             </h1>
                             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '.85rem' }}>
-                                Find professors by Course Code
+                                Browse professors, course codes, and ratings with a layout that stays easy to use on smaller screens.
                             </p>
                         </div>
                         {isAdmin && (
@@ -268,34 +377,34 @@ const FacultyDirectory = () => {
                                 {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add Faculty</>}
                             </button>
                         )}
-                    </div>
+                        </div>
 
-                    {/* search + filter */}
-                    <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
-                        <GlassInput
-                            icon={Search}
-                            placeholder="Search name, course…"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            style={{ margin: 0 }}
-                        />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Filter size={15} color="rgba(148,163,184,.4)" style={{ flexShrink: 0 }} />
-                            <div className="fd-chips">
-                                {uniqueCourseCodes.map(code => (
-                                    <button key={code} className={'fd-chip ' + (courseFilter === code ? 'fd-chip-on' : 'fd-chip-off')}
-                                        onClick={() => setCourseFilter(code)}>
-                                        {code}
-                                    </button>
-                                ))}
+                        {/* search + filter */}
+                        <div className="fd-toolbar" style={{ marginTop: '1.25rem' }}>
+                            <GlassInput
+                                icon={Search}
+                                placeholder="Search name, course…"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{ margin: 0 }}
+                            />
+                            <div className="fd-filter-row">
+                                <Filter size={15} color="rgba(148,163,184,.4)" style={{ flexShrink: 0, marginTop: '10px' }} />
+                                <div className="fd-chips">
+                                    {uniqueCourseCodes.map(code => (
+                                        <button key={code} className={'fd-chip ' + (courseFilter === code ? 'fd-chip-on' : 'fd-chip-off')}
+                                            onClick={() => setCourseFilter(code)}>
+                                            {code}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </GlassCard>
+                    </GlassCard>
 
-                {/* ── admin add/edit form ── */}
-                {isAdmin && showForm && (
-                    <GlassCard style={{ marginBottom: '1.1rem', border: '1px solid rgba(59,130,246,.28)' }}>
+                    {/* ── admin add/edit form ── */}
+                    {isAdmin && showForm && (
+                        <GlassCard style={{ border: '1px solid rgba(59,130,246,.28)' }}>
                         <h3 style={{ margin: '0 0 1.1rem', fontWeight: 700 }}>
                             {isEditing ? 'Edit Faculty' : 'Add New Faculty'}
                         </h3>
@@ -341,17 +450,24 @@ const FacultyDirectory = () => {
                             </button>
                         </form>
                     </GlassCard>
-                )}
+                    )}
 
-                {/* ── results count ── */}
-                <p style={{ fontSize: '.78rem', color: 'rgba(148,163,184,.45)', margin: '0 0 .75rem', fontWeight: 500 }}>
-                    {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
-                    {(search || courseFilter !== 'All') ? ' · filtered' : ''}
-                </p>
+                    <div className="fd-grid-wrap">
+                        {/* ── results count ── */}
+                        <div className="fd-summary">
+                            <p style={{ fontSize: '.78rem', color: 'rgba(148,163,184,.55)', margin: 0, fontWeight: 500 }}>
+                                {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+                                {(search || courseFilter !== 'All') ? ' · filtered' : ''}
+                            </p>
+                            <div className="fd-stat">
+                                <Star size={14} color="#FBBF24" fill="#FBBF24" />
+                                {facultyWithReviews} rated faculty
+                            </div>
+                        </div>
 
-                {/* ══ FACULTY GRID ══ */}
-                <div className="fd-grid">
-                    {filtered.length > 0 ? filtered.map((f, idx) => {
+                        {/* ══ FACULTY GRID ══ */}
+                        <div className="fd-grid">
+                            {filtered.length > 0 ? filtered.map((f, idx) => {
                         const [gc1, gc2] = getGrad(f.name);
                         const rData = ratingMap[f.name];
                         const avg   = rData ? rData.sum / rData.count : 0;
@@ -365,14 +481,8 @@ const FacultyDirectory = () => {
                                 style={{ animationDelay: (idx * .04) + 's' }}
                                 onClick={() => setSelectedFaculty(f)}
                             >
-                                <GlassCard style={{
-                                    padding: '1.25rem .9rem 1rem',
-                                    textAlign: 'center',
-                                    height: '100%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                }}>
+                                <GlassCard style={{ height: '100%' }}>
+                                    <div className="fd-card-panel">
                                     {/* circular neon avatar */}
                                     <div style={{ position: 'relative', width: '64px', height: '64px', margin: '0 auto .75rem', flexShrink: 0 }}>
                                         <div className="fd-av-ring" style={{
@@ -425,6 +535,19 @@ const FacultyDirectory = () => {
                                         </p>
                                     )}
 
+                                    {f.courses?.length > 0 && (
+                                        <div className="fd-card-courses">
+                                            {f.courses.slice(0, 2).map((course, courseIndex) => (
+                                                <span key={`${course.code}-${courseIndex}`} className="fd-card-course-pill">
+                                                    {course.code || course.name}
+                                                </span>
+                                            ))}
+                                            {f.courses.length > 2 && (
+                                                <span className="fd-card-course-pill">+{f.courses.length - 2} more</span>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* admin edit/delete */}
                                     {isAdmin && (
                                         <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '5px' }}
@@ -439,6 +562,7 @@ const FacultyDirectory = () => {
                                             </button>
                                         </div>
                                     )}
+                                    </div>
                                 </GlassCard>
                             </div>
                         );
@@ -448,13 +572,14 @@ const FacultyDirectory = () => {
                             <p>No faculty members match your search.</p>
                         </div>
                     )}
-                </div>
+                        </div>
+                    </div>
 
-                {/* ══ DETAIL MODAL — original logic unchanged ══ */}
-                {selectedFaculty && (
-                    <div className="fd-overlay" onClick={() => setSelectedFaculty(null)}>
-                        <div className="fd-modal" onClick={e => e.stopPropagation()}>
-                            <GlassCard style={{ borderRadius: '20px', position: 'relative' }}>
+                    {/* ══ DETAIL MODAL — original logic unchanged ══ */}
+                    {selectedFaculty && (
+                        <div className="fd-overlay" onClick={() => setSelectedFaculty(null)}>
+                            <div className="fd-modal" onClick={e => e.stopPropagation()}>
+                                <GlassCard style={{ borderRadius: '20px', position: 'relative' }}>
                                 <button onClick={() => setSelectedFaculty(null)}
                                     style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(148,163,184,.7)' }}>
                                     <X size={15} />
@@ -542,10 +667,11 @@ const FacultyDirectory = () => {
                                         </GlassButton>
                                     </div>
                                 )}
-                            </GlassCard>
+                                </GlassCard>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </DashboardLayout>
     );
