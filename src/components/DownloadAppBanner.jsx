@@ -1,38 +1,57 @@
 import React, { useState, useEffect } from "react";
+import { X, Download, Check, Loader2 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 
 const APK_URL = "https://drive.google.com/uc?export=download&confirm=t&id=1VLiFhunuvjc01BatpyqMs5V1SfKESE9Y";
 
 const DownloadAppBanner = () => {
-  const [showBanner, setShowBanner]         = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [dismissed, setDismissed]           = useState(false);
-  const [phase, setPhase]                   = useState("idle");
-  const [progress, setProgress]             = useState(0);
+  const [dismissed, setDismissed] = useState(false);
+  const [phase, setPhase] = useState("idle");
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // ✅ If already installed as PWA/standalone — never show
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches
-      || window.navigator.standalone === true;
-    if (isStandalone) return;
+    // 1. Check if the user has ALREADY permanently installed it
+    const isInstalledForever = localStorage.getItem("academe_app_installed") === "true";
+    
+    // 2. Check if currently running as an installed PWA (Standalone mode)
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    
+    // If it's already installed, sync the storage and NEVER show the banner
+    if (isStandalone || isInstalledForever) {
+      localStorage.setItem("academe_app_installed", "true");
+      return;
+    }
 
-    // ✅ Only hide for current session if user taps "Not now"
+    // 3. Check if they just hit "X" during this specific browsing session
     const hiddenThisSession = sessionStorage.getItem("banner_hidden_this_session");
     if (hiddenThisSession) return;
 
+    // 4. Capture native PWA install prompt if the browser offers it
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setTimeout(() => setShowBanner(true), 1500);
     };
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      setTimeout(() => setShowBanner(true), 2000);
-    }
+    // 5. Listen for actual native installation success
+    const handleAppInstalled = () => {
+      localStorage.setItem("academe_app_installed", "true");
+      setShowBanner(false);
+    };
+    window.addEventListener("appinstalled", handleAppInstalled);
 
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+    // 6. FORCE show the banner after 1.5 seconds on the web (if not installed & not dismissed)
+    const showTimer = setTimeout(() => {
+      setShowBanner(true);
+    }, 1500);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      clearTimeout(showTimer);
+    };
   }, []);
 
   const handlePWAInstall = async () => {
@@ -40,7 +59,10 @@ const DownloadAppBanner = () => {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     setDeferredPrompt(null);
+    
     if (outcome === "accepted") {
+      // Mark as permanently installed
+      localStorage.setItem("academe_app_installed", "true");
       setPhase("done");
       setTimeout(() => setShowBanner(false), 2000);
       return true;
@@ -52,7 +74,6 @@ const DownloadAppBanner = () => {
     setPhase("downloading");
     setProgress(0);
 
-    // ✅ Most reliable method — direct anchor click
     const link = document.createElement("a");
     link.href = APK_URL;
     link.download = "AcadeMe.apk";
@@ -61,7 +82,6 @@ const DownloadAppBanner = () => {
     link.click();
     document.body.removeChild(link);
 
-    // Simulate progress bar
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 8 + 3;
@@ -73,29 +93,35 @@ const DownloadAppBanner = () => {
       }
     }, 300);
 
-    // Mark complete after 4s
     setTimeout(() => {
       clearInterval(interval);
       setProgress(100);
       setPhase("done");
+      
+      // Mark as permanently installed once APK download finishes
+      localStorage.setItem("academe_app_installed", "true");
+      
       setTimeout(() => setShowBanner(false), 2500);
     }, 4000);
   };
 
   const handleInstall = async () => {
-    if (phase === "downloading") return;
+    if (phase === "downloading" || phase === "done") return;
+    
+    // Try PWA native install first
     if (deferredPrompt) {
       const installed = await handlePWAInstall();
       if (installed) return;
     }
+    
+    // Fallback to APK download
     downloadAPK();
   };
 
-  // ✅ "Not now" hides THIS session only
-  // Uninstall APK = not standalone = banner shows again next visit
   const handleLater = () => {
     setDismissed(true);
     setShowBanner(false);
+    // Hides for this session only. Will popup again on next website visit.
     sessionStorage.setItem("banner_hidden_this_session", "true");
   };
 
@@ -104,287 +130,199 @@ const DownloadAppBanner = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap');
+        @keyframes slideUpFade {
+          from { opacity: 0; transform: translate(-50%, 30px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
 
-        @keyframes ps-slide {
-          0%   { transform: translateY(120px); opacity: 0; }
-          65%  { transform: translateY(-5px);  opacity: 1; }
-          100% { transform: translateY(0);     opacity: 1; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pop {
-          0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
-          60%  { transform: scale(1.2) rotate(3deg); opacity: 1; }
-          100% { transform: scale(1)  rotate(0deg);  opacity: 1; }
-        }
-        @keyframes progress-shine {
-          0%   { background-position: -200% center; }
-          100% { background-position:  200% center; }
-        }
-        .ps-backdrop {
-          position: fixed; inset: 0;
-          background: rgba(0,0,0,0.55);
+        .compact-app-banner {
+          position: fixed;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 99998;
-          animation: fadeIn 0.3s ease forwards;
-        }
-        .ps-wrap {
-          position: fixed; bottom: 0; left: 0; right: 0;
-          z-index: 99999;
-          font-family: 'Google Sans', 'Roboto', sans-serif;
-          animation: ps-slide 0.5s cubic-bezier(0.34,1.2,0.64,1) forwards;
-        }
-        .ps-sheet {
-          background: #1f1f1f;
-          border-radius: 28px 28px 0 0;
-          overflow: hidden;
-          box-shadow: 0 -4px 40px rgba(0,0,0,0.7);
-        }
-        .ps-handle {
-          width: 36px; height: 4px;
-          background: rgba(255,255,255,0.18);
-          border-radius: 2px;
-          margin: 12px auto 16px;
-        }
-        .ps-header {
-          display: flex; align-items: center; gap: 16px;
-          padding: 0 20px 16px;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .ps-icon {
-          width: 64px; height: 64px; border-radius: 16px;
-          overflow: hidden; flex-shrink: 0; background: transparent;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .ps-icon img {
-          width: 100%; height: 100%;
-          object-fit: cover; border-radius: 16px;
-        }
-        .ps-name {
-          font-size: 17px; font-weight: 700;
-          color: #fff; margin-bottom: 2px;
-        }
-        .ps-dev {
-          font-size: 12px;
-          color: rgba(255,255,255,0.4); margin-bottom: 6px;
-        }
-        .ps-chips {
-          display: flex; align-items: center;
-          gap: 6px; flex-wrap: wrap;
-        }
-        .ps-chip {
-          display: flex; align-items: center; gap: 3px;
-          background: rgba(255,255,255,0.07); border-radius: 20px;
-          padding: 3px 9px; font-size: 11px;
-          color: rgba(255,255,255,0.6); font-weight: 500;
-        }
-        .ps-dot {
-          width: 3px; height: 3px; border-radius: 50%;
-          background: rgba(255,255,255,0.25);
-        }
-        .ps-stats {
+          width: 90%;
+          max-width: 420px;
+          background: linear-gradient(135deg, rgba(30, 30, 45, 0.9) 0%, rgba(20, 20, 35, 0.98) 100%);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+          border-radius: 28px;
+          padding: 14px 18px;
           display: flex;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          align-items: center;
+          gap: 14px;
+          animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
         }
-        .ps-stat {
-          flex: 1; text-align: center;
-          padding: 12px 0; position: relative;
+
+        .banner-app-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          overflow: hidden;
+          flex-shrink: 0;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .ps-stat + .ps-stat::before {
-          content: ''; position: absolute;
-          left: 0; top: 20%; bottom: 20%;
-          width: 1px; background: rgba(255,255,255,0.09);
+
+        .banner-app-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
-        .ps-stat-v {
-          font-size: 14px; font-weight: 700; color: #fff;
-          display: flex; align-items: center;
-          justify-content: center; gap: 2px;
+
+        .banner-text-content {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
-        .ps-stat-l {
-          font-size: 11px;
-          color: rgba(255,255,255,0.38); margin-top: 2px;
-        }
-        .ps-desc {
-          padding: 13px 20px; font-size: 13px;
-          color: rgba(255,255,255,0.48); line-height: 1.55;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-        .ps-progress-wrap { padding: 14px 20px 4px; }
-        .ps-progress-row {
-          display: flex; justify-content: space-between;
-          font-size: 12px; color: rgba(255,255,255,0.45);
-          margin-bottom: 8px;
-        }
-        .ps-progress-track {
-          height: 4px; background: rgba(255,255,255,0.1);
-          border-radius: 2px; overflow: hidden;
-        }
-        .ps-progress-fill {
-          height: 100%; border-radius: 2px;
-          background: linear-gradient(
-            90deg, #01875f 0%, #34d399 50%, #01875f 100%
-          );
-          background-size: 200% auto;
-          animation: progress-shine 1.5s linear infinite;
-          transition: width 0.4s ease;
-        }
-        .ps-actions {
-          display: flex; gap: 12px;
-          padding: 16px 20px 36px; align-items: center;
-        }
-        .ps-btn-install {
-          flex: 1; height: 48px; background: #01875f;
-          border: none; border-radius: 24px; color: #fff;
-          font-size: 15px; font-weight: 700; cursor: pointer;
-          font-family: inherit;
-          display: flex; align-items: center;
-          justify-content: center; gap: 8px;
-          transition: background 0.2s, transform 0.1s;
-          letter-spacing: 0.2px;
-        }
-        .ps-btn-install:hover:not(:disabled)  { background: #017a56; }
-        .ps-btn-install:active:not(:disabled) { transform: scale(0.97); }
-        .ps-btn-install:disabled { opacity: 0.75; cursor: not-allowed; }
-        .ps-btn-install.error { background: #c0392b; }
-        .ps-spinner {
-          width: 18px; height: 18px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff; border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-        }
-        .ps-check {
-          display: inline-flex; align-items: center; gap: 6px;
-          animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
-        }
-        .ps-btn-later {
-          height: 48px; padding: 0 20px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 24px; color: rgba(255,255,255,0.65);
-          font-size: 14px; font-weight: 600;
-          cursor: pointer; font-family: inherit;
-          transition: background 0.2s, color 0.2s;
+
+        .banner-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #FFFFFF;
+          margin: 0 0 2px 0;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .ps-btn-later:hover {
-          background: rgba(255,255,255,0.1); color: #fff;
+
+        .banner-desc {
+          font-size: 0.75rem;
+          color: rgba(255, 255, 255, 0.65);
+          margin: 0;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .banner-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .btn-banner-install {
+          background: #FFFFFF;
+          color: #111827;
+          border: none;
+          padding: 8px 18px;
+          border-radius: 999px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          min-width: 80px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-banner-install:hover:not(:disabled) {
+          transform: scale(1.05);
+          background: #F9FAFB;
+        }
+
+        .btn-banner-install:active:not(:disabled) {
+          transform: scale(0.95);
+        }
+
+        .btn-banner-install:disabled {
+          background: rgba(255, 255, 255, 0.15);
+          color: #FFFFFF;
+          cursor: default;
+        }
+
+        .btn-banner-close {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: rgba(255, 255, 255, 0.7);
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .btn-banner-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+          color: #FFFFFF;
+        }
+
+        @media (max-width: 480px) {
+          .compact-app-banner {
+            bottom: 20px;
+            width: 92%;
+            padding: 12px 14px;
+          }
+          .banner-app-icon {
+            width: 42px;
+            height: 42px;
+          }
+          .btn-banner-install {
+            padding: 8px 14px;
+            min-width: 70px;
+          }
         }
       `}</style>
 
-      {/* Backdrop */}
-      <div
-        className="ps-backdrop"
-        onClick={phase === "downloading" ? undefined : handleLater}
-      />
-
-      {/* Bottom Sheet */}
-      <div className="ps-wrap">
-        <div className="ps-sheet">
-          <div className="ps-handle" />
-
-          {/* Header */}
-          <div className="ps-header">
-            <div className="ps-icon">
-              <img src={logo} alt="AcadeMe" />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="ps-name">AcadeMe</div>
-              <div className="ps-dev">SIMATS Engineering</div>
-              <div className="ps-chips">
-                <div className="ps-chip">
-                  <span style={{ color: "#fbbc04" }}>★</span> 4.8
-                </div>
-                <div className="ps-dot" />
-                <div className="ps-chip">Free</div>
-                <div className="ps-dot" />
-                <div className="ps-chip">🔒 Safe</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="ps-stats">
-            {[
-              { v: <><span style={{ color: "#fbbc04" }}>★</span> 4.8</>, l: "Rating"   },
-              { v: "500+",  l: "Students" },
-              { v: "~3 MB", l: "Size"     },
-              { v: "Free",  l: "Price"    },
-            ].map((s, i) => (
-              <div className="ps-stat" key={i}>
-                <div className="ps-stat-v">{s.v}</div>
-                <div className="ps-stat-l">{s.l}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Description */}
-          <div className="ps-desc">
-            Track CGPA, attendance, faculty reviews &amp; resources —
-            all in one place for SIMATS students.
-          </div>
-
-          {/* Progress Bar */}
-          {phase === "downloading" && (
-            <div className="ps-progress-wrap">
-              <div className="ps-progress-row">
-                <span>Downloading AcadeMe.apk</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="ps-progress-track">
-                <div
-                  className="ps-progress-fill"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Buttons */}
-          <div className="ps-actions">
-            <button
-              className={`ps-btn-install ${phase === "error" ? "error" : ""}`}
-              onClick={handleInstall}
-              disabled={phase === "downloading" || phase === "done"}
-            >
-              {phase === "downloading" && (
-                <><div className="ps-spinner" /> Downloading {progress}%</>
-              )}
-              {phase === "done" && (
-                <span className="ps-check">
-                  <svg width="18" height="18" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor"
-                    strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Done!
-                </span>
-              )}
-              {phase === "error" && <>⚠ Retry</>}
-              {phase === "idle" && (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor"
-                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Install
-                </>
-              )}
-            </button>
-
-            <button className="ps-btn-later" onClick={handleLater}>
-              {phase === "downloading" ? "Cancel" : "Not now"}
-            </button>
-          </div>
-
+      <div className="compact-app-banner">
+        
+        <div className="banner-app-icon">
+          <img src={logo} alt="AcadeMe Logo" />
         </div>
+        
+        <div className="banner-text-content">
+          <h4 className="banner-title">AcadeMe App</h4>
+          <p className="banner-desc">
+            {phase === "downloading" ? "Downloading..." : "Track everything in one tap."}
+          </p>
+        </div>
+
+        <div className="banner-actions">
+          <button 
+            className="btn-banner-install" 
+            onClick={handleInstall} 
+            disabled={phase === "downloading" || phase === "done"}
+          >
+            {phase === "idle" && (
+              <>
+                <Download size={14} /> Get
+              </>
+            )}
+            {phase === "downloading" && (
+              <>
+                <Loader2 size={14} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> 
+                {progress}%
+              </>
+            )}
+            {phase === "done" && (
+              <>
+                <Check size={14} color="#10B981" /> Done
+              </>
+            )}
+          </button>
+          
+          <button 
+            className="btn-banner-close" 
+            onClick={handleLater}
+            aria-label="Dismiss"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
       </div>
     </>
   );

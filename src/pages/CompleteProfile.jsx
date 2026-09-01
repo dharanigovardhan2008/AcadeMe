@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { User, ArrowRight, Lock, IdCard } from 'lucide-react'; 
 import GlassCard from '../components/GlassCard';
 import GlassInput from '../components/GlassInput';
-import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
 import { useAuth } from '../context/AuthContext';
-import { auth, db } from '../firebase';
+import { db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth'; // Import this to set the password
 
@@ -48,30 +47,16 @@ const CompleteProfile = () => {
             return;
         }
 
-        // The `user` object from useAuth() is a merged plain object (Firebase
-        // auth fields + Firestore fields spread together) — it does NOT carry
-        // over the real Firebase User instance's methods like getIdToken(),
-        // because {...currentUser} only copies own data properties, not
-        // prototype methods. Auth SDK calls like updatePassword() need the
-        // actual live Firebase User object, which is always available at
-        // auth.currentUser.
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) {
-            alert("Your session has expired. Please log in again.");
-            navigate('/login');
-            return;
-        }
-
         setLoading(true);
         try {
             // 1. Update the password for the Google User
-            await updatePassword(firebaseUser, formData.password);
+            await updatePassword(user, formData.password);
 
             // 2. Save all data to Firestore
-            await setDoc(doc(db, "users", firebaseUser.uid), {
-                uid: firebaseUser.uid,
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
                 name: formData.name,
-                email: firebaseUser.email,
+                email: user.email,
                 branch: formData.branch,
                 year: formData.year,
                 regNo: formData.regNo,
@@ -174,9 +159,14 @@ const CompleteProfile = () => {
                         />
                     </div>
 
-                    <GlassButton type="submit" variant="gradient" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                    <button
+                        type="submit"
+                        className="glass-button"
+                        disabled={loading}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '1rem', border: 'none' }}
+                    >
                         {loading ? 'Creating Account...' : 'Finish Setup'} <ArrowRight size={18} />
-                    </GlassButton>
+                    </button>
                 </form>
             </GlassCard>
         </div>

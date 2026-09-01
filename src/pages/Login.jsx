@@ -1,6 +1,6 @@
 // Login.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, LogIn, ShieldCheck, Eye, EyeOff, GraduationCap } from 'lucide-react';
@@ -17,8 +17,12 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, verifyAdmin } = useAuth();
+    const { login, verifyAdmin, user } = useAuth();
     const navigate = useNavigate();
+    // Tracks that we just did an email/password login and are waiting for
+    // AuthContext's `user` to populate. Kept separate from Google login,
+    // which handles its own /dashboard vs /complete-profile routing below.
+    const [awaitingEmailLogin, setAwaitingEmailLogin] = useState(false);
 
     const handleAdminLogin = () => {
         const pin = prompt("Enter Admin PIN:");
@@ -34,12 +38,27 @@ const Login = () => {
             setError('');
             setLoading(true);
             await login(email, password);
-            navigate('/dashboard');
+            // Don't navigate here — AuthContext's `user` is still fetching
+            // the profile from Firestore in the background at this point.
+            // The effect below waits for `user` to actually populate before
+            // navigating, so ProtectedRoute never bounces us back to /login.
+            setAwaitingEmailLogin(true);
         } catch (error) {
             setError('Failed to log in. Please check your credentials.');
             setLoading(false);
         }
     };
+
+    // Fires once AuthContext's `user` is actually populated after an
+    // email/password login, then routes to the dashboard. Only runs for
+    // the email flow (guarded by awaitingEmailLogin) so it doesn't
+    // interfere with Google sign-in's own routing logic.
+    useEffect(() => {
+        if (user && awaitingEmailLogin) {
+            setAwaitingEmailLogin(false);
+            navigate('/dashboard');
+        }
+    }, [user, awaitingEmailLogin, navigate]);
 
     const handleGoogleLogin = async () => {
         setLoading(true);

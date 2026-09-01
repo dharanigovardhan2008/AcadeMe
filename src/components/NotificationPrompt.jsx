@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Check } from 'lucide-react';
+import { Bell, X, Loader2 } from 'lucide-react';
 import { requestNotificationPermission } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,16 +9,15 @@ const NotificationPrompt = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Only show if user is logged in and hasn't been asked before
     if (user?.uid) {
-      const hasAsked = localStorage.getItem('notificationPromptShown');
       const permission = Notification.permission;
+      // Use sessionStorage so it resets every time they open the app afresh
+      const dismissedThisSession = sessionStorage.getItem('notificationPromptDismissed');
 
       // Show prompt if:
-      // - User hasn't been asked before
-      // - Permission is default (not granted or denied)
-      if (!hasAsked && permission === 'default') {
-        // Show after 3 seconds (let user settle in)
+      // - Permission is default (not granted or denied yet)
+      // - They haven't dismissed it during this specific browsing session
+      if (permission === 'default' && !dismissedThisSession) {
         const timer = setTimeout(() => {
           setShow(true);
         }, 3000);
@@ -30,77 +29,65 @@ const NotificationPrompt = () => {
 
   const handleEnable = async () => {
     setLoading(true);
-
     try {
       const token = await requestNotificationPermission(user.uid);
-
       if (token) {
-        // Success!
         setShow(false);
-        localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
-
-        // Show success message
         showSuccessToast();
       } else {
-        // User denied or error
         setShow(false);
-        localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
+        sessionStorage.setItem('notificationPromptDismissed', 'true');
       }
     } catch (error) {
       console.error('Notification error:', error);
       setShow(false);
-      localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
+      sessionStorage.setItem('notificationPromptDismissed', 'true');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDismiss = () => {
-    setShow(false);
-    localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
-  };
-
   const handleLater = () => {
     setShow(false);
-    localStorage.setItem('notificationPromptShown', 'true'); // ✅ CHANGED: Now saves, so never shows again
-  };
-
-  // ✅ NEW: Also save when clicking outside
-  const handleOverlayClick = () => {
-    setShow(false);
-    localStorage.setItem('notificationPromptShown', 'true'); // ✅ Never show again
+    // Dismisses it for this session, but will ask again next time they open the app
+    sessionStorage.setItem('notificationPromptDismissed', 'true'); 
   };
 
   const showSuccessToast = () => {
     const toast = document.createElement('div');
     toast.style.cssText = `
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-      color: white;
-      padding: 16px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255,255,255,1);
+      color: #111827;
+      padding: 14px 20px;
+      border-radius: 999px;
+      box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
       z-index: 10001;
       display: flex;
       align-items: center;
       gap: 12px;
-      animation: slideInRight 0.3s ease;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     `;
     toast.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-      <span style="font-weight: 600;">Notifications Enabled!</span>
+      <div style="background: #10B981; border-radius: 50%; padding: 4px; display: flex;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <span style="font-weight: 700; font-size: 0.95rem;">Notifications Enabled</span>
     `;
     document.body.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.animation = 'slideOutRight 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
+      toast.style.animation = 'slideOutRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+      setTimeout(() => toast.remove(), 400);
+    }, 3500);
   };
 
   if (!show) return null;
@@ -108,325 +95,193 @@ const NotificationPrompt = () => {
   return (
     <>
       <style>{`
-        @keyframes slideInRight {
+        @keyframes slideUpFade {
           from {
             opacity: 0;
-            transform: translateX(100px);
+            transform: translate(-50%, 30px);
           }
           to {
             opacity: 1;
-            transform: translateX(0);
+            transform: translate(-50%, 0);
           }
+        }
+
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(50px); }
+          to { opacity: 1; transform: translateX(0); }
         }
 
         @keyframes slideOutRight {
-          from {
-            opacity: 1;
-            transform: translateX(0);
-          }
-          to {
-            opacity: 0;
-            transform: translateX(100px);
-          }
+          from { opacity: 1; transform: translateX(0); }
+          to { opacity: 0; transform: translateX(50px); }
         }
 
-        @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.05);
-          }
-        }
-
-        .notification-prompt-overlay {
+        .compact-prompt-container {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 9999;
-          padding: 20px;
-          animation: fadeIn 0.3s ease;
+          width: 90%;
+          max-width: 400px;
+          animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
         }
 
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .notification-prompt-card {
-          background: linear-gradient(
-            135deg,
-            rgba(30, 30, 50, 0.95) 0%,
-            rgba(20, 20, 40, 0.98) 100%
-          );
-          border-radius: 24px;
-          padding: 32px;
-          max-width: 440px;
-          width: 100%;
-          box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(20px);
-          animation: slideUp 0.4s ease;
-          position: relative;
-        }
-
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .bell-icon-wrapper {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+        .compact-prompt-card {
+          background: linear-gradient(135deg, rgba(30, 30, 45, 0.85) 0%, rgba(20, 20, 35, 0.95) 100%);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 28px;
+          padding: 16px 20px;
           display: flex;
           align-items: center;
-          justify-content: center;
-          margin: 0 auto 24px;
-          animation: pulse 2s infinite;
-          box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4);
+          gap: 16px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255,255,255,0.05) inset;
         }
 
-        .prompt-title {
-          font-size: 24px;
-          font-weight: 700;
-          color: white;
-          text-align: center;
-          margin: 0 0 12px;
-          background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .prompt-description {
-          font-size: 15px;
-          color: rgba(255, 255, 255, 0.7);
-          text-align: center;
-          line-height: 1.6;
-          margin: 0 0 28px;
-        }
-
-        .benefits-list {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .benefit-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 8px 0;
-          color: rgba(255, 255, 255, 0.85);
-          font-size: 14px;
-        }
-
-        .benefit-icon {
-          width: 20px;
-          height: 20px;
+        .prompt-icon-wrapper {
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
-          background: rgba(59, 130, 246, 0.2);
+          background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
-        .button-group {
+        .prompt-text-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .prompt-title {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #FFFFFF;
+          margin: 0 0 4px 0;
+          white-space: nowrap;
+        }
+
+        .prompt-desc {
+          font-size: 0.8rem;
+          color: rgba(255, 255, 255, 0.7);
+          margin: 0;
+          line-height: 1.4;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .prompt-actions {
           display: flex;
-          flex-direction: column;
-          gap: 12px;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
         }
 
-        .btn-enable {
-          background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
-          color: white;
+        .btn-prompt-enable {
+          background: #FFFFFF;
+          color: #111827;
           border: none;
-          padding: 14px 24px;
-          border-radius: 12px;
-          font-size: 16px;
-          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 999px;
+          font-size: 0.85rem;
+          font-weight: 700;
           cursor: pointer;
           display: flex;
           align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+          gap: 6px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .btn-enable:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4);
+        .btn-prompt-enable:hover:not(:disabled) {
+          transform: scale(1.05);
+          background: #F9FAFB;
         }
 
-        .btn-enable:active {
-          transform: translateY(0);
+        .btn-prompt-enable:active:not(:disabled) {
+          transform: scale(0.95);
         }
 
-        .btn-enable:disabled {
-          opacity: 0.6;
+        .btn-prompt-enable:disabled {
+          opacity: 0.7;
           cursor: not-allowed;
-          transform: none;
         }
 
-        .btn-secondary {
-          background: transparent;
-          color: rgba(255, 255, 255, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          padding: 12px 24px;
-          border-radius: 12px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.8);
-          border-color: rgba(255, 255, 255, 0.25);
-        }
-
-        .close-button {
-          position: absolute;
-          top: 16px;
-          right: 16px;
+        .btn-prompt-close {
           background: rgba(255, 255, 255, 0.1);
           border: none;
           width: 32px;
           height: 32px;
-          border-radius: 8px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          transition: all 0.2s ease;
+          color: rgba(255, 255, 255, 0.7);
+          transition: all 0.2s;
         }
 
-        .close-button:hover {
-          background: rgba(255, 255, 255, 0.15);
+        .btn-prompt-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+          color: #FFFFFF;
         }
 
-        .spinner {
-          width: 20px;
-          height: 20px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 500px) {
-          .notification-prompt-card {
-            padding: 24px;
+        @media (max-width: 480px) {
+          .compact-prompt-container {
+            bottom: 20px;
+            width: 92%;
           }
-
-          .bell-icon-wrapper {
-            width: 64px;
-            height: 64px;
+          .compact-prompt-card {
+            padding: 14px;
+            gap: 12px;
+            border-radius: 24px;
           }
-
-          .prompt-title {
-            font-size: 20px;
+          .prompt-desc {
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
           }
-
-          .prompt-description {
-            font-size: 14px;
+          .btn-prompt-enable {
+            padding: 8px 12px;
           }
         }
       `}</style>
 
-      {/* ✅ CHANGED: onClick now saves to localStorage */}
-      <div className="notification-prompt-overlay" onClick={handleOverlayClick}>
-        <div className="notification-prompt-card" onClick={(e) => e.stopPropagation()}>
+      <div className="compact-prompt-container">
+        <div className="compact-prompt-card">
           
-          {/* Close button */}
-          <button className="close-button" onClick={handleDismiss} aria-label="Close">
-            <X size={18} color="rgba(255,255,255,0.6)" />
-          </button>
-
-          {/* Bell icon */}
-          <div className="bell-icon-wrapper">
-            <Bell size={36} color="white" />
+          <div className="prompt-icon-wrapper">
+            <Bell size={20} color="#FFFFFF" style={{ animation: 'swing 2s infinite ease-in-out' }} />
+          </div>
+          
+          <div className="prompt-text-content">
+            <h4 className="prompt-title">Stay Updated</h4>
+            <p className="prompt-desc">Turn on alerts for important updates.</p>
           </div>
 
-          {/* Title */}
-          <h2 className="prompt-title">Stay Updated!</h2>
-
-          {/* Description */}
-          <p className="prompt-description">
-            Enable notifications to get instant updates about important announcements, new resources, and messages.
-          </p>
-
-          {/* Benefits */}
-          <div className="benefits-list">
-            <div className="benefit-item">
-              <div className="benefit-icon">
-                <Check size={12} color="#3B82F6" />
-              </div>
-              <span>📢 New updates & announcements</span>
-            </div>
-            <div className="benefit-item">
-              <div className="benefit-icon">
-                <Check size={12} color="#3B82F6" />
-              </div>
-              <span>📚 Fresh study resources</span>
-            </div>
-            <div className="benefit-item">
-              <div className="benefit-icon">
-                <Check size={12} color="#3B82F6" />
-              </div>
-              <span>💬 Personal messages from admin</span>
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="button-group">
-            <button
-              className="btn-enable"
-              onClick={handleEnable}
+          <div className="prompt-actions">
+            <button 
+              className="btn-prompt-enable" 
+              onClick={handleEnable} 
               disabled={loading}
             >
-              {loading ? (
-                <>
-                  <div className="spinner" />
-                  <span>Enabling...</span>
-                </>
-              ) : (
-                <>
-                  <Bell size={20} />
-                  <span>Enable Notifications</span>
-                </>
-              )}
+              {loading ? <Loader2 size={16} className="animate-spin" /> : 'Turn On'}
             </button>
-
-            <button className="btn-secondary" onClick={handleLater}>
-              No Thanks
+            <button 
+              className="btn-prompt-close" 
+              onClick={handleLater}
+              aria-label="Not now"
+            >
+              <X size={16} />
             </button>
           </div>
+
         </div>
       </div>
     </>

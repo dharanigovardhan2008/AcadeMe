@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -27,7 +27,7 @@ import FacultyReviews from "./pages/FacultyReviews";
 import CommonCourses from "./pages/CommonCourses";
 import Leaderboard from "./pages/Leaderboard";
 
-import AdminModal from "./components/AdminModal";
+import AIAssistant from "./components/AIAssistant";
 
 // ── ProtectedRoute ───────────────────────────────────────────────────────────
 const ProtectedRoute = ({ children }) => {
@@ -57,7 +57,6 @@ const ProtectedRoute = ({ children }) => {
 
 // ── AppContent ───────────────────────────────────────────────────────────────
 const AppContent = () => {
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -106,18 +105,6 @@ const AppContent = () => {
     return () => window.removeEventListener("app-notification-click", handleFgClick);
   }, [navigate]);
 
-  // Admin modal shortcut
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "A") {
-        e.preventDefault();
-        setAdminModalOpen(true);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
   return (
     <>
       {/* ✅ ADD THIS - Shows notification popup automatically */}
@@ -147,7 +134,8 @@ const AppContent = () => {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      {/* Floating AI chat widget — only shown once a user is signed in */}
+      {user && <AIAssistant />}
     </>
   );
 };
