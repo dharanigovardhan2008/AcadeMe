@@ -6,7 +6,7 @@ import GlassInput from '../components/GlassInput';
 import GlassButton from '../components/GlassButton';
 import GlassDropdown from '../components/GlassDropdown';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth'; // Import this to set the password
 
@@ -48,16 +48,30 @@ const CompleteProfile = () => {
             return;
         }
 
+        // The `user` object from useAuth() is a merged plain object (Firebase
+        // auth fields + Firestore fields spread together) — it does NOT carry
+        // over the real Firebase User instance's methods like getIdToken(),
+        // because {...currentUser} only copies own data properties, not
+        // prototype methods. Auth SDK calls like updatePassword() need the
+        // actual live Firebase User object, which is always available at
+        // auth.currentUser.
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
+            alert("Your session has expired. Please log in again.");
+            navigate('/login');
+            return;
+        }
+
         setLoading(true);
         try {
             // 1. Update the password for the Google User
-            await updatePassword(user, formData.password);
+            await updatePassword(firebaseUser, formData.password);
 
             // 2. Save all data to Firestore
-            await setDoc(doc(db, "users", user.uid), {
-                uid: user.uid,
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+                uid: firebaseUser.uid,
                 name: formData.name,
-                email: user.email,
+                email: firebaseUser.email,
                 branch: formData.branch,
                 year: formData.year,
                 regNo: formData.regNo,
