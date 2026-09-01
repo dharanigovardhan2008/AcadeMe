@@ -1,331 +1,324 @@
-import React, { useState } from 'react';
-import { Trash2, Calculator, Save, Share2, Plus } from 'lucide-react';
-import jsPDF from 'jspdf';
-import GlassCard from '../components/GlassCard';
-import GlassButton from '../components/GlassButton';
-import GlassDropdown from '../components/GlassDropdown';
-import Badge from '../components/Badge';
+import React, { useState, useMemo, useEffect } from 'react';
+import { PieChart, Plus, Minus, RotateCcw, Award } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
-import { useData } from '../context/DataContext';
 
 const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0 };
 const GRADES = Object.keys(GRADE_POINTS);
 
+// Soft pastel theme colors for each grade
+const GRADE_COLORS = {
+    S: '#10B981', // Emerald
+    A: '#3B82F6', // Blue
+    B: '#6366F1', // Indigo
+    C: '#F59E0B', // Amber
+    D: '#F97316', // Orange
+    E: '#F43F5E', // Rose
+    F: '#EF4444', // Red
+};
+
+// Animated Number Counter
+const AnimatedCounter = ({ value, decimals = 0 }) => {
+    const [disp, setDisp] = useState(0);
+    useEffect(() => {
+        let t0 = null;
+        const dur = 600; // Snappy 600ms animation
+        const num = parseFloat(value) || 0;
+        const tick = (ts) => {
+            if (!t0) t0 = ts;
+            const p = Math.min((ts - t0) / dur, 1);
+            const easeOutQuart = 1 - Math.pow(1 - p, 4);
+            setDisp(num * easeOutQuart);
+            if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }, [value]);
+    return <>{disp.toFixed(decimals)}</>;
+};
+
 const CGPACalculator = () => {
-    const { cgpaSubjects, courses, addSubjectCGPA, removeSubjectCGPA, updateSubjectCGPA } = useData();
-    const [selectedElectiveId, setSelectedElectiveId] = useState('');
-    const [showResult, setShowResult] = useState(false);
-    const [calculatedCGPA, setCalculatedCGPA] = useState(0);
+    const [mounted, setMounted] = useState(false);
+    
+    // State to hold the count of each grade
+    const [counts, setCounts] = useState({
+        S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0
+    });
 
-    const handleAddElective = () => {
-        if (!selectedElectiveId) return;
-        const course = courses.find(c => c.id === selectedElectiveId);
-        if (course) {
-            addSubjectCGPA({ name: course.name, code: course.code, grade: 'A' });
-            setSelectedElectiveId('');
-            setShowResult(false);
+    useEffect(() => {
+        const t = setTimeout(() => setMounted(true), 80);
+        return () => clearTimeout(t);
+    }, []);
+
+    const handleIncrement = (grade) => {
+        setCounts(prev => ({ ...prev, [grade]: prev[grade] + 1 }));
+    };
+
+    const handleDecrement = (grade) => {
+        setCounts(prev => ({ ...prev, [grade]: Math.max(0, prev[grade] - 1) }));
+    };
+
+    const handleReset = () => {
+        setCounts({ S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 });
+    };
+
+    // Instant calculations using useMemo
+    const stats = useMemo(() => {
+        let totalSubs = 0;
+        let totalPts = 0;
+        const segments = [];
+        let currentPct = 0;
+
+        Object.entries(counts).forEach(([g, count]) => {
+            totalSubs += count;
+            totalPts += count * GRADE_POINTS[g];
+        });
+
+        const cgpa = totalSubs === 0 ? 0 : (totalPts / totalSubs);
+
+        // Calculate pie chart segments for CSS conic-gradient
+        if (totalSubs > 0) {
+            Object.entries(counts).forEach(([g, count]) => {
+                if (count > 0) {
+                    const pct = (count / totalSubs) * 100;
+                    segments.push({
+                        grade: g,
+                        color: GRADE_COLORS[g],
+                        start: currentPct,
+                        end: currentPct + pct
+                    });
+                    currentPct += pct;
+                }
+            });
         }
-    };
 
-    const calculate = () => {
-        if (!cgpaSubjects.length) return;
-        const total = cgpaSubjects.reduce((sum, s) => sum + GRADE_POINTS[s.grade || 'F'], 0);
-        setCalculatedCGPA((total / cgpaSubjects.length).toFixed(2));
-        setShowResult(true);
-    };
+        return { totalSubs, totalPts, cgpa, segments };
+    }, [counts]);
+
+    // Build the conic gradient string for the donut chart
+    const donutGradient = stats.totalSubs === 0 
+        ? 'conic-gradient(#F3F4F6 0% 100%)' 
+        : `conic-gradient(${stats.segments.map(s => `${s.color} ${s.start}% ${s.end}%`).join(', ')})`;
 
     const getMessage = (cgpa) => {
-        if (cgpa >= 9) return "🏆 Outstanding Performance!";
-        if (cgpa >= 8) return "⭐ Excellent Work!";
-        if (cgpa >= 7) return "👍 Good Performance!";
-        if (cgpa >= 6) return "📈 Keep Improving!";
-        return "💪 You Can Do Better!";
+        if (cgpa === 0) return "Add grades to see result";
+        if (cgpa >= 9) return "Outstanding Performance! 🏆";
+        if (cgpa >= 8) return "Excellent Work! ⭐";
+        if (cgpa >= 7) return "Good Performance! 👍";
+        if (cgpa >= 6) return "Keep Improving! 📈";
+        return "You Can Do Better! 💪";
     };
 
-    const getGrade = (cgpa) => {
-        if (cgpa >= 9) return "S";
-        if (cgpa >= 8) return "A";
-        if (cgpa >= 7) return "B";
-        if (cgpa >= 6) return "C";
-        if (cgpa >= 5) return "D";
-        return "F";
-    };
-
-    const handleSavePDF = () => {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageW = doc.internal.pageSize.getWidth();
-        const pageH = doc.internal.pageSize.getHeight();
-        const cgpaNum = parseFloat(calculatedCGPA);
-        const now = new Date();
-
-        // Header background
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, 0, pageW, 55, 'F');
-        doc.setFillColor(99, 102, 241);
-        doc.rect(0, 55, pageW, 3, 'F');
-
-        // App name
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(148, 163, 184);
-        doc.text('AcadeMe', 14, 14);
-
-        // Title
-        doc.setFontSize(26);
-        doc.setTextColor(255, 255, 255);
-        doc.text('CGPA Report', 14, 30);
-
-        // Date & subject count
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(148, 163, 184);
-        const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-        doc.text(`Generated on ${dateStr}`, 14, 40);
-        doc.text(`Total Subjects: ${cgpaSubjects.length}`, 14, 48);
-
-        // CGPA badge (top right)
-        const bx = pageW - 50, by = 12;
-        doc.setFillColor(99, 102, 241);
-        doc.circle(bx + 15, by + 18, 18, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`${calculatedCGPA}`, bx + 15, by + 16, { align: 'center' });
-        doc.setFontSize(8);
-        doc.setTextColor(199, 210, 254);
-        doc.text('CGPA', bx + 15, by + 24, { align: 'center' });
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Grade: ${getGrade(cgpaNum)}`, bx + 15, by + 33, { align: 'center' });
-
-        // Performance banner
-        const msgY = 72;
-        const mc = cgpaNum >= 7 ? [52, 211, 153] : cgpaNum >= 5 ? [251, 191, 36] : [248, 113, 113];
-        doc.setFillColor(...mc);
-        doc.roundedRect(14, msgY - 6, pageW - 28, 14, 3, 3, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42);
-        doc.text(getMessage(cgpaNum).replace(/[^\x00-\x7F]/g, '').trim(), pageW / 2, msgY + 2, { align: 'center' });
-
-        // Table header
-        let tableY = 96;
-        doc.setFillColor(30, 41, 59);
-        doc.rect(14, tableY - 6, pageW - 28, 10, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(148, 163, 184);
-        doc.text('#', 18, tableY);
-        doc.text('Subject Name', 28, tableY);
-        doc.text('Code', pageW - 65, tableY);
-        doc.text('Grade', pageW - 42, tableY);
-        doc.text('Points', pageW - 24, tableY);
-        tableY += 6;
-
-        // Table rows
-        cgpaSubjects.forEach((subject, i) => {
-            const rowY = tableY + i * 12;
-            doc.setFillColor(i % 2 === 0 ? 248 : 241, i % 2 === 0 ? 250 : 245, i % 2 === 0 ? 252 : 249);
-            doc.rect(14, rowY - 5, pageW - 28, 12, 'F');
-            doc.setDrawColor(226, 232, 240);
-            doc.rect(14, rowY - 5, pageW - 28, 12, 'S');
-
-            const pts = GRADE_POINTS[subject.grade || 'F'];
-            const gc = pts >= 8 ? [22, 163, 74] : pts >= 6 ? [234, 179, 8] : [220, 38, 38];
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(30, 41, 59);
-            doc.text(`${i + 1}`, 18, rowY + 2);
-            doc.text(doc.splitTextToSize(subject.name || '—', pageW - 28 - 75)[0], 28, rowY + 2);
-            doc.text(subject.code || '—', pageW - 65, rowY + 2);
-
-            // Grade pill
-            doc.setFillColor(...gc);
-            doc.roundedRect(pageW - 46, rowY - 3, 12, 8, 2, 2, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(8);
-            doc.text(subject.grade || 'F', pageW - 40, rowY + 2, { align: 'center' });
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.setTextColor(99, 102, 241);
-            doc.text(`${pts}`, pageW - 22, rowY + 2, { align: 'center' });
-        });
-
-        // Summary stats
-        let sy = tableY + cgpaSubjects.length * 12 + 14;
-        if (sy > pageH - 60) { doc.addPage(); sy = 20; }
-
-        const totalPoints = cgpaSubjects.reduce((s, sub) => s + GRADE_POINTS[sub.grade || 'F'], 0);
-
-        doc.setFillColor(30, 41, 59);
-        doc.roundedRect(14, sy, pageW - 28, 8, 2, 2, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(148, 163, 184);
-        doc.text('SUMMARY', 18, sy + 5.5);
-        sy += 12;
-
-        const cardW = (pageW - 28 - 8) / 3;
-        [
-            { label: 'Final CGPA', value: calculatedCGPA, color: [99, 102, 241] },
-            { label: 'Total Points', value: `${totalPoints}/${cgpaSubjects.length * 10}`, color: [52, 211, 153] },
-            { label: 'Overall Grade', value: getGrade(cgpaNum), color: [251, 191, 36] },
-        ].forEach((stat, i) => {
-            const cx = 14 + i * (cardW + 4);
-            doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(...stat.color);
-            doc.setLineWidth(0.5);
-            doc.roundedRect(cx, sy, cardW, 20, 3, 3, 'FD');
-            doc.setFillColor(...stat.color);
-            doc.roundedRect(cx, sy, cardW, 4, 2, 2, 'F');
-            doc.rect(cx, sy + 2, cardW, 2, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(...stat.color);
-            doc.text(String(stat.value), cx + cardW / 2, sy + 13, { align: 'center' });
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            doc.setTextColor(100, 116, 139);
-            doc.text(stat.label, cx + cardW / 2, sy + 18, { align: 'center' });
-        });
-
-        // Footer
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, pageH - 14, pageW, 14, 'F');
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Generated by AcadeMe  |  Keep working hard!', pageW / 2, pageH - 5, { align: 'center' });
-
-        doc.save(`CGPA_Report_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`);
-    };
-
-    const handleShare = async () => {
-        const text = `My CGPA: ${calculatedCGPA} | Grade: ${getGrade(parseFloat(calculatedCGPA))} | ${getMessage(parseFloat(calculatedCGPA))} — via AcadeMe`;
-        if (navigator.share) {
-            await navigator.share({ title: 'My CGPA Result', text });
-        } else {
-            await navigator.clipboard.writeText(text);
-            alert('Result copied to clipboard!');
+    const CSS = `
+        .calc-theme-wrapper {
+            position: relative;
+            min-height: 100vh;
+            width: 100%;
+            background-color: #FDFDFD;
+            font-family: 'DM Sans', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem 1rem 4rem; /* Adjusted top padding since header is removed */
+            box-sizing: border-box;
         }
-    };
 
-    const availableElectives = courses.filter(c =>
-        !cgpaSubjects.some(s => s.code === c.code || s.name === c.name)
-    );
+        .calc-mesh-bg {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none;
+            background: 
+                radial-gradient(circle at 15% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 70%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+            filter: blur(60px);
+        }
+
+        .calc-container {
+            position: relative; z-index: 1; width: 100%; max-width: 900px;
+            animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .calc-grid {
+            display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem;
+        }
+
+        .calc-card {
+            background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border-radius: 28px; padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        .calc-card-title {
+            font-size: 1.1rem; font-weight: 700; color: #1F2937; margin: 0 0 1.5rem 0;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* Input Rows */
+        .grade-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: #F9FAFB; border-radius: 999px; /* Pill Shape */
+            margin-bottom: 12px; border: 1px solid #F3F4F6; transition: background 0.2s;
+        }
+        .grade-row:hover { background: #F3F4F6; }
+
+        .grade-badge {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1rem; color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .grade-points { font-size: 0.8rem; color: #6B7280; font-weight: 600; margin-left: 12px; }
+
+        .stepper-wrap {
+            display: flex; align-items: center; gap: 12px;
+            background: white; padding: 4px; border-radius: 999px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid #E5E7EB;
+        }
+
+        .step-btn {
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            background: #F3F4F6; color: #4B5563; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .step-btn:hover:not(:disabled) { background: #E5E7EB; color: #111827; }
+        .step-btn:active:not(:disabled) { transform: scale(0.95); }
+        .step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .step-val { font-size: 1.1rem; font-weight: 700; color: #111827; width: 24px; text-align: center; }
+
+        /* Donut Chart */
+        .donut-wrap {
+            position: relative; width: 220px; height: 220px; margin: 0 auto 2rem;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); transition: background 0.5s ease;
+            animation: scaleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        .donut-inner {
+            position: relative; width: 170px; height: 170px; background: white;
+            border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.05); z-index: 2;
+        }
+        .donut-cgpa-val { font-size: 3.5rem; font-weight: 800; color: #111827; line-height: 1; letter-spacing: -1px; }
+        .donut-cgpa-lbl { font-size: 0.9rem; font-weight: 700; color: #6B7280; letter-spacing: 1px; margin-top: 4px; }
+
+        /* Results & Stats */
+        .result-msg { text-align: center; font-size: 1.1rem; font-weight: 700; color: #3B82F6; margin-bottom: 1.5rem; }
+        
+        .stat-pills { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .stat-pill {
+            background: #F9FAFB; border: 1px solid #E5E7EB; padding: 12px 20px;
+            border-radius: 999px; display: flex; align-items: center; gap: 10px;
+        }
+        .stat-pill-val { font-size: 1.1rem; font-weight: 800; color: #111827; }
+        .stat-pill-lbl { font-size: 0.8rem; font-weight: 600; color: #6B7280; text-transform: uppercase; }
+
+        .reset-btn {
+            width: 100%; padding: 14px; border-radius: 999px; border: 1px solid #FECACA;
+            background: #FEF2F2; color: #EF4444; font-weight: 700; font-size: 0.95rem; font-family: inherit;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; margin-top: 2rem; transition: all 0.2s;
+        }
+        .reset-btn:hover { background: #EF4444; color: white; border-color: #EF4444; }
+
+        @media (max-width: 768px) {
+            .calc-theme-wrapper { padding: 1.5rem 1rem; }
+            .calc-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+            .calc-card { padding: 1.5rem; border-radius: 24px; }
+            .donut-wrap { width: 180px; height: 180px; }
+            .donut-inner { width: 135px; height: 135px; }
+            .donut-cgpa-val { font-size: 2.8rem; }
+            .grade-row { padding: 8px 12px; }
+            .grade-badge { width: 32px; height: 32px; font-size: 0.9rem; }
+        }
+    `;
 
     return (
         <DashboardLayout>
-            <GlassCard className="mb-6">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                    <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.2)', color: '#60A5FA' }}>
-                        <Calculator size={24} />
-                    </div>
-                    <div>
-                        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>CGPA Calculator</h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>Calculate your academic performance</p>
-                    </div>
-                </div>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px' }}>
-                    <h3 style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>📋 Grade Points Reference</h3>
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                        {Object.entries(GRADE_POINTS).map(([g, p]) => (
-                            <Badge key={g} variant="neutral">{g} = {p}</Badge>
-                        ))}
-                    </div>
-                </div>
-            </GlassCard>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
-                <div>
-                    <GlassCard>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h3 style={{ fontSize: '1.2rem', fontWeight: '600' }}>Your Subjects</h3>
-                        </div>
-                        {cgpaSubjects.length === 0 ? (
-                            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
-                                No subjects added yet. Go to 'My Courses' to add mandatory subjects or add an elective below.
-                            </p>
-                        ) : (
-                            cgpaSubjects.map(subject => (
-                                <div key={subject.id} style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    padding: '1rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.03)',
-                                    borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)'
-                                }}>
-                                    <span style={{ fontWeight: '500' }}>{subject.name}</span>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ width: '100px' }}>
-                                            <GlassDropdown options={GRADES} value={subject.grade} onChange={(g) => updateSubjectCGPA(subject.id, g)} />
+            <style>{CSS}</style>
+            
+            <div className="calc-theme-wrapper">
+                <div className="calc-mesh-bg" />
+                
+                <div className="calc-container" style={{ opacity: mounted ? 1 : 0 }}>
+                    <div className="calc-grid">
+                        
+                        {/* ── LEFT PANEL: Inputs ── */}
+                        <div className="calc-card">
+                            <h3 className="calc-card-title">
+                                <Award size={20} color="#8B5CF6" /> Grade Counts
+                            </h3>
+                            
+                            {GRADES.map(grade => (
+                                <div key={grade} className="grade-row">
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <div className="grade-badge" style={{ background: GRADE_COLORS[grade] }}>
+                                            {grade}
                                         </div>
-                                        <button onClick={() => removeSubjectCGPA(subject.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', opacity: 0.7 }}>
-                                            <Trash2 size={18} />
+                                        <div className="grade-points">{GRADE_POINTS[grade]} pts</div>
+                                    </div>
+                                    
+                                    <div className="stepper-wrap">
+                                        <button 
+                                            className="step-btn" 
+                                            disabled={counts[grade] === 0}
+                                            onClick={() => handleDecrement(grade)}
+                                        >
+                                            <Minus size={16} strokeWidth={3} />
+                                        </button>
+                                        <div className="step-val">{counts[grade]}</div>
+                                        <button 
+                                            className="step-btn" 
+                                            onClick={() => handleIncrement(grade)}
+                                        >
+                                            <Plus size={16} strokeWidth={3} />
                                         </button>
                                     </div>
                                 </div>
-                            ))
-                        )}
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem',
-                            background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px',
-                            border: '1px dashed rgba(59, 130, 246, 0.3)', marginTop: '1.5rem'
-                        }}>
-                            <div style={{ flex: 1 }}>
-                                <GlassDropdown
-                                    options={availableElectives.map(c => c.name)}
-                                    value={selectedElectiveId ? courses.find(c => c.id === selectedElectiveId)?.name : ''}
-                                    onChange={(name) => { const c = courses.find(x => x.name === name); if (c) setSelectedElectiveId(c.id); }}
-                                    placeholder="Add Elective from Course List..."
-                                />
+                            ))}
+                        </div>
+
+                        {/* ── RIGHT PANEL: Results & Donut Chart ── */}
+                        <div className="calc-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div>
+                                <h3 className="calc-card-title" style={{ justifyContent: 'center' }}>
+                                    <PieChart size={20} color="#3B82F6" /> Live Result
+                                </h3>
+
+                                {/* Donut Chart */}
+                                <div className="donut-wrap" style={{ background: donutGradient }}>
+                                    <div className="donut-inner">
+                                        <div className="donut-cgpa-val">
+                                            <AnimatedCounter value={stats.cgpa} decimals={2} />
+                                        </div>
+                                        <div className="donut-cgpa-lbl">CGPA</div>
+                                    </div>
+                                </div>
+
+                                <div className="result-msg">
+                                    {getMessage(stats.cgpa)}
+                                </div>
+
+                                <div className="stat-pills">
+                                    <div className="stat-pill">
+                                        <span className="stat-pill-val"><AnimatedCounter value={stats.totalSubs} /></span>
+                                        <span className="stat-pill-lbl">Subjects</span>
+                                    </div>
+                                    <div className="stat-pill">
+                                        <span className="stat-pill-val"><AnimatedCounter value={stats.totalPts} /></span>
+                                        <span className="stat-pill-lbl">Total Points</span>
+                                    </div>
+                                </div>
                             </div>
-                            <button onClick={handleAddElective} disabled={!selectedElectiveId}
-                                style={{ background: 'var(--primary)', border: 'none', color: 'white', width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: !selectedElectiveId ? 0.5 : 1 }}>
-                                <Plus size={20} />
+
+                            <button onClick={handleReset} className="reset-btn">
+                                <RotateCcw size={18} /> Reset Calculator
                             </button>
                         </div>
-                    </GlassCard>
-                </div>
 
-                <div>
-                    <GlassCard style={{ textAlign: 'center', position: 'sticky', top: '100px' }}>
-                        <div style={{
-                            width: '150px', height: '150px', borderRadius: '50%',
-                            background: `radial-gradient(closest-side, #0F0F1A 79%, transparent 80% 100%), conic-gradient(${calculatedCGPA >= 5 ? '#34D399' : '#F87171'} ${showResult ? calculatedCGPA * 10 : 0}%, rgba(255,255,255,0.1) 0)`,
-                            margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <div>
-                                <div style={{ fontSize: '3rem', fontWeight: 'bold' }}>{showResult ? calculatedCGPA : '?'}</div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>CGPA</div>
-                            </div>
-                        </div>
-                        {showResult && (
-                            <div style={{ marginBottom: '1.5rem', animation: 'fadeIn 0.5s ease' }}>
-                                <h3 className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                    {getMessage(calculatedCGPA)}
-                                </h3>
-                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Based on {cgpaSubjects.length} subjects</p>
-                            </div>
-                        )}
-                        <GlassButton variant="gradient" style={{ width: '100%', justifyContent: 'center', marginBottom: '1rem' }} onClick={calculate}>
-                            Calculate CGPA
-                        </GlassButton>
-                        {showResult && (
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                <GlassButton onClick={handleSavePDF} style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}>
-                                    <Save size={16} /> Save PDF
-                                </GlassButton>
-                                <GlassButton onClick={handleShare} style={{ flex: 1, justifyContent: 'center', fontSize: '0.9rem' }}>
-                                    <Share2 size={16} /> Share
-                                </GlassButton>
-                            </div>
-                        )}
-                    </GlassCard>
+                    </div>
                 </div>
             </div>
-            <style>{`@media(max-width: 900px) { div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; } }`}</style>
         </DashboardLayout>
     );
 };

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     BookOpen, FileText, PlayCircle, Map,
-    Layers, FlaskConical, HelpCircle, CheckSquare,
-    SearchX, ExternalLink, Sparkles, BookMarked, Search, X,
+    FlaskConical, HelpCircle, CheckSquare,
+    SearchX, ExternalLink, Sparkles, BookMarked, Search, X, ChevronRight, LayoutGrid
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -25,75 +25,175 @@ const setCache = (key, data) => {
     } catch {}
 };
 
-// ── Tab config ───────────────────────────────────────────────────────────────
+// ── Tab Config (Premium Vibrant Pastels) ─────────────────────────────────────
 const TABS = [
-    {
-        id: 'concept-maps',  label: 'Concept Maps',  icon: Map,          type: 'concept-map',
-        color: '#38BDF8', glow: 'rgba(56,189,248,0.3)',
-        grad: 'linear-gradient(135deg,#38BDF8,#0284C7)',
-        bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.25)',
-    },
-    {
-        id: 'papers',        label: 'Papers',         icon: FileText,     type: 'paper',
-        color: '#A78BFA', glow: 'rgba(167,139,250,0.3)',
-        grad: 'linear-gradient(135deg,#A78BFA,#7C3AED)',
-        bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.25)',
-    },
-    {
-        id: 'syllabus',      label: 'Syllabus',       icon: BookOpen,     type: 'syllabus',
-        color: '#34D399', glow: 'rgba(52,211,153,0.3)',
-        grad: 'linear-gradient(135deg,#34D399,#059669)',
-        bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.25)',
-    },
-    {
-        id: 'lab-manuals',   label: 'Lab Manuals',    icon: FlaskConical, type: 'lab-manual',
-        color: '#2DD4BF', glow: 'rgba(45,212,191,0.3)',
-        grad: 'linear-gradient(135deg,#2DD4BF,#0891B2)',
-        bg: 'rgba(45,212,191,0.1)', border: 'rgba(45,212,191,0.25)',
-    },
-    {
-        id: 'imp-questions', label: 'Imp Questions',  icon: HelpCircle,   type: 'imp-question',
-        color: '#FBBF24', glow: 'rgba(251,191,36,0.3)',
-        grad: 'linear-gradient(135deg,#FBBF24,#D97706)',
-        bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.25)',
-    },
-    {
-        id: 'mcqs',          label: 'MCQs',           icon: CheckSquare,  type: 'mcq',
-        color: '#E879F9', glow: 'rgba(232,121,249,0.3)',
-        grad: 'linear-gradient(135deg,#E879F9,#9D17C4)',
-        bg: 'rgba(232,121,249,0.1)', border: 'rgba(232,121,249,0.25)',
-    },
-    {
-        id: 'lectures',      label: 'Videos',         icon: PlayCircle,   type: null,
-        color: '#FB923C', glow: 'rgba(251,146,60,0.3)',
-        grad: 'linear-gradient(135deg,#FB923C,#EA580C)',
-        bg: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.25)',
-    },
+    { id: 'concept-maps',  label: 'Concept Maps',  icon: Map,          type: 'concept-map',  color: '#3B82F6', bg: '#EFF6FF', light: '#DBEAFE' },
+    { id: 'papers',        label: 'Papers',        icon: FileText,     type: 'paper',        color: '#8B5CF6', bg: '#F5F3FF', light: '#EDE9FE' },
+    { id: 'syllabus',      label: 'Syllabus',      icon: BookOpen,     type: 'syllabus',     color: '#10B981', bg: '#ECFDF5', light: '#D1FAE5' },
+    { id: 'lab-manuals',   label: 'Lab Manuals',   icon: FlaskConical, type: 'lab-manual',   color: '#14B8A6', bg: '#ECFEFF', light: '#CCFBF1' },
+    { id: 'imp-questions', label: 'Imp Questions', icon: HelpCircle,   type: 'imp-question', color: '#F59E0B', bg: '#FFFBEB', light: '#FEF3C7' },
+    { id: 'mcqs',          label: 'MCQs',          icon: CheckSquare,  type: 'mcq',          color: '#EC4899', bg: '#FDF2F8', light: '#FCE7F3' },
+    { id: 'lectures',      label: 'Videos',        icon: PlayCircle,   type: null,           color: '#F97316', bg: '#FFF7ED', light: '#FFEDD5' },
 ];
 
-// ── Glass design tokens (unified, no per-tab colors in UI) ───────────────────
-const G = {
-    // Base glass surfaces
-    surface:        'rgba(255,255,255,0.04)',
-    surfaceHover:   'rgba(255,255,255,0.075)',
-    surfaceActive:  'rgba(255,255,255,0.10)',
-    border:         'rgba(255,255,255,0.10)',
-    borderHover:    'rgba(255,255,255,0.20)',
-    borderActive:   'rgba(255,255,255,0.28)',
-    // Text
-    textPrimary:    '#F1F5F9',
-    textSecondary:  'rgba(203,213,225,0.75)',
-    textMuted:      'rgba(148,163,184,0.5)',
-    // Accent (single cool white glow for active states)
-    accentBg:       'rgba(255,255,255,0.08)',
-    accentBorder:   'rgba(255,255,255,0.25)',
-    accentGlow:     'rgba(255,255,255,0.08)',
-    accentText:     '#F1F5F9',
-    // Button gradient — neutral frosted
-    btnGrad:        'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.07) 100%)',
-    btnBorder:      'rgba(255,255,255,0.22)',
-    btnShadow:      '0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
-};
+// ── Inject Ultra-Premium Styles ──────────────────────────────────────────────
+(function () {
+    if (document.getElementById('rh-ultra-style')) return;
+    const s = document.createElement('style');
+    s.id = 'rh-ultra-style';
+    s.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        /* Smooth reveal animations */
+        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+        
+        .r-page {
+            min-height: 100vh;
+            background-color: #FAFAFA;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(333,100%,96%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,100%,96%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(278,100%,96%,1) 0, transparent 50%);
+            padding: 2rem 1rem 6rem;
+        }
+
+        /* Hero Glass Panel */
+        .r-hero {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 32px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255,255,255,1);
+            margin-bottom: 2rem;
+            display: flex; flex-direction: column; gap: 1.5rem;
+            position: relative; overflow: hidden;
+        }
+        
+        @media (min-width: 860px) {
+            .r-hero { flex-direction: row; justify-content: space-between; align-items: center; padding: 3rem; }
+        }
+
+        /* Search Input Premium */
+        .r-search-container { position: relative; width: 100%; max-width: 400px; flex-shrink: 0; }
+        .r-search-input {
+            width: 100%; padding: 18px 20px 18px 56px;
+            background: #FFFFFF; border: 1px solid #E5E7EB;
+            border-radius: 24px; font-size: 1rem; font-weight: 500; color: #111827;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            outline: none;
+        }
+        .r-search-input::placeholder { color: #9CA3AF; }
+        .r-search-input:focus {
+            border-color: #3B82F6; box-shadow: 0 0 0 4px rgba(59,130,246,0.15), 0 10px 30px rgba(0,0,0,0.06);
+            transform: translateY(-2px);
+        }
+        .r-search-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #9CA3AF; transition: color 0.3s; }
+        .r-search-input:focus + .r-search-icon { color: #3B82F6; }
+
+        /* Premium Tabs */
+        .r-tabs-wrap {
+            display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 1.5rem;
+            -ms-overflow-style: none; scrollbar-width: none;
+        }
+        .r-tabs-wrap::-webkit-scrollbar { display: none; }
+        .r-tab {
+            display: flex; align-items: center; gap: 8px;
+            padding: 14px 24px; border-radius: 999px;
+            font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            white-space: nowrap; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #FFFFFF; color: #6B7280; border: 1px solid #E5E7EB;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02); outline: none;
+        }
+        .r-tab:hover { background: #F9FAFB; color: #111827; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+        .r-tab.active {
+            background: #111827; color: #FFFFFF; border-color: #111827;
+            box-shadow: 0 10px 30px rgba(17,24,39,0.25); transform: translateY(-2px);
+        }
+
+        /* Grid */
+        .r-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.5rem; }
+
+        /* Card with Ambient Orb */
+        .r-card {
+            background: #FFFFFF; border-radius: 32px; padding: 28px;
+            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.04), inset 0 0 0 1px rgba(255,255,255,0.5);
+            display: flex; flex-direction: column; gap: 20px;
+            position: relative; overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: fadeSlideUp 0.5s ease both;
+        }
+        .r-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,1);
+        }
+
+        /* Ambient blurred orb inside the card */
+        .r-ambient-orb {
+            position: absolute; top: -40px; right: -40px;
+            width: 140px; height: 140px; border-radius: 50%;
+            filter: blur(40px); opacity: 0.4; z-index: 0;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+        .r-card:hover .r-ambient-orb { transform: scale(1.5) translate(-10px, 10px); opacity: 0.7; }
+
+        .r-card-content { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; height: 100%; }
+
+        /* Icon Box */
+        .r-icon-box {
+            width: 56px; height: 56px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        /* Pills */
+        .r-pill-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+        .r-pill {
+            font-size: 0.75rem; font-weight: 700; padding: 6px 14px;
+            border-radius: 999px; letter-spacing: 0.3px; text-transform: uppercase;
+        }
+
+        /* Card Button */
+        .r-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 16px; border-radius: 20px;
+            background: #F9FAFB; color: #111827; border: 1px solid #E5E7EB;
+            font-size: 1rem; font-weight: 700; cursor: pointer; text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); margin-top: auto;
+        }
+        .r-card:hover .r-btn {
+            background: #111827; color: #FFFFFF; border-color: #111827;
+            box-shadow: 0 10px 24px rgba(17,24,39,0.2);
+        }
+        .r-btn-icon { transition: transform 0.3s; }
+        .r-card:hover .r-btn-icon { transform: translateX(4px); }
+
+        /* Empty State */
+        .r-empty {
+            background: rgba(255,255,255,0.6); backdrop-filter: blur(24px);
+            border-radius: 40px; padding: 6rem 2rem; text-align: center;
+            border: 1px dashed #D1D5DB; box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+            display: flex; flex-direction: column; align-items: center; gap: 1rem;
+            animation: fadeSlideUp 0.5s ease both;
+        }
+
+        /* Skeleton */
+        .r-skel {
+            background: #FFFFFF; border-radius: 32px; padding: 28px;
+            border: 1px solid #F3F4F6; display: flex; flex-direction: column; gap: 20px;
+            animation: pulseGlow 2s ease-in-out infinite; box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+        }
+    `;
+    document.head.appendChild(s);
+}());
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const ResourcesHub = () => {
@@ -101,13 +201,10 @@ const ResourcesHub = () => {
     const [activeTab, setActiveTab] = useState('concept-maps');
     const [resources, setResources] = useState([]);
     const [loading,   setLoading]   = useState(true);
-    const [mounted,   setMounted]   = useState(false);
+    const [searchRaw, setSearchRaw] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
-    useEffect(() => {
-        const t = setTimeout(() => setMounted(true), 60);
-        return () => clearTimeout(t);
-    }, []);
-
+    // Fetch resources
     useEffect(() => {
         if (!user?.branch) return;
         const key = `resources_${user.branch}`;
@@ -124,14 +221,13 @@ const ResourcesHub = () => {
             .finally(() => setLoading(false));
     }, [user?.branch]);
 
-    const [searchRaw,  setSearchRaw]  = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-
+    // Debounce search
     useEffect(() => {
         const t = setTimeout(() => setSearchTerm(searchRaw.trim().toLowerCase()), 250);
         return () => clearTimeout(t);
     }, [searchRaw]);
 
+    // Clear search on tab switch
     useEffect(() => { setSearchRaw(''); setSearchTerm(''); }, [activeTab]);
 
     const cfg      = TABS.find(t => t.id === activeTab);
@@ -140,539 +236,146 @@ const ResourcesHub = () => {
         ? byTab.filter(r => r.title?.toLowerCase().includes(searchTerm))
         : byTab;
 
-    const CSS = `
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-        * { box-sizing: border-box; }
-
-        @keyframes rh-up    { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes rh-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @keyframes rh-shimmer {
-            0%   { background-position: -200% center; }
-            100% { background-position:  200% center; }
-        }
-
-        .rh-page {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            width: 100%; max-width: 100%;
-            opacity: 0; transition: opacity 0.35s ease;
-        }
-        .rh-page.in { opacity: 1; }
-
-        /* ── HEADER ── */
-        .rh-header {
-            position: relative; overflow: hidden;
-            background: rgba(10,14,26,0.55);
-            border: 1px solid ${G.border};
-            border-radius: 22px;
-            padding: 1.25rem 1.1rem 0;
-            margin-bottom: 1.1rem;
-            backdrop-filter: blur(28px) saturate(160%);
-            -webkit-backdrop-filter: blur(28px) saturate(160%);
-            box-shadow:
-                0 0 0 1px rgba(255,255,255,0.04) inset,
-                0 24px 64px rgba(0,0,0,0.4),
-                0 1px 0 rgba(255,255,255,0.08) inset;
-        }
-
-        /* top shimmer line */
-        .rh-header::before {
-            content: '';
-            position: absolute; top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg,
-                transparent 0%, rgba(255,255,255,0.18) 30%,
-                rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.18) 70%, transparent 100%);
-            background-size: 200% 100%;
-            animation: rh-shimmer 6s linear infinite;
-        }
-
-        /* subtle radial glow inside header */
-        .rh-header::after {
-            content: '';
-            position: absolute; top: -80px; right: -80px;
-            width: 260px; height: 260px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.04), transparent 70%);
-            pointer-events: none;
-        }
-
-        /* ── TITLE ── */
-        .rh-title {
-            font-size: clamp(1.2rem, 5vw, 1.75rem);
-            font-weight: 800; margin: 0; line-height: 1.15; letter-spacing: -0.3px;
-            background: linear-gradient(135deg, #ffffff 0%, rgba(203,213,225,0.8) 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* ── ICON BOX ── */
-        .rh-icon-box {
-            width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.14);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.12);
-        }
-
-        /* ── TAB GRID ── */
-        .rh-tab-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            padding: 1rem 0 1.1rem;
-            position: relative; z-index: 1;
-        }
-        @media (max-width: 360px) { .rh-tab-grid { grid-template-columns: repeat(3,1fr); gap:6px; } }
-        @media (min-width: 640px) { .rh-tab-grid { grid-template-columns: repeat(7,1fr); } }
-
-        .rh-tab {
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            gap: 6px; padding: 11px 6px 10px;
-            border-radius: 14px;
-            border: 1px solid ${G.border};
-            background: ${G.surface};
-            cursor: pointer;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 0.65rem; font-weight: 500;
-            color: ${G.textMuted};
-            text-align: center; line-height: 1.3;
-            min-height: 64px;
-            transition: all 0.22s ease;
-            -webkit-tap-highlight-color: transparent;
-            word-break: break-word;
-            backdrop-filter: blur(8px);
-        }
-        .rh-tab:hover {
-            background: ${G.surfaceHover};
-            border-color: ${G.borderHover};
-            color: ${G.textSecondary};
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
-        }
-        .rh-tab.on {
-            font-weight: 700;
-            transform: translateY(-2px);
-            background: ${G.surfaceActive};
-            border-color: ${G.borderActive};
-            color: ${G.accentText};
-            box-shadow:
-                0 8px 24px rgba(0,0,0,0.35),
-                inset 0 1px 0 rgba(255,255,255,0.2),
-                0 0 0 1px rgba(255,255,255,0.08);
-        }
-
-        /* icon inside tab */
-        .rh-tab-icon {
-            width: 30px; height: 30px; border-radius: 9px;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.09);
-            transition: all 0.22s;
-        }
-        .rh-tab.on .rh-tab-icon {
-            background: rgba(255,255,255,0.10);
-            border-color: rgba(255,255,255,0.22);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
-        }
-
-        /* ── CARD GRID ── */
-        .rh-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.85rem;
-        }
-        @media (min-width: 580px) { .rh-grid { grid-template-columns: repeat(2,1fr); } }
-        @media (min-width: 960px) { .rh-grid { grid-template-columns: repeat(3,1fr); } }
-
-        /* ── CARD ── */
-        .rh-card {
-            position: relative; overflow: hidden;
-            border-radius: 20px;
-            padding: 1.15rem 1.1rem 1.05rem;
-            background: rgba(12,17,32,0.55);
-            border: 1px solid ${G.border};
-            backdrop-filter: blur(20px) saturate(140%);
-            -webkit-backdrop-filter: blur(20px) saturate(140%);
-            display: flex; flex-direction: column; gap: 0.85rem;
-            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s, background 0.25s;
-            animation: rh-up 0.4s ease both;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
-        }
-        .rh-card:hover {
-            transform: translateY(-5px);
-            background: rgba(18,25,45,0.65);
-            border-color: ${G.borderHover};
-            box-shadow:
-                0 16px 40px rgba(0,0,0,0.45),
-                inset 0 1px 0 rgba(255,255,255,0.12),
-                0 0 0 1px rgba(255,255,255,0.06);
-        }
-
-        /* top accent — frosted prismatic line */
-        .rh-card-top {
-            position: absolute; top: 0; left: 0; right: 0; height: 1px;
-            border-radius: 20px 20px 0 0;
-            background: linear-gradient(90deg,
-                transparent 0%, rgba(255,255,255,0.12) 20%,
-                rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.12) 80%, transparent 100%);
-        }
-
-        /* inner gloss */
-        .rh-card::after {
-            content: '';
-            position: absolute; inset: 0;
-            background: linear-gradient(145deg,
-                rgba(255,255,255,0.04) 0%, transparent 40%, rgba(255,255,255,0.02) 100%);
-            pointer-events: none; border-radius: inherit;
-        }
-
-        /* corner orb */
-        .rh-card-orb {
-            position: absolute; top: -25px; right: -25px;
-            width: 90px; height: 90px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.05), transparent 70%);
-            opacity: 0.6; pointer-events: none;
-        }
-
-        /* ── CARD ICON BOX ── */
-        .rh-card-icon {
-            width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
-            background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.14);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        /* ── PILLS ── */
-        .rh-pill {
-            font-size: 0.68rem; font-weight: 700; padding: 3px 10px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.07);
-            color: rgba(203,213,225,0.8);
-            border: 1px solid rgba(255,255,255,0.13);
-            backdrop-filter: blur(6px);
-        }
-        .rh-pill-muted {
-            font-size: 0.68rem; font-weight: 500; padding: 3px 10px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.04);
-            color: rgba(148,163,184,0.55);
-            border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        /* ── BUTTON ── */
-        .rh-btn {
-            display: flex; align-items: center; justify-content: center;
-            gap: 7px; width: 100%;
-            padding: 12px 16px; border-radius: 13px; border: 1px solid ${G.btnBorder};
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 0.875rem; font-weight: 700;
-            cursor: pointer; text-decoration: none;
-            color: ${G.textPrimary};
-            min-height: 46px; margin-top: auto;
-            -webkit-tap-highlight-color: transparent;
-            transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s, background 0.2s;
-            position: relative; overflow: hidden;
-            background: ${G.btnGrad};
-            box-shadow: ${G.btnShadow};
-            backdrop-filter: blur(8px);
-        }
-        .rh-btn::before {
-            content: '';
-            position: absolute; top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-        }
-        .rh-btn:hover {
-            opacity: 1;
-            background: rgba(255,255,255,0.14);
-            box-shadow: 0 6px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-        .rh-btn:active { transform: scale(0.97); opacity: 0.85; }
-
-        /* ── EMPTY STATE ── */
-        .rh-empty {
-            border-radius: 22px;
-            background: rgba(10,14,26,0.5);
-            border: 1px solid ${G.border};
-            padding: 4rem 1.5rem; text-align: center;
-            display: flex; flex-direction: column; align-items: center; gap: 1rem;
-            animation: rh-up 0.4s ease both;
-            backdrop-filter: blur(20px);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-        }
-        .rh-empty-icon {
-            width: 62px; height: 62px; border-radius: 18px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.13);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 16px rgba(0,0,0,0.25);
-        }
-
-        /* ── SKELETON ── */
-        .rh-skel {
-            animation: rh-pulse 1.6s ease-in-out infinite;
-            border-radius: 20px;
-            background: rgba(10,14,26,0.5);
-            border: 1px solid rgba(255,255,255,0.07);
-            padding: 1.1rem; display: flex; flex-direction: column; gap: 0.8rem;
-            backdrop-filter: blur(12px);
-        }
-        .rh-skel-bar {
-            border-radius: 8px;
-            background: rgba(255,255,255,0.06);
-        }
-
-        /* ── SEARCH ── */
-        .rh-search-wrap { position: relative; margin: 0.75rem 0 1.1rem; }
-        .rh-search-input {
-            width: 100%;
-            padding: 11px 40px 11px 40px;
-            border-radius: 13px;
-            border: 1px solid rgba(255,255,255,0.11);
-            background: rgba(255,255,255,0.05);
-            color: ${G.textPrimary};
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 16px; font-weight: 500;
-            outline: none;
-            backdrop-filter: blur(10px);
-            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-        }
-        .rh-search-input::placeholder { color: rgba(148,163,184,0.38); font-size: 0.85rem; }
-        .rh-search-input:focus {
-            border-color: rgba(255,255,255,0.28);
-            background: rgba(255,255,255,0.08);
-            box-shadow: 0 0 0 3px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08);
-        }
-        .rh-search-icon {
-            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-            pointer-events: none; display: flex; align-items: center;
-            color: rgba(148,163,184,0.45);
-            transition: color 0.2s;
-        }
-        .rh-search-input:focus ~ .rh-search-icon,
-        .rh-search-wrap:focus-within .rh-search-icon { color: rgba(203,213,225,0.7); }
-        .rh-search-clear {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            width: 24px; height: 24px; border-radius: 50%; border: none; cursor: pointer;
-            background: rgba(255,255,255,0.10); color: rgba(148,163,184,0.7);
-            display: flex; align-items: center; justify-content: center;
-            transition: background 0.2s, color 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .rh-search-clear:hover { background: rgba(255,255,255,0.18); color: #E2E8F0; }
-
-        .rh-result-count {
-            font-size: 0.72rem; font-weight: 600;
-            color: rgba(148,163,184,0.5);
-            padding: 0 2px 0.6rem;
-            display: flex; align-items: center; gap: 5px;
-        }
-
-        /* ── CLEAR SEARCH BUTTON ── */
-        .rh-clear-btn {
-            padding: 8px 20px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.07);
-            color: ${G.textSecondary}; font-weight: 700;
-            font-size: 0.8rem; cursor: pointer;
-            font-family: 'Plus Jakarta Sans,sans-serif';
-            backdrop-filter: blur(8px);
-            transition: background 0.2s, border-color 0.2s;
-        }
-        .rh-clear-btn:hover {
-            background: rgba(255,255,255,0.12);
-            border-color: rgba(255,255,255,0.28);
-        }
-
-        /* ── BADGE (stay tuned) ── */
-        .rh-badge {
-            display: flex; align-items: center; gap: 6px;
-            padding: 6px 14px; border-radius: 20px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.13);
-            backdrop-filter: blur(6px);
-        }
-    `;
-
     return (
         <DashboardLayout>
-            <style>{CSS}</style>
-            <div className={`rh-page${mounted ? ' in' : ''}`}>
+            <div className="r-page">
+                <div style={{ maxWidth: '1250px', margin: '0 auto', width: '100%' }}>
 
-                {/* ── HEADER ── */}
-                <div className="rh-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
-                        <div className="rh-icon-box">
-                            <BookMarked size={19} color="rgba(203,213,225,0.85)" />
+                    {/* ── HERO HEADER ── */}
+                    <div className="r-hero">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 12px 32px rgba(29, 78, 216, 0.12)' }}>
+                                <LayoutGrid size={36} color="#1D4ED8" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3rem)', fontWeight: '900', margin: '0 0 4px', color: '#111827', letterSpacing: '-1px', lineHeight: 1.1 }}>
+                                    Resources Hub
+                                </h1>
+                                <p style={{ fontSize: '1.1rem', color: '#6B7280', margin: 0, fontWeight: '500' }}>
+                                    {user?.branch ? `Premium study materials for ${user.branch}` : 'Everything you need to excel'}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="rh-title">Resources Hub</h1>
-                            <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: G.textMuted, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                                {user?.branch ? `Showing resources for ${user.branch}` : 'Everything you need to succeed'}
-                            </p>
-                        </div>
+
+                        {/* SEARCH BAR (Hidden on videos tab) */}
+                        {activeTab !== 'lectures' && (
+                            <div className="r-search-container">
+                                <Search size={22} className="r-search-icon" />
+                                <input
+                                    className="r-search-input"
+                                    type="text"
+                                    value={searchRaw}
+                                    onChange={e => setSearchRaw(e.target.value)}
+                                    placeholder={`Search in ${cfg?.label || 'resources'}...`}
+                                />
+                            </div>
+                        )}
                     </div>
 
-                    {/* ── TAB GRID ── */}
-                    <div className="rh-tab-grid">
+                    {/* ── TABS ── */}
+                    <div className="r-tabs-wrap">
                         {TABS.map(tab => {
                             const on = activeTab === tab.id;
                             return (
                                 <button
                                     key={tab.id}
-                                    className={`rh-tab${on ? ' on' : ''}`}
+                                    className={`r-tab ${on ? 'active' : ''}`}
                                     onClick={() => setActiveTab(tab.id)}
                                 >
-                                    <div className="rh-tab-icon">
-                                        <tab.icon
-                                            size={15}
-                                            color={on ? 'rgba(226,232,240,0.95)' : 'rgba(148,163,184,0.5)'}
-                                        />
-                                    </div>
-                                    <span style={{ fontSize: '0.64rem', fontWeight: on ? 700 : 500 }}>
-                                        {tab.label}
-                                    </span>
+                                    <tab.icon size={18} strokeWidth={on ? 2.5 : 2} />
+                                    {tab.label}
                                 </button>
                             );
                         })}
                     </div>
 
-                    {/* ── SEARCH BAR ── */}
-                    {activeTab !== 'lectures' && (
-                        <div className="rh-search-wrap">
-                            <span className="rh-search-icon">
-                                <Search size={16} />
-                            </span>
-                            <input
-                                className="rh-search-input"
-                                type="search"
-                                value={searchRaw}
-                                onChange={e => setSearchRaw(e.target.value)}
-                                placeholder={`Search ${cfg?.label || 'resources'}…`}
-                                autoComplete="off"
-                            />
-                            {searchRaw && (
-                                <button className="rh-search-clear" onClick={() => setSearchRaw('')} aria-label="Clear search">
-                                    <X size={12} />
-                                </button>
-                            )}
+                    {/* ── RESULTS INFO ── */}
+                    {activeTab !== 'lectures' && !loading && (
+                        <div style={{ marginBottom: '2rem', color: '#6B7280', fontSize: '1rem', fontWeight: '600', paddingLeft: '8px' }}>
+                            {searchTerm ? `Found ${filtered.length} results for "${searchRaw}"` : `Showing ${filtered.length} ${cfg.label}`}
                         </div>
                     )}
-                </div>
 
-                {/* ── CONTENT ── */}
-                {loading ? (
-                    <div className="rh-grid">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="rh-skel" style={{ animationDelay: `${i * 0.12}s` }}>
-                                <div className="rh-skel-bar" style={{ height: '15px', width: '55%' }} />
-                                <div className="rh-skel-bar" style={{ height: '12px', width: '35%' }} />
-                                <div className="rh-skel-bar" style={{ height: '46px', width: '100%', marginTop: '6px' }} />
-                            </div>
-                        ))}
-                    </div>
-
-                ) : activeTab === 'lectures' ? (
-                    <div className="rh-empty">
-                        <div className="rh-empty-icon">
-                            <PlayCircle size={28} color="rgba(203,213,225,0.8)" />
-                        </div>
-                        <div>
-                            <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: G.textPrimary }}>
-                                Video Lectures Coming Soon
-                            </h3>
-                            <p style={{ margin: 0, fontSize: '0.84rem', color: G.textMuted, maxWidth: '240px' }}>
-                                We're curating the best content for you.
-                            </p>
-                        </div>
-                        <div className="rh-badge">
-                            <Sparkles size={12} color="rgba(203,213,225,0.7)" />
-                            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: G.textSecondary }}>Stay tuned</span>
-                        </div>
-                    </div>
-
-                ) : filtered.length === 0 ? (
-                    <div className="rh-empty">
-                        <div className="rh-empty-icon">
-                            <SearchX size={26} color="rgba(203,213,225,0.75)" />
-                        </div>
-                        <div>
-                            <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 800, color: G.textPrimary }}>
-                                {searchTerm ? 'No results found' : `No ${cfg.label} Yet`}
-                            </h3>
-                            <p style={{ margin: 0, fontSize: '0.84rem', color: G.textMuted, maxWidth: '240px' }}>
-                                {searchTerm
-                                    ? `Nothing matched "${searchRaw}" in ${cfg.label}. Try a different keyword.`
-                                    : `Nothing uploaded for ${user?.branch || 'your branch'} yet. Check back soon!`}
-                            </p>
-                        </div>
-                        {searchTerm && (
-                            <button onClick={() => setSearchRaw('')} className="rh-clear-btn">
-                                Clear search
-                            </button>
-                        )}
-                    </div>
-
-                ) : (
-                    <>
-                        {searchTerm && (
-                            <div className="rh-result-count">
-                                <Search size={12} />
-                                {filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{searchRaw}"
-                            </div>
-                        )}
-                        <div className="rh-grid">
-                            {filtered.map((res, idx) => (
-                                <div
-                                    key={res.id || idx}
-                                    className="rh-card"
-                                    style={{ animationDelay: `${idx * 0.055}s` }}
-                                >
-                                    {/* frosted top line */}
-                                    <div className="rh-card-top" />
-
-                                    {/* corner orb */}
-                                    <div className="rh-card-orb" />
-
-                                    {/* Icon + title */}
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '11px', position: 'relative', zIndex: 1, marginTop: '6px' }}>
-                                        <div className="rh-card-icon">
-                                            <cfg.icon size={17} color="rgba(203,213,225,0.85)" />
-                                        </div>
-                                        <h3 style={{
-                                            margin: 0, flex: 1,
-                                            fontSize: 'clamp(0.86rem, 3.2vw, 0.97rem)',
-                                            fontWeight: 700, lineHeight: 1.45,
-                                            color: G.textPrimary, wordBreak: 'break-word',
-                                        }}>
-                                            {res.title}
-                                        </h3>
-                                    </div>
-
-                                    {/* Tag pills */}
-                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
-                                        <span className="rh-pill">{cfg.label}</span>
-                                        {user?.branch && (
-                                            <span className="rh-pill-muted">{user.branch}</span>
-                                        )}
-                                    </div>
-
-                                    {/* Open button */}
-                                    <a
-                                        href={res.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="rh-btn"
-                                        style={{ position: 'relative', zIndex: 1 }}
-                                    >
-                                        <ExternalLink size={15} />
-                                        Open Resource
-                                    </a>
+                    {/* ── CONTENT AREA ── */}
+                    {loading ? (
+                        /* SKELETON LOADERS */
+                        <div className="r-grid">
+                            {[1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i} className="r-skel" style={{ animationDelay: `${i * 0.1}s` }}>
+                                    <div style={{ width: '56px', height: '56px', borderRadius: '20px', background: '#F3F4F6' }} />
+                                    <div style={{ width: '85%', height: '24px', background: '#F3F4F6', borderRadius: '8px' }} />
+                                    <div style={{ width: '50%', height: '16px', background: '#F3F4F6', borderRadius: '8px' }} />
+                                    <div style={{ height: '56px', width: '100%', background: '#F3F4F6', borderRadius: '20px', marginTop: '20px' }} />
                                 </div>
                             ))}
                         </div>
-                    </>
-                )}
+
+                    ) : activeTab === 'lectures' ? (
+                        /* LECTURES EMPTY STATE */
+                        <div className="r-empty">
+                            <div style={{ width: '100px', height: '100px', borderRadius: '32px', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 20px 40px rgba(234, 88, 12, 0.15)', border: '4px solid #FFFFFF' }}>
+                                <PlayCircle size={48} color="#EA580C" strokeWidth={2} />
+                            </div>
+                            <h3 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 12px', color: '#111827', letterSpacing: '-0.5px' }}>Video Lectures Coming Soon</h3>
+                            <p style={{ color: '#6B7280', fontSize: '1.15rem', margin: '0 0 32px', maxWidth: '400px', fontWeight: '500', lineHeight: 1.6 }}>We are curating the absolute highest quality video content tailored specifically to your branch syllabus.</p>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#111827', color: '#FFFFFF', padding: '14px 28px', borderRadius: '999px', fontSize: '1.05rem', fontWeight: '800', boxShadow: '0 10px 30px rgba(17,24,39,0.2)' }}>
+                                <Sparkles size={20} /> Stay Tuned
+                            </span>
+                        </div>
+
+                    ) : filtered.length === 0 ? (
+                        /* NO RESULTS EMPTY STATE */
+                        <div className="r-empty">
+                            <div style={{ width: '100px', height: '100px', borderRadius: '32px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', border: '4px solid #FFFFFF', boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }}>
+                                <SearchX size={48} color="#9CA3AF" />
+                            </div>
+                            <h3 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 12px', color: '#111827', letterSpacing: '-0.5px' }}>{searchTerm ? 'No matches found' : `No ${cfg.label} yet`}</h3>
+                            <p style={{ color: '#6B7280', fontSize: '1.15rem', margin: '0 0 32px', maxWidth: '400px', fontWeight: '500', lineHeight: 1.6 }}>
+                                {searchTerm ? `We couldn't find anything matching "${searchRaw}".` : `Premium resources for ${user?.branch || 'your branch'} haven't been uploaded to this category yet.`}
+                            </p>
+                            {searchTerm && (
+                                <button onClick={() => setSearchRaw('')} style={{ background: '#111827', color: '#FFF', padding: '16px 32px', borderRadius: '999px', border: 'none', fontWeight: '800', fontSize: '1.05rem', cursor: 'pointer', boxShadow: '0 10px 30px rgba(17,24,39,0.2)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                    Clear Search
+                                </button>
+                            )}
+                        </div>
+
+                    ) : (
+                        /* RESOURCE CARDS */
+                        <div className="r-grid">
+                            {filtered.map((res, idx) => (
+                                <div key={res.id || idx} className="r-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+                                    
+                                    {/* Ambient Glow Orb */}
+                                    <div className="r-ambient-orb" style={{ background: cfg.color }} />
+                                    
+                                    <div className="r-card-content">
+                                        {/* Icon */}
+                                        <div className="r-icon-box" style={{ background: cfg.bg, color: cfg.color }}>
+                                            <cfg.icon size={28} strokeWidth={2.5} />
+                                        </div>
+
+                                        {/* Title */}
+                                        <h3 style={{ margin: '0 0 16px', fontSize: '1.25rem', fontWeight: '800', color: '#111827', lineHeight: 1.4, letterSpacing: '-0.3px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            {res.title}
+                                        </h3>
+
+                                        {/* Tags */}
+                                        <div className="r-pill-group">
+                                            <span className="r-pill" style={{ background: cfg.light, color: cfg.color }}>{cfg.label}</span>
+                                            {user?.branch && <span className="r-pill" style={{ background: '#F3F4F6', color: '#4B5563' }}>{user.branch}</span>}
+                                        </div>
+
+                                        {/* Action Button */}
+                                        <a href={res.url} target="_blank" rel="noreferrer" className="r-btn">
+                                            Open Resource <ChevronRight size={20} className="r-btn-icon" />
+                                        </a>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </DashboardLayout>
     );

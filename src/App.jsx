@@ -127,7 +127,7 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <DataProvider>
-            <div className="app-container" style={{ minHeight: "100vh", background: "#0F0F1A" }}>
+            <div className="app-container" style={{ minHeight: "100vh" }}>
               <DownloadAppBanner />
               <AppContent />
             </div>

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+// Sidebar.jsx
+
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Home, Calculator, Calendar, Users, BookOpen, User,
-    Settings, Shield, LogOut, MessageCircle, MessageSquare, Layers, Trophy,
+    Settings, Shield, LogOut, MessageCircle, MessageSquare, Layers, Trophy
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import FeedbackModal from './FeedbackModal';
@@ -13,8 +15,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const navigate = useNavigate();
     const [showFeedback, setShowFeedback] = useState(false);
 
-    // Listen for TopBar's open-feedback event so both buttons open the same modal
-    React.useEffect(() => {
+    useEffect(() => {
         const handler = () => setShowFeedback(true);
         window.addEventListener('open-feedback', handler);
         return () => window.removeEventListener('open-feedback', handler);
@@ -23,151 +24,250 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const handleLogout = () => { logout(); navigate('/login'); };
 
     const userAvatar = user?.avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3B82F6&color=fff&size=128&bold=true`;
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=0071E3&color=fff&size=128&bold=true`;
 
     const navItems = [
-        { path: '/leaderboard',    label: 'Leaderboard',       icon: Trophy },
-        { path: '/dashboard',      label: 'Dashboard',         icon: Home },
-        { path: '/courses',        label: 'My Courses',        icon: BookOpen },
-        { path: '/common-courses', label: 'Common Courses',    icon: Layers },
-        { path: '/calc',           label: 'CGPA Calculator',   icon: Calculator },
-        { path: '/attendance',     label: 'Attendance',        icon: Calendar },
-        { path: '/faculty',        label: 'Faculty Directory', icon: Users },
-        { path: '/reviews',        label: 'Faculty Reviews',   icon: MessageSquare },
-        { path: '/resources',      label: 'Resources Hub',     icon: BookOpen },
-        { path: '/profile',        label: 'Profile',           icon: User },
-        { path: '/settings',       label: 'Settings',          icon: Settings },
+        { path: '/dashboard',      label: 'Dashboard',         icon: Home,          special: false },
+        { path: '/leaderboard',    label: 'Leaderboard',       icon: Trophy,        special: true },
+        { path: '/courses',        label: 'My Courses',        icon: BookOpen,      special: false },
+        { path: '/common-courses', label: 'Common Courses',    icon: Layers,        special: false },
+        { path: '/calc',           label: 'CGPA Calculator',   icon: Calculator,    special: false },
+        { path: '/attendance',     label: 'Attendance',        icon: Calendar,      special: false },
+        { path: '/faculty',        label: 'Faculty Directory', icon: Users,         special: false },
+        { path: '/reviews',        label: 'Faculty Reviews',   icon: MessageSquare, special: false },
+        { path: '/resources',      label: 'Resources Hub',     icon: BookOpen,      special: false },
+        { path: '/profile',        label: 'Profile',           icon: User,          special: false },
+        { path: '/settings',       label: 'Settings',          icon: Settings,      special: false },
     ];
 
     if (isAdmin || user?.role === 'admin') {
-        navItems.push({ path: '/admin', label: 'Admin Panel', icon: Shield });
+        navItems.push({ path: '/admin', label: 'Admin Panel', icon: Shield, special: false });
     }
 
+    const CSS = `
+        .sidebar-panel {
+            width: 300px;
+            height: calc(100vh - 2rem);
+            position: fixed;
+            left: 1rem;
+            top: 1rem;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+            border-radius: 32px;
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .sidebar-brand-row {
+            padding: 1.75rem 1.5rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .sidebar-logo-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .sidebar-brand-title {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(135deg, #0071E3 0%, #5856D6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .sidebar-links-container {
+            flex: 1;
+            padding: 0 1rem;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .sidebar-links-container::-webkit-scrollbar { display: none; }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 0.75rem 1.125rem;
+            border-radius: 999px;
+            text-decoration: none;
+            color: #4B5563;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .sidebar-link:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: #111827;
+            transform: translateX(4px);
+        }
+
+        .sidebar-link.active {
+            background: #111827;
+            color: #FFFFFF;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .sidebar-link.special {
+            color: #D97706;
+        }
+        .sidebar-link.special:hover {
+            background: rgba(245, 158, 11, 0.08);
+            color: #B45309;
+        }
+        .sidebar-link.special.active {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            color: #FFFFFF;
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+        }
+
+        .sidebar-separator {
+            height: 1px;
+            background: rgba(0, 0, 0, 0.06);
+            margin: 0.75rem 0.5rem;
+        }
+
+        .sidebar-footer-card {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.6);
+            border-top: 1px solid rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 0.625rem;
+        }
+
+        .sidebar-profile-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 0.75rem;
+            background: #FFFFFF;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .sidebar-action-pill {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-pill-feedback {
+            background: rgba(88, 86, 214, 0.08);
+            color: #5856D6;
+        }
+        .sidebar-pill-feedback:hover {
+            background: rgba(88, 86, 214, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .sidebar-pill-logout {
+            background: rgba(255, 59, 48, 0.08);
+            color: #FF3B30;
+        }
+        .sidebar-pill-logout:hover {
+            background: rgba(255, 59, 48, 0.15);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-panel {
+                height: 100vh;
+                left: 0;
+                top: 0;
+                border-radius: 0;
+            }
+        }
+    `;
+
     return (
-        <aside
-            className="sidebar-desktop"
-            style={{
-                width: '280px', height: '100vh',
-                position: 'fixed', left: 0, top: 0,
-                background: 'rgba(255,255,255,0.03)',
-                backdropFilter: 'blur(20px)',
-                borderRight: '1px solid rgba(255,255,255,0.1)',
-                display: 'flex', flexDirection: 'column',
-                zIndex: 50,
-                transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-                transition: 'transform 0.3s ease-in-out',
-            }}
+        <aside 
+            className="sidebar-panel"
+            style={{ transform: isOpen ? 'translateX(0)' : 'translateX(-110%)' }}
         >
-            {/* ── Logo ── */}
-            <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+            <style>{CSS}</style>
+            
+            {/* Logo Header */}
+            <div className="sidebar-brand-row">
+                <div className="sidebar-logo-wrap">
                     <img src={logo} alt="AcadeMe" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
-                <h2 className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0 }}>AcadeMe</h2>
+                <h2 className="sidebar-brand-title">AcadeMe</h2>
             </div>
 
-            {/* ── Nav ── */}
-            <nav style={{ flex: 1, padding: '0 1rem', overflowY: 'auto' }}>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    {navItems.map((item, idx) => (
-                        <li key={item.path} style={{ marginBottom: '0.5rem' }}>
-                            <NavLink
-                                to={item.path}
-                                onClick={toggleSidebar}
-                                style={({ isActive }) => ({
-                                    display: 'flex', alignItems: 'center', gap: '1rem',
-                                    padding: '12px 16px', borderRadius: '12px',
-                                    textDecoration: 'none', transition: 'all 0.3s ease',
-                                    fontSize: '0.9rem',
-                                    color: isActive ? 'white' : 'var(--text-secondary)',
-                                    // Leaderboard (idx 0) gets gold accent, rest get blue
-                                    background: idx === 0
-                                        ? (isActive ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.06)')
-                                        : (isActive ? 'rgba(59,130,246,0.15)' : 'transparent'),
-                                    border: idx === 0
-                                        ? `1px solid ${isActive ? 'rgba(251,191,36,0.45)' : 'rgba(251,191,36,0.18)'}`
-                                        : (isActive ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent'),
-                                    borderLeft: idx === 0
-                                        ? `4px solid ${isActive ? '#FBBF24' : 'rgba(251,191,36,0.35)'}`
-                                        : (isActive ? '4px solid var(--primary)' : '1px solid transparent'),
-                                })}
-                            >
-                                <item.icon size={20} color={idx === 0 ? '#FBBF24' : undefined} />
-                                {item.label}
-                            </NavLink>
+            {/* Navigation Links */}
+            <div className="sidebar-links-container">
+                {navItems.map((item) => (
+                    <React.Fragment key={item.path}>
+                        <NavLink
+                            to={item.path}
+                            onClick={toggleSidebar}
+                            className={({ isActive }) => 
+                                `sidebar-link ${item.special ? 'special' : ''} ${isActive ? 'active' : ''}`
+                            }
+                        >
+                            <item.icon size={18} strokeWidth={2.5} />
+                            {item.label}
+                        </NavLink>
+                        
+                        {item.path === '/leaderboard' && <div className="sidebar-separator" />}
+                    </React.Fragment>
+                ))}
+            </div>
 
-                            {/* Divider after Leaderboard */}
-                            {idx === 0 && (
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', margin: '0.5rem 0.5rem 0' }} />
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            </nav>
-
-            {/* ── Bottom ── */}
-            <div style={{ padding: '0 1rem 1rem' }}>
-
-                {/* Feedback — only social link remaining */}
-                <button
-                    onClick={() => setShowFeedback(true)}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.08)'}
-                    style={{
-                        width: '100%', padding: '11px 16px', marginBottom: '0.75rem',
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        background: 'rgba(59,130,246,0.08)',
-                        border: '1px solid rgba(59,130,246,0.2)',
-                        borderRadius: '12px', cursor: 'pointer',
-                        color: '#60A5FA', fontSize: '0.9rem', fontWeight: '500',
-                        transition: 'background 0.2s ease',
-                    }}
-                >
-                    <MessageCircle size={18} />
-                    Send Feedback
-                </button>
-
-                {/* User card */}
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '10px', marginBottom: '0.75rem',
-                    background: 'rgba(255,255,255,0.05)', borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                }}>
-                    <img src={userAvatar} alt="Profile"
-                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', background: '#1a1a1a', flexShrink: 0 }} />
+            {/* User Profile & Actions Footer */}
+            <div className="sidebar-footer-card">
+                <div className="sidebar-profile-box">
+                    <img src={userAvatar} alt="Profile" 
+                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} 
+                    />
                     <div style={{ overflow: 'hidden' }}>
-                        <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: '700', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {user?.name || 'User'}
                         </p>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#6B7280', whiteSpace: 'nowrap', fontWeight: '500' }}>
                             {user?.branch || 'Student'}
                         </p>
                     </div>
                 </div>
 
-                {/* Logout */}
-                <button
-                    onClick={handleLogout}
-                    className="hover-danger"
-                    style={{
-                        width: '100%', padding: '12px',
-                        display: 'flex', alignItems: 'center', gap: '1rem',
-                        background: 'rgba(239,68,68,0.1)', color: '#FCA5A5',
-                        border: '1px solid rgba(239,68,68,0.2)',
-                        borderRadius: '12px', cursor: 'pointer',
-                        transition: 'all 0.3s ease', fontSize: '0.9rem',
-                    }}
-                >
-                    <LogOut size={20} />
+                <button className="sidebar-action-pill sidebar-pill-feedback" onClick={() => setShowFeedback(true)}>
+                    <MessageCircle size={16} strokeWidth={2.5} />
+                    Send Feedback
+                </button>
+
+                <button className="sidebar-action-pill sidebar-pill-logout" onClick={handleLogout}>
+                    <LogOut size={16} strokeWidth={2.5} />
                     Logout
                 </button>
             </div>
-
-            <style>{`
-                @media (min-width: 768px) { .sidebar-desktop { transform: translateX(0) !important; } }
-                .hover-danger:hover { background: rgba(239,68,68,0.2) !important; }
-            `}</style>
 
             <FeedbackModal isOpen={showFeedback} onClose={() => setShowFeedback(false)} />
         </aside>

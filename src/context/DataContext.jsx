@@ -154,11 +154,12 @@ export const DataProvider = ({ children }) => {
     };
 
     // ── Attendance actions ───────────────────────────────────────────────────
+    // New subjects are prepended so they render at the top of the list.
     const addAttendanceSubject = async (subject) => {
         if (!user) return;
         const ref = await addDoc(collection(db, 'users', user.uid, 'attendance'), subject);
         const s = { id: ref.id, ...subject };
-        setAttendanceSubjects(p => [...p, s]);
+        setAttendanceSubjects(p => [s, ...p]);
         clearUserCache(user.uid);
     };
 
@@ -166,6 +167,13 @@ export const DataProvider = ({ children }) => {
         if (!user) return;
         await updateDoc(doc(db, 'users', user.uid, 'attendance', id), { total, attended });
         setAttendanceSubjects(p => p.map(s => s.id === id ? { ...s, total, attended } : s));
+        clearUserCache(user.uid);
+    };
+
+    const removeAttendanceSubject = async (id) => {
+        if (!user) return;
+        await deleteDoc(doc(db, 'users', user.uid, 'attendance', id));
+        setAttendanceSubjects(p => p.filter(s => s.id !== id));
         clearUserCache(user.uid);
     };
 
@@ -209,12 +217,39 @@ export const DataProvider = ({ children }) => {
         } catch (e) { console.error('awardPoints:', e); }
     }, []);
 
+    // ── Anonymous faculty review (triggered from AttendanceTracker on delete) ──
+    // Always stored with reviewerName: 'Anonymous' + isAnonymous: true so the
+    // Faculty Reviews page never displays the submitter's identity — not even
+    // to admins. reviewerId is kept internally only for points/spam control.
+    const submitFacultyReview = useCallback(async (reviewData) => {
+        if (!user) throw new Error('Must be logged in to submit a review.');
+        const payload = {
+            facultyName:   (reviewData.facultyName || '').trim(),
+            coFaculty:     (reviewData.coFaculty || '').trim(),
+            courseCode:    (reviewData.courseCode || '').trim(),
+            courseName:    (reviewData.courseName || '').trim(),
+            minInternals:  reviewData.minInternals || '',
+            facultyType:   reviewData.facultyType || 'Moderate',
+            mobileAllowed: reviewData.mobileAllowed !== undefined ? reviewData.mobileAllowed : true,
+            rating:        reviewData.rating || 0,
+            feedback:      (reviewData.feedback || '').trim(),
+            likes: [], dislikes: [], comments: [],
+            reviewerId:    user.uid,
+            reviewerName:  'Anonymous',
+            reviewerEmail: null,
+            isAnonymous:   true,
+            createdAt:     new Date().toISOString(),
+        };
+        await addDoc(collection(db, 'facultyReviews'), payload);
+        await awardPoints(user.uid, user.name || 'Student', POINTS.SUBMIT_REVIEW, 'Submitted a faculty review');
+    }, [user, awardPoints]);
+
     return (
         <DataContext.Provider value={{
             cgpaSubjects, attendanceSubjects, faculty, courses,
             addSubjectCGPA, removeSubjectCGPA, updateSubjectCGPA,
-            updateAttendance, addAttendanceSubject,
-            refreshCourses, awardPoints,
+            updateAttendance, addAttendanceSubject, removeAttendanceSubject,
+            refreshCourses, awardPoints, submitFacultyReview,
         }}>
             {children}
         </DataContext.Provider>

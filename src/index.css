@@ -1,140 +1,151 @@
-/* 1. Import Josefin Sans */
-@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
-
+/* 1. Import Fonts */
+/* We import them separately so if one fails (e.g. Betania Patmos isn't standard on GF), it doesn't break DM Sans */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Betania+Patmos&display=swap');
+/* Add this to the top of index.css with your other @import statements */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700;800&display=swap');
 :root {
-  --primary: #3B82F6;
+  /* Core Brand Colors */
+  --primary: #0071E3; /* Premium Apple-like Blue */
+  --primary-hover: #0077ED;
   --secondary: #8B5CF6;
   --accent: #06B6D4;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --text-primary: #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.7);
+  --success: #34C759;
+  --warning: #FF9500;
+  --danger: #FF3B30;
   
-  --bg-gradient: linear-gradient(135deg, #0F0F1A 0%, #1A0F2E 50%, #0A1628 100%);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --backdrop-blur: blur(20px);
+  /* Font Families */
+  --font-body: 'DM Sans', sans-serif;
+  --font-greeting: 'Betania Patmos', cursive; /* Used ONLY for the greeting text */
+
+  /* PREMIUM LIGHT THEME (White Glassmorphism Default) */
+  --bg-color: #F5F5F7;
+  --text-primary: #1D1D1F;
+  --text-secondary: #86868B;
   
-  /* Update Variables to Josefin Sans */
-  --font-heading: 'Josefin Sans', sans-serif;
-  --font-body: 'Josefin Sans', sans-serif;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+  --glass-shadow-hover: 0 16px 50px -10px rgba(0, 0, 0, 0.14);
+  --backdrop-blur: blur(24px) saturate(180%);
+  --divider: rgba(0, 0, 0, 0.08);
+
+  /* Shared Radii */
+  --card-radius: 24px;
+  --pill-radius: 999px;
 }
 
-/* 2. FORCE FONT ON EVERYTHING */
+/* PREMIUM DARK THEME (Triggered via existing ThemeContext if data-theme="dark" is set on root/body) */
+[data-theme='dark'] {
+  --bg-color: #000000;
+  --text-primary: #F5F5F7;
+  --text-secondary: #A1A1A6;
+  
+  --glass-bg: rgba(30, 30, 32, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  --glass-shadow-hover: 0 16px 50px -10px rgba(0, 0, 0, 0.7);
+  --divider: rgba(255, 255, 255, 0.1);
+}
+
+/* 2. FORCE GLOBAL FONT (DM Sans everywhere) */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Josefin Sans', sans-serif !important;
+  font-family: var(--font-body) !important;
 }
 
-/* 3. Explicitly target inputs/buttons to override browser defaults */
+/* 3. Explicitly target elements */
 input, button, select, textarea, ::placeholder, h1, h2, h3, h4, h5, h6 {
-  font-family: 'Josefin Sans', sans-serif !important;
+  font-family: var(--font-body) !important;
 }
 
 body {
-  background: var(--bg-gradient);
-  background-attachment: fixed;
+  background: var(--bg-color);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.4s ease, color 0.4s ease;
 }
 
-/* Glass Utilities */
-.glass-panel {
+/* The ONLY place Betania Patmos is allowed */
+.greeting-text {
+  font-family: var(--font-greeting) !important;
+  font-weight: 400 !important;
+}
+
+/* Legacy Glass Utilities (Updated to use dynamic theme variables) */
+.glass-panel, .glass-card {
   background: var(--glass-bg);
   backdrop-filter: var(--backdrop-blur);
   -webkit-backdrop-filter: var(--backdrop-blur);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: 16px;
-}
-
-.glass-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border-radius: 16px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--glass-border);
+  border-radius: var(--card-radius);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .glass-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: var(--glass-shadow-hover);
 }
 
 .glass-button {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
-  color: white;
-  transition: all 0.3s ease;
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-primary);
+  border-radius: var(--pill-radius); /* Converted to pill shape */
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
-  border-radius: 8px;
-  font-weight: 500;
 }
 
 .glass-button:hover {
-  transform: scale(1.05);
-  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+  transform: scale(1.02);
+  box-shadow: var(--glass-shadow-hover);
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: white;
-  padding: 12px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--pill-radius); /* Converted to pill shape */
+  color: var(--text-primary);
+  padding: 14px 20px;
   transition: all 0.3s ease;
 }
 
 .glass-input:focus {
   outline: none;
-  background: rgba(255, 255, 255, 0.1);
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
 }
 
 .gradient-text {
-  background: linear-gradient(to right, #60A5FA, #A78BFA, #2DD4BF);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-}
-
-/* Animations */
-@keyframes float {
-  0% { transform: translate(0px, 0px); }
-  50% { transform: translate(10px, -20px); }
-  100% { transform: translate(0px, 0px); }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2); 
+  background: transparent; 
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2); 
-  border-radius: 4px;
+  background: rgba(134, 134, 139, 0.3); 
+  border-radius: 999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3); 
+  background: rgba(134, 134, 139, 0.5); 
 }
 
 /* Utilities */
@@ -142,32 +153,4 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
-}
-
-/* --- Animation Utilities --- */
-.reveal-up {
-  opacity: 0;
-  animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translate3d(0, 40px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
-
-.bg-tech-grid {
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-}
-
-.magnetic-btn {
-  display: inline-flex;
-  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
