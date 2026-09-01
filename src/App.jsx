@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
@@ -59,6 +59,7 @@ const ProtectedRoute = ({ children }) => {
 const AppContent = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useAnimationSystem();
 
@@ -73,6 +74,37 @@ const AppContent = () => {
       });
     }
   }, [user?.uid]);
+
+  // When a background notification is tapped, the service worker focuses this
+  // tab and posts { type: 'NOTIFICATION_CLICK', url } — route there client-side
+  // (e.g. attendance reminders → /attendance) instead of a full page reload.
+  useEffect(() => {
+    const handleSwMessage = (event) => {
+      if (event.data?.type === "NOTIFICATION_CLICK" && event.data?.url) {
+        try {
+          const path = new URL(event.data.url).pathname || "/attendance";
+          navigate(path);
+        } catch {
+          navigate("/attendance");
+        }
+      }
+    };
+
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+      return () => navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+    }
+  }, [navigate]);
+
+  // Same routing, but for notifications clicked while the app tab is
+  // already focused (foreground notifications), dispatched from firebase.js
+  useEffect(() => {
+    const handleFgClick = (e) => {
+      if (e.detail?.path) navigate(e.detail.path);
+    };
+    window.addEventListener("app-notification-click", handleFgClick);
+    return () => window.removeEventListener("app-notification-click", handleFgClick);
+  }, [navigate]);
 
   // Admin modal shortcut
   useEffect(() => {

@@ -1,25 +1,17 @@
 // Sidebar.jsx
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     Home, Calculator, Calendar, Users, BookOpen, User,
-    Settings, Shield, LogOut, MessageCircle, MessageSquare, Layers, Trophy
+    Settings, Shield, LogOut, MessageSquare, Layers, Trophy
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import FeedbackModal from './FeedbackModal';
 import logo from '../assets/logo.jpg';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const { user, isAdmin, logout } = useAuth();
     const navigate = useNavigate();
-    const [showFeedback, setShowFeedback] = useState(false);
-
-    useEffect(() => {
-        const handler = () => setShowFeedback(true);
-        window.addEventListener('open-feedback', handler);
-        return () => window.removeEventListener('open-feedback', handler);
-    }, []);
 
     const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -179,15 +171,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             transition: all 0.2s ease;
         }
 
-        .sidebar-pill-feedback {
-            background: rgba(88, 86, 214, 0.08);
-            color: #5856D6;
-        }
-        .sidebar-pill-feedback:hover {
-            background: rgba(88, 86, 214, 0.15);
-            transform: translateY(-1px);
-        }
-
         .sidebar-pill-logout {
             background: rgba(255, 59, 48, 0.08);
             color: #FF3B30;
@@ -258,18 +241,11 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </div>
                 </div>
 
-                <button className="sidebar-action-pill sidebar-pill-feedback" onClick={() => setShowFeedback(true)}>
-                    <MessageCircle size={16} strokeWidth={2.5} />
-                    Send Feedback
-                </button>
-
                 <button className="sidebar-action-pill sidebar-pill-logout" onClick={handleLogout}>
                     <LogOut size={16} strokeWidth={2.5} />
                     Logout
                 </button>
             </div>
-
-            <FeedbackModal isOpen={showFeedback} onClose={() => setShowFeedback(false)} />
         </aside>
     );
 };

@@ -118,14 +118,26 @@ export const onForegroundMessage = async (callback) => {
     const notification = payload.notification;
     if (notification && Notification.permission === "granted") {
       const title = notification.title || "AcadeMe";
+      const url = payload.data?.url || "https://acade-me.vercel.app";
       const options = {
         body: notification.body || "New update available",
         icon: "/icon-192.png",
         badge: "/badge-96.png",
         tag: "acade-me-fg-" + Date.now(),
+        data: { url, type: payload.data?.type || "general" },
       };
 
-      new Notification(title, options);
+      const fgNotification = new Notification(title, options);
+      fgNotification.onclick = () => {
+        window.focus();
+        try {
+          const path = new URL(url).pathname || "/attendance";
+          window.dispatchEvent(new CustomEvent("app-notification-click", { detail: { path } }));
+        } catch {
+          window.dispatchEvent(new CustomEvent("app-notification-click", { detail: { path: "/attendance" } }));
+        }
+        fgNotification.close();
+      };
     }
 
     if (callback) callback(payload);

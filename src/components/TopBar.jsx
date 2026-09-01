@@ -1,11 +1,101 @@
 // TopBar.jsx
 
-import React from 'react';
-import { Menu, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, Bell, BellOff } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { auth, db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 
 const TopBar = ({ toggleSidebar }) => {
     const location = useLocation();
+    const [notifsOn, setNotifsOn] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    // Load saved notification state so the bell reflects reality on mount
+    useEffect(() => {
+        const loadState = async () => {
+            try {
+                const user = auth.currentUser;
+                if (!user) return;
+                const snap = await getDoc(doc(db, 'users', user.uid));
+                if (snap.exists() && snap.data().notificationsEnabled === true) {
+                    setNotifsOn(true);
+                }
+            } catch (e) {
+                console.error('Error loading notification state:', e);
+            }
+        };
+        loadState();
+    }, []);
+
+    const handleToggleNotifications = async () => {
+        if (busy) return;
+
+        // ── TURN OFF ──────────────────────────────────────────────
+        if (notifsOn) {
+            setBusy(true);
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    await setDoc(doc(db, 'users', user.uid),
+                        { fcmToken: null, notificationsEnabled: false }, { merge: true });
+                    await setDoc(doc(db, 'fcm_tokens', user.uid),
+                        { token: null, updatedAt: new Date().toISOString() }, { merge: true });
+                }
+            } catch (e) {
+                console.error('Error disabling notifications:', e);
+            }
+            setNotifsOn(false);
+            setBusy(false);
+            return;
+        }
+
+        // ── TURN ON ───────────────────────────────────────────────
+        setBusy(true);
+        try {
+            const user = auth.currentUser;
+            if (!user) { setBusy(false); return; }
+
+            const supported = await isSupported();
+            if (!supported) {
+                alert('Notifications are not supported on this browser/device.');
+                setBusy(false);
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                // denied or dismissed — leave toggle off, no error noise here
+                setBusy(false);
+                return;
+            }
+
+            const swReg = await navigator.serviceWorker.register('/sw.js');
+            await navigator.serviceWorker.ready;
+
+            const messaging = getMessaging();
+            const token = await getToken(messaging, {
+                vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+                serviceWorkerRegistration: swReg,
+            });
+
+            if (!token) {
+                setBusy(false);
+                return;
+            }
+
+            await setDoc(doc(db, 'users', user.uid),
+                { fcmToken: token, notificationsEnabled: true }, { merge: true });
+            await setDoc(doc(db, 'fcm_tokens', user.uid),
+                { token, userId: user.uid, updatedAt: new Date().toISOString() }, { merge: true });
+
+            setNotifsOn(true);
+        } catch (e) {
+            console.error('Error enabling notifications:', e);
+        }
+        setBusy(false);
+    };
 
     const getTitle = () => {
         const path = location.pathname.split('/')[1];
@@ -95,7 +185,7 @@ const TopBar = ({ toggleSidebar }) => {
             letter-spacing: -0.01em;
         }
 
-        .topbar-feedback-pill {
+        .topbar-notif-pill {
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -111,9 +201,26 @@ const TopBar = ({ toggleSidebar }) => {
             transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        .topbar-feedback-pill:hover {
+        .topbar-notif-pill.is-off {
+            background: #F3F4F6;
+            color: #6B7280;
+            box-shadow: none;
+        }
+
+        .topbar-notif-pill:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0, 113, 227, 0.35);
+        }
+
+        .topbar-notif-pill.is-off:hover {
+            background: #E5E7EB;
+            color: #374151;
+        }
+
+        .topbar-notif-pill:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            transform: none;
         }
 
         @media (max-width: 640px) {
@@ -143,11 +250,15 @@ const TopBar = ({ toggleSidebar }) => {
                 </div>
 
                 <button
-                    className="topbar-feedback-pill"
-                    onClick={() => window.dispatchEvent(new Event('open-feedback'))}
+                    className={`topbar-notif-pill${notifsOn ? '' : ' is-off'}`}
+                    onClick={handleToggleNotifications}
+                    disabled={busy}
+                    aria-pressed={notifsOn}
+                    aria-label={notifsOn ? 'Turn off notifications' : 'Turn on notifications'}
+                    title={notifsOn ? 'Notifications on — tap to turn off' : 'Notifications off — tap to turn on'}
                 >
-                    <MessageCircle size={16} strokeWidth={2.5} />
-                    <span className="hide-on-mobile">Feedback</span>
+                    {notifsOn ? <Bell size={16} strokeWidth={2.5} /> : <BellOff size={16} strokeWidth={2.5} />}
+                    <span className="hide-on-mobile">{notifsOn ? 'Notifications' : 'Notifications Off'}</span>
                 </button>
             </div>
         </header>

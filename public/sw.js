@@ -16,16 +16,21 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log("📩 Background notification:", payload);
 
-  const title = payload.notification?.title || "AcadeMe";
+  const title = payload.notification?.title || payload.data?.title || "AcadeMe";
+  // data.url / data.type come from notify.py — used to deep-link on click
+  // (e.g. attendance reminders open the Attendance Tracker page directly)
+  const targetUrl = payload.data?.url || payload.fcmOptions?.link || "https://acade-me.vercel.app";
+  const notifType = payload.data?.type || "general";
+
   const options = {
-    body: payload.notification?.body || "New update",
+    body: payload.notification?.body || payload.data?.body || "New update",
     icon: "/icon-192.png",
     badge: "/badge-96.png",
     tag: "acade-me-" + Date.now(),
     renotify: true,
     requireInteraction: true,
     vibrate: [200, 100, 200],
-    data: { url: "https://acade-me.vercel.app" }
+    data: { url: targetUrl, type: notifType }
   };
 
   self.registration.showNotification(title, options);
@@ -36,9 +41,12 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "https://acade-me.vercel.app";
 
   event.waitUntil(
-    clients.matchAll({ type: "window" }).then((clientList) => {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes("acade-me") && "focus" in client) {
+          // App is already open — focus it and tell it where to navigate
+          // (SPA client-side routing can't be driven by a full page load)
+          client.postMessage({ type: "NOTIFICATION_CLICK", url });
           return client.focus();
         }
       }

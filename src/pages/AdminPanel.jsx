@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, BookOpen, Layers, BarChart2, Shield, Plus, Trash2, Ban, CheckCircle, MessageCircle, Send, Bell, Star, Link as LinkIcon, ExternalLink, Edit2, Search, X, ChevronDown, RefreshCw } from 'lucide-react';
+import { Users, BookOpen, Layers, BarChart2, Shield, Plus, Trash2, Ban, CheckCircle, MessageCircle, Send, Bell, BellRing, Star, Link as LinkIcon, ExternalLink, Edit2, Search, X, ChevronDown, RefreshCw } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { clearCoursesCache } from '../context/DataContext';
@@ -495,6 +494,53 @@ const ResourcesManagement = () => {
 };
 
 // ─── UPDATES MANAGEMENT ──────────────────────────────────────────────────────
+// ─── ATTENDANCE REMINDER TEST TRIGGER ────────────────────────────────────────
+// Writes a doc into `attendance_reminders`. notify.py watches this collection
+// and immediately fires the funny "Did you go to class today?" push to
+// everyone the moment a new doc appears — separate from the Mon–Sat
+// 12:00 / 16:30 IST automatic schedule, purely for admin testing.
+const AttendanceReminderTest = () => {
+    const [sending, setSending] = useState(false);
+    const [lastSent, setLastSent] = useState(null);
+
+    const sendTestReminder = async () => {
+        setSending(true);
+        try {
+            await addDoc(collection(db, 'attendance_reminders'), {
+                triggeredAt: new Date().toISOString(),
+                manual: true,
+            });
+            setLastSent(new Date());
+        } catch (e) {
+            console.error('Failed to trigger attendance reminder:', e);
+            alert('Failed to send. Check console for details.');
+        }
+        setSending(false);
+    };
+
+    return (
+        <GlassCard className="mb-6">
+            <h3 style={{ marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <BellRing size={22} /> Attendance Reminder
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+                Automatic reminders go out Mon–Sat at 12:00 PM and 4:30 PM IST ("Did you go to class today? 👀").
+                Use the button below to send one immediately to all users — handy for testing.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <GlassButton onClick={sendTestReminder} variant="gradient" disabled={sending}>
+                    <Send size={16} /> {sending ? 'Sending...' : 'Send Test Attendance Reminder'}
+                </GlassButton>
+                {lastSent && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle size={14} color="#34D399" /> Sent at {lastSent.toLocaleTimeString()}
+                    </span>
+                )}
+            </div>
+        </GlassCard>
+    );
+};
+
 const UpdatesManagement = () => {
     const [updates, setUpdates] = useState([]);
     const [form, setForm] = useState({ title:'', message:'', link:'' });
@@ -716,7 +762,7 @@ const AdminPanel = () => {
             {activeTab==='faculty'&&<FacultyManagement/>}
             {activeTab==='courses'&&<CoursesManagement/>}
             {activeTab==='resources'&&<ResourcesManagement/>}
-            {activeTab==='updates'&&<UpdatesManagement/>}
+            {activeTab==='updates'&&(<><AttendanceReminderTest/><UpdatesManagement/></>)}
             {activeTab==='reviews'&&<ReviewsManagement/>}
             {activeTab==='messages'&&<MessagesTab/>}
         </DashboardLayout>
@@ -724,4 +770,3 @@ const AdminPanel = () => {
 };
 
 export default AdminPanel;
-

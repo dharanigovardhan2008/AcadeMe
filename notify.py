@@ -3,11 +3,16 @@ from firebase_admin import credentials, firestore, messaging
 import time
 import os
 import json
+import random
 import threading
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from datetime import datetime, timedelta, timezone
 import sys
 import traceback
+
+# IST is UTC+5:30, fixed offset (no DST) — safe to hardcode
+IST = timezone(timedelta(hours=5, minutes=30))
 
 print("=" * 50)
 print("🚀 AcadeMe Notification Service Starting...")
@@ -62,6 +67,7 @@ known_ids = {
     "updates": set(),
     "resources": set(),
     "notifications": set(),
+    "attendance_reminders": set(),
 }
 
 service_stats = {
@@ -101,8 +107,10 @@ def get_all_tokens():
     return tokens
 
 
-def send_to_all(title, body):
-    """Send notification to ALL users"""
+def send_to_all(title, body, url='https://acade-me.vercel.app', notif_type='general'):
+    """Send notification to ALL users. `url` controls where the click lands
+    (e.g. the attendance tracker page), `notif_type` is passed through in the
+    data payload so the client / service worker can branch on it."""
     global service_stats
     try:
         tokens = get_all_tokens()
@@ -127,6 +135,10 @@ def send_to_all(title, body):
                     title=title,
                     body=body,
                 ),
+                data={
+                    'type': notif_type,
+                    'url': url,
+                },
                 android=messaging.AndroidConfig(
                     priority='high',
                     notification=messaging.AndroidNotification(
@@ -143,9 +155,10 @@ def send_to_all(title, body):
                         badge='/badge-96.png',
                         tag='acade-me-' + str(int(time.time())),
                         renotify=True,
+                        data={'type': notif_type, 'url': url},
                     ),
                     fcm_options=messaging.WebpushFCMOptions(
-                        link='https://acade-me.vercel.app'
+                        link=url
                     )
                 ),
                 tokens=batch,
@@ -165,7 +178,7 @@ def send_to_all(title, body):
         traceback.print_exc()
 
 
-def send_to_user(user_id, title, body):
+def send_to_user(user_id, title, body, url='https://acade-me.vercel.app', notif_type='general'):
     """Send notification to specific user"""
     try:
         tokens = []
@@ -198,15 +211,20 @@ def send_to_user(user_id, title, body):
                     title=title,
                     body=body,
                 ),
+                data={
+                    'type': notif_type,
+                    'url': url,
+                },
                 webpush=messaging.WebpushConfig(
                     notification=messaging.WebpushNotification(
                         title=title,
                         body=body,
                         icon='/icon-192.png',
                         badge='/badge-96.png',
+                        data={'type': notif_type, 'url': url},
                     ),
                     fcm_options=messaging.WebpushFCMOptions(
-                        link='https://acade-me.vercel.app'
+                        link=url
                     )
                 ),
                 token=token,
@@ -217,6 +235,96 @@ def send_to_user(user_id, title, body):
 
     except Exception as e:
         print(f"❌ Error: {e}")
+
+
+# ══════════════════════════════════════════════════════════════
+# 🎒 ATTENDANCE REMINDERS (funny, nudgy, Mon–Sat @ 12:00 & 16:30 IST)
+# ══════════════════════════════════════════════════════════════
+
+ATTENDANCE_REMINDER_TITLES = [
+    "👀 Did you go to class today?",
+    "🎒 Bunk check-in!",
+    "🚨 Attendance alert (the fun kind)",
+    "📚 Class detective here",
+    "🕵️ Someone's asking about your attendance...",
+]
+
+ATTENDANCE_REMINDER_BODIES = [
+    "No judgment, just curious 👀 Tap to update your attendance in AcadeMe.",
+    "Be honest... did you actually attend or is this a 'mental health day'? Update your attendance either way 😄",
+    "Your attendance % is waiting for the truth. Tap to update it now!",
+    "Professor took attendance. Did YOU take note of it? Update here 📝",
+    "Quick vibe check: did you sit in class or in bed? Log it in AcadeMe 🛌📖",
+    "Your attendance tracker is feeling neglected. Give it some love — update now!",
+    "Plot twist: even skipping class needs to be logged. Tap to update 😅",
+    "This is your friendly reminder (not your mom) to update today's attendance.",
+]
+
+
+def send_attendance_reminder(manual=False):
+    """Send the funny attendance nudge to everyone."""
+    title = random.choice(ATTENDANCE_REMINDER_TITLES)
+    body = random.choice(ATTENDANCE_REMINDER_BODIES)
+    if manual:
+        body = "(Test ping from Admin Panel) " + body
+    print(f"\n🆕 ═══ ATTENDANCE REMINDER {'(MANUAL TEST)' if manual else ''} ═══")
+    send_to_all(
+        title,
+        body,
+        url='https://acade-me.vercel.app/attendance',
+        notif_type='attendance_reminder',
+    )
+
+
+def watch_attendance_reminder_triggers():
+    """Watches a Firestore collection the Admin Panel writes to when the
+    admin clicks 'Send Test Attendance Reminder'. Each new doc triggers one
+    immediate broadcast, independent of the daily schedule below."""
+    while True:
+        try:
+            docs = list(db.collection('attendance_reminders').stream())
+            current_ids = set(doc.id for doc in docs)
+            new_ids = current_ids - known_ids["attendance_reminders"]
+
+            if new_ids:
+                for doc in docs:
+                    if doc.id in new_ids:
+                        print(f"\n🆕 ═══ MANUAL ATTENDANCE REMINDER TRIGGER ═══")
+                        send_attendance_reminder(manual=True)
+
+                known_ids["attendance_reminders"] = current_ids
+
+        except Exception as e:
+            print(f"❌ Attendance reminder trigger watch error: {e}")
+
+        time.sleep(10)
+
+
+def attendance_reminder_scheduler():
+    """Fires the attendance nudge automatically at 12:00 and 16:30 IST,
+    Monday through Saturday. Sleeps until the next scheduled slot instead
+    of polling every second."""
+    SLOTS = [(12, 0), (16, 30)]
+    already_sent_today = set()  # e.g. {"2026-09-01-12:00"}
+
+    while True:
+        now = datetime.now(IST)
+        weekday = now.weekday()  # Monday=0 ... Sunday=6
+
+        if weekday <= 5:  # Monday(0) .. Saturday(5) — Sunday(6) skipped
+            for hh, mm in SLOTS:
+                slot_key = f"{now.strftime('%Y-%m-%d')}-{hh:02d}:{mm:02d}"
+                slot_time = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+                # Fire if we're within 60s after the slot and haven't sent it yet today
+                if 0 <= (now - slot_time).total_seconds() < 60 and slot_key not in already_sent_today:
+                    send_attendance_reminder(manual=False)
+                    already_sent_today.add(slot_key)
+
+        # Trim old keys so the set doesn't grow forever
+        if len(already_sent_today) > 20:
+            already_sent_today = set(list(already_sent_today)[-10:])
+
+        time.sleep(20)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -439,6 +547,7 @@ class Handler(BaseHTTPRequestHandler):
                         <p>📢 New Updates → All users</p>
                         <p>📚 New Resources → All users</p>
                         <p>💬 Admin Messages → Specific user</p>
+                        <p>🎒 Attendance Reminders → All users (Mon–Sat, 12:00 & 16:30 IST)</p>
                     </div>
                 </div>
             </div>
@@ -481,17 +590,23 @@ if __name__ == '__main__':
         load_existing_ids("updates")
         load_existing_ids("resources")
         load_existing_ids("notifications")
+        load_existing_ids("attendance_reminders")
 
         watchers = [
             ("Updates", watch_updates),
             ("Resources", watch_resources),
             ("Messages", watch_notifications),
+            ("AttendanceReminderTriggers", watch_attendance_reminder_triggers),
         ]
 
         for name, func in watchers:
             t = threading.Thread(target=func, daemon=True, name=f"Watch-{name}")
             t.start()
             print(f"👀 Watching: {name}")
+
+        scheduler = threading.Thread(target=attendance_reminder_scheduler, daemon=True, name="AttendanceScheduler")
+        scheduler.start()
+        print("⏰ Attendance reminder scheduler started (Mon–Sat, 12:00 & 16:30 IST)")
 
         keeper = threading.Thread(target=keep_alive, daemon=True)
         keeper.start()
@@ -500,7 +615,8 @@ if __name__ == '__main__':
         print("🔔 Notifications enabled for:")
         print("   📢 Updates")
         print("   📚 Resources")
-        print("   💬 Admin Messages\n")
+        print("   💬 Admin Messages")
+        print("   🎒 Attendance Reminders (Mon–Sat, 12:00 & 16:30 IST)\n")
 
         run_server()
         
