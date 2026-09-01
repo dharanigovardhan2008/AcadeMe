@@ -1,67 +1,107 @@
-import firebase_admin
-from firebase_admin import credentials, firestore, messaging
-import time
 import os
+import sys
 import json
+import time
 import random
 import threading
-import urllib.request
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from datetime import datetime, timedelta, timezone
-import sys
 import traceback
+import urllib.request
 
-# IST is UTC+5:30, fixed offset (no DST) — safe to hardcode
+from datetime import datetime, timedelta, timezone
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+import firebase_admin
+from firebase_admin import credentials, firestore, messaging
+
+
+# ============================================================
+# ACADeMe NOTIFICATION SERVICE
+# ============================================================
+
+APP_NAME = "AcadeMe"
+APP_URL = "https://acade-me.vercel.app"
+ATTENDANCE_URL = f"{APP_URL}/attendance"
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
-print("=" * 50)
-print("🚀 AcadeMe Notification Service Starting...")
-print("=" * 50)
+POLL_INTERVAL = 15
+HEALTH_PORT = int(os.environ.get("PORT", "8080"))
 
-# ══════════════════════════════════════════════════════════════
-# 🔥 FIREBASE INITIALIZATION WITH ERROR HANDLING
-# ══════════════════════════════════════════════════════════════
+print("=" * 60)
+print("🚀 AcadeMe Notification Service")
+print("=" * 60)
 
-try:
-    print("\n1️⃣ Checking environment variables...")
-    cred_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
-    
-    if not cred_json:
-        print("❌ ERROR: GOOGLE_CREDENTIALS_JSON not found!")
-        print("Available env vars:", list(os.environ.keys()))
+
+# ============================================================
+# FIREBASE INITIALIZATION
+# ============================================================
+
+def initialize_firebase():
+    print("\n🔥 Initializing Firebase...")
+
+    raw_credentials = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+
+    if not raw_credentials:
+        print("❌ GOOGLE_CREDENTIALS_JSON is missing.")
         sys.exit(1)
-    
-    print("✅ GOOGLE_CREDENTIALS_JSON found")
-    print(f"   Length: {len(cred_json)} characters")
-    
-    print("\n2️⃣ Parsing JSON credentials...")
+
     try:
-        cred_dict = json.loads(cred_json)
-        print("✅ JSON parsed successfully")
-        print(f"   Project ID: {cred_dict.get('project_id', 'N/A')}")
-    except json.JSONDecodeError as e:
-        print(f"❌ ERROR: Invalid JSON format!")
-        print(f"   Error: {e}")
-        print(f"   First 100 chars: {cred_json[:100]}")
+        credentials_dict = json.loads(raw_credentials)
+    except json.JSONDecodeError as exc:
+        print("❌ GOOGLE_CREDENTIALS_JSON contains invalid JSON.")
+        print(exc)
         sys.exit(1)
-    
-    print("\n3️⃣ Initializing Firebase...")
-    cred = credentials.Certificate(cred_dict)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("✅ Firebase initialized successfully")
-    
-except Exception as e:
-    print(f"\n❌ FATAL ERROR during initialization:")
-    print(f"   {type(e).__name__}: {e}")
-    traceback.print_exc()
-    sys.exit(1)
 
-print(f"\n✅ Server Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    try:
+        firebase_credential = credentials.Certificate(credentials_dict)
 
-# ══════════════════════════════════════════════════════════════
-# 📊 TRACKING STATE
-# ══════════════════════════════════════════════════════════════
+        firebase_admin.initialize_app(
+            firebase_credential
+        )
+
+        database = firestore.client()
+
+        print("✅ Firebase initialized")
+        print(
+            f"   Project: "
+            f"{credentials_dict.get('project_id', 'unknown')}"
+        )
+
+        return database
+
+    except Exception as exc:
+        print("❌ Firebase initialization failed:")
+        print(type(exc).__name__, exc)
+        traceback.print_exc()
+        sys.exit(1)
+
+
+db = initialize_firebase()
+
+
+# ============================================================
+# SERVICE STATE
+# ============================================================
+
+state_lock = threading.Lock()
+
+service_stats = {
+    "started_at": datetime.now(IST).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    ),
+    "last_check": None,
+    "last_notification": None,
+    "notifications_sent": 0,
+    "successful_deliveries": 0,
+    "failed_deliveries": 0,
+    "invalid_tokens_removed": 0,
+    "total_tokens": 0,
+}
+
+
+# ============================================================
+# PROCESSED DOCUMENT TRACKING
+# ============================================================
 
 known_ids = {
     "updates": set(),
@@ -71,605 +111,1499 @@ known_ids = {
     "admin_broadcasts": set(),
 }
 
-service_stats = {
-    "started_at": time.strftime('%Y-%m-%d %H:%M:%S'),
-    "notifications_sent": 0,
-    "last_check": None,
-    "last_notification": None,
-    "total_tokens": 0,
-}
-
-# ══════════════════════════════════════════════════════════════
-# 📤 SEND NOTIFICATIONS
-# ══════════════════════════════════════════════════════════════
-
-def get_all_tokens():
-    """Get all FCM tokens from both collections"""
-    tokens = []
-
-    try:
-        for doc in db.collection('fcm_tokens').stream():
-            token = doc.to_dict().get('token')
-            if token and token not in tokens:
-                tokens.append(token)
-    except Exception as e:
-        print(f"   ⚠️ Error reading fcm_tokens: {e}")
-
-    try:
-        for user in db.collection('users').stream():
-            data = user.to_dict()
-            token = data.get('fcmToken')
-            enabled = data.get('notificationsEnabled', True)
-            if token and enabled and token not in tokens:
-                tokens.append(token)
-    except Exception as e:
-        print(f"   ⚠️ Error reading users: {e}")
-
-    return tokens
+known_ids_lock = threading.Lock()
 
 
-def send_to_all(title, body, url='https://acade-me.vercel.app', notif_type='general'):
-    """Send notification to ALL users. `url` controls where the click lands
-    (e.g. the attendance tracker page), `notif_type` is passed through in the
-    data payload so the client / service worker can branch on it."""
-    global service_stats
-    try:
-        tokens = get_all_tokens()
-        service_stats["total_tokens"] = len(tokens)
-
-        if not tokens:
-            print("⚠️  No FCM tokens found!")
-            return
-
-        print(f"📤 Sending to {len(tokens)} devices...")
-        print(f"   📌 Title: {title}")
-        print(f"   📌 Body: {body[:80]}")
-
-        success_total = 0
-        failure_total = 0
-
-        for i in range(0, len(tokens), 500):
-            batch = tokens[i:i+500]
-
-            message = messaging.MulticastMessage(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                ),
-                data={
-                    'type': notif_type,
-                    'url': url,
-                },
-                android=messaging.AndroidConfig(
-                    priority='high',
-                    notification=messaging.AndroidNotification(
-                        color='#1a73e8',
-                        sound='default',
-                    ),
-                ),
-                webpush=messaging.WebpushConfig(
-                    headers={'Urgency': 'high'},
-                    notification=messaging.WebpushNotification(
-                        title=title,
-                        body=body,
-                        icon='/icon-192.png',
-                        badge='/badge-96.png',
-                        tag='acade-me-' + str(int(time.time())),
-                        renotify=True,
-                        data={'type': notif_type, 'url': url},
-                    ),
-                    fcm_options=messaging.WebpushFCMOptions(
-                        link=url
-                    )
-                ),
-                tokens=batch,
-            )
-
-            response = messaging.send_each_for_multicast(message)
-            success_total += response.success_count
-            failure_total += response.failure_count
-
-        print(f"✅ Done! Success: {success_total} | Failed: {failure_total}")
-
-        service_stats["notifications_sent"] += 1
-        service_stats["last_notification"] = time.strftime('%Y-%m-%d %H:%M:%S')
-
-    except Exception as e:
-        print(f"❌ Send error: {e}")
-        traceback.print_exc()
-
-
-def send_to_user(user_id, title, body, url='https://acade-me.vercel.app', notif_type='general'):
-    """Send notification to specific user"""
-    try:
-        tokens = []
-
-        try:
-            doc = db.collection('fcm_tokens').document(user_id).get()
-            if doc.exists:
-                token = doc.to_dict().get('token')
-                if token:
-                    tokens.append(token)
-        except:
-            pass
-
-        try:
-            doc = db.collection('users').document(user_id).get()
-            if doc.exists:
-                token = doc.to_dict().get('fcmToken')
-                if token and token not in tokens:
-                    tokens.append(token)
-        except:
-            pass
-
-        if not tokens:
-            print(f"⚠️  No token for user {user_id}")
-            return
-
-        for token in tokens:
-            message = messaging.Message(
-                notification=messaging.Notification(
-                    title=title,
-                    body=body,
-                ),
-                data={
-                    'type': notif_type,
-                    'url': url,
-                },
-                webpush=messaging.WebpushConfig(
-                    notification=messaging.WebpushNotification(
-                        title=title,
-                        body=body,
-                        icon='/icon-192.png',
-                        badge='/badge-96.png',
-                        data={'type': notif_type, 'url': url},
-                    ),
-                    fcm_options=messaging.WebpushFCMOptions(
-                        link=url
-                    )
-                ),
-                token=token,
-            )
-            messaging.send(message)
-
-        print(f"✅ Sent to user {user_id}")
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
-
-
-# ══════════════════════════════════════════════════════════════
-# 🎒 ATTENDANCE REMINDERS (funny, nudgy, Mon–Sat @ 12:00 & 16:30 IST)
-# ══════════════════════════════════════════════════════════════
+# ============================================================
+# ATTENDANCE REMINDER CONTENT
+# ============================================================
 
 ATTENDANCE_REMINDER_TITLES = [
     "👀 Did you go to class today?",
     "🎒 Bunk check-in!",
-    "🚨 Attendance alert (the fun kind)",
+    "🚨 Attendance alert",
     "📚 Class detective here",
-    "🕵️ Someone's asking about your attendance...",
+    "🕵️ Attendance check!",
 ]
 
 ATTENDANCE_REMINDER_BODIES = [
-    "No judgment, just curious 👀 Tap to update your attendance in AcadeMe.",
-    "Be honest... did you actually attend or is this a 'mental health day'? Update your attendance either way 😄",
-    "Your attendance % is waiting for the truth. Tap to update it now!",
-    "Professor took attendance. Did YOU take note of it? Update here 📝",
-    "Quick vibe check: did you sit in class or in bed? Log it in AcadeMe 🛌📖",
-    "Your attendance tracker is feeling neglected. Give it some love — update now!",
-    "Plot twist: even skipping class needs to be logged. Tap to update 😅",
-    "This is your friendly reminder (not your mom) to update today's attendance.",
+    "Update today's attendance in AcadeMe.",
+    "Be honest 😄 Did you attend class? Update your attendance.",
+    "Your attendance percentage is waiting. Update it now!",
+    "Professor took attendance. Don't forget to log it 📝",
+    "Quick check: update today's attendance in AcadeMe.",
+    "Your attendance tracker needs some love ❤️",
+    "Even bunking needs to be recorded 😅 Update your attendance.",
+    "This is your friendly reminder to update today's attendance.",
 ]
 
 
-def send_attendance_reminder(manual=False, custom_title=None, custom_body=None):
-    """Send the attendance nudge to everyone. If custom_title/custom_body are
-    provided (admin edited the message in the Admin Panel before sending),
-    those are used verbatim instead of picking randomly from the default pool."""
-    title = custom_title or random.choice(ATTENDANCE_REMINDER_TITLES)
-    body = custom_body or random.choice(ATTENDANCE_REMINDER_BODIES)
-    if manual and not custom_body:
-        body = "(Test ping from Admin Panel) " + body
-    print(f"\n🆕 ═══ ATTENDANCE REMINDER {'(MANUAL' + (' CUSTOM' if custom_title or custom_body else '') + ')' if manual else ''} ═══")
-    send_to_all(
-        title,
-        body,
-        url='https://acade-me.vercel.app/attendance',
-        notif_type='attendance_reminder',
+# ============================================================
+# TOKEN HELPERS
+# ============================================================
+
+def get_all_tokens():
+    """
+    Collect FCM tokens from:
+      1. fcm_tokens collection
+      2. users.fcmToken
+
+    Duplicate tokens are removed.
+    """
+
+    tokens = set()
+
+    # --------------------------------------------------------
+    # fcm_tokens collection
+    # --------------------------------------------------------
+
+    try:
+        documents = db.collection("fcm_tokens").stream()
+
+        for document in documents:
+            data = document.to_dict() or {}
+
+            token = data.get("token")
+
+            if token and isinstance(token, str):
+                token = token.strip()
+
+                if token:
+                    tokens.add(token)
+
+    except Exception as exc:
+        print(
+            f"⚠️ Error reading fcm_tokens: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+    # --------------------------------------------------------
+    # users collection
+    # --------------------------------------------------------
+
+    try:
+        documents = db.collection("users").stream()
+
+        for document in documents:
+            data = document.to_dict() or {}
+
+            token = data.get("fcmToken")
+            notifications_enabled = data.get(
+                "notificationsEnabled",
+                True
+            )
+
+            if (
+                token
+                and isinstance(token, str)
+                and notifications_enabled is not False
+            ):
+                token = token.strip()
+
+                if token:
+                    tokens.add(token)
+
+    except Exception as exc:
+        print(
+            f"⚠️ Error reading users: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+    with state_lock:
+        service_stats["total_tokens"] = len(tokens)
+
+    return list(tokens)
+
+
+# ============================================================
+# INVALID TOKEN CLEANUP
+# ============================================================
+
+def remove_invalid_token(token):
+    """
+    Remove an expired/unregistered FCM token from Firestore.
+    """
+
+    removed = False
+
+    # --------------------------------------------------------
+    # fcm_tokens
+    # --------------------------------------------------------
+
+    try:
+        query = (
+            db.collection("fcm_tokens")
+            .where("token", "==", token)
+            .stream()
+        )
+
+        for document in query:
+            try:
+                document.reference.delete()
+                removed = True
+                print(
+                    f"🧹 Removed invalid token "
+                    f"from fcm_tokens: {document.id}"
+                )
+            except Exception as exc:
+                print(
+                    f"⚠️ Could not delete token document "
+                    f"{document.id}: {exc}"
+                )
+
+    except Exception as exc:
+        print(
+            f"⚠️ Invalid-token cleanup error "
+            f"(fcm_tokens): {exc}"
+        )
+
+    # --------------------------------------------------------
+    # users
+    # --------------------------------------------------------
+
+    try:
+        query = (
+            db.collection("users")
+            .where("fcmToken", "==", token)
+            .stream()
+        )
+
+        for document in query:
+            try:
+                document.reference.update({
+                    "fcmToken": firestore.DELETE_FIELD
+                })
+
+                removed = True
+
+                print(
+                    f"🧹 Removed invalid fcmToken "
+                    f"from user: {document.id}"
+                )
+
+            except Exception as exc:
+                print(
+                    f"⚠️ Could not clean user "
+                    f"{document.id}: {exc}"
+                )
+
+    except Exception as exc:
+        print(
+            f"⚠️ Invalid-token cleanup error "
+            f"(users): {exc}"
+        )
+
+    if removed:
+        with state_lock:
+            service_stats[
+                "invalid_tokens_removed"
+            ] += 1
+
+
+# ============================================================
+# CHECK FCM ERROR
+# ============================================================
+
+def is_invalid_token_error(error):
+    """
+    Detect errors that mean the FCM registration token
+    is no longer usable.
+    """
+
+    error_text = str(error).lower()
+
+    invalid_messages = [
+        "registration-token-not-registered",
+        "unregistered",
+        "invalid-argument",
+        "not-found",
+        "registration token is not a valid",
+    ]
+
+    return any(
+        message in error_text
+        for message in invalid_messages
     )
 
 
-def watch_attendance_reminder_triggers():
-    """Watches a Firestore collection the Admin Panel writes to when the
-    admin clicks 'Send Attendance Reminder'. Each new doc triggers one
-    immediate broadcast, independent of the daily schedule below.
-    Doc fields (all optional): title, body — if the admin edited the message
-    before sending, these are used verbatim; otherwise a random default is
-    picked."""
-    while True:
+# ============================================================
+# BUILD WEB PUSH MESSAGE
+# ============================================================
+
+def build_web_message(
+    title,
+    body,
+    token,
+    url=APP_URL,
+    notification_type="general",
+):
+    return messaging.Message(
+
+        notification=messaging.Notification(
+            title=title,
+            body=body,
+        ),
+
+        data={
+            "type": notification_type,
+            "url": url,
+        },
+
+        webpush=messaging.WebpushConfig(
+
+            headers={
+                "Urgency": "high",
+            },
+
+            notification=messaging.WebpushNotification(
+                title=title,
+                body=body,
+
+                icon="/icon-192.png",
+                badge="/badge-96.png",
+
+                tag=(
+                    "acade-me-"
+                    + notification_type
+                    + "-"
+                    + str(int(time.time()))
+                ),
+
+                renotify=True,
+
+                data={
+                    "type": notification_type,
+                    "url": url,
+                },
+            ),
+
+            fcm_options=messaging.WebpushFCMOptions(
+                link=url
+            ),
+        ),
+
+        token=token,
+    )
+
+
+# ============================================================
+# SEND TO ALL USERS
+# ============================================================
+
+def send_to_all(
+    title,
+    body,
+    url=APP_URL,
+    notification_type="general",
+):
+    """
+    Broadcast notification to every registered FCM device.
+    """
+
+    print("\n" + "=" * 60)
+    print("📤 BROADCAST NOTIFICATION")
+    print("=" * 60)
+    print(f"Title : {title}")
+    print(f"Body  : {body}")
+    print(f"URL   : {url}")
+    print(f"Type  : {notification_type}")
+
+    tokens = get_all_tokens()
+
+    if not tokens:
+        print("⚠️ No FCM tokens found.")
+        print(
+            "   Make sure users have allowed "
+            "browser notifications."
+        )
+        return False
+
+    print(f"📱 Devices: {len(tokens)}")
+
+    successful = 0
+    failed = 0
+
+    # FCM multicast maximum is 500 tokens.
+    for start in range(0, len(tokens), 500):
+
+        batch = tokens[start:start + 500]
+
+        message = messaging.MulticastMessage(
+
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+
+            data={
+                "type": notification_type,
+                "url": url,
+            },
+
+            android=messaging.AndroidConfig(
+                priority="high",
+
+                notification=messaging.AndroidNotification(
+                    sound="default",
+                ),
+            ),
+
+            webpush=messaging.WebpushConfig(
+
+                headers={
+                    "Urgency": "high",
+                },
+
+                notification=messaging.WebpushNotification(
+                    title=title,
+                    body=body,
+
+                    icon="/icon-192.png",
+                    badge="/badge-96.png",
+
+                    tag=(
+                        "acade-me-"
+                        + notification_type
+                        + "-"
+                        + str(int(time.time()))
+                    ),
+
+                    renotify=True,
+
+                    data={
+                        "type": notification_type,
+                        "url": url,
+                    },
+                ),
+
+                fcm_options=messaging.WebpushFCMOptions(
+                    link=url
+                ),
+            ),
+
+            tokens=batch,
+        )
+
         try:
-            docs = list(db.collection('attendance_reminders').stream())
-            current_ids = set(doc.id for doc in docs)
-            new_ids = current_ids - known_ids["attendance_reminders"]
+            response = (
+                messaging
+                .send_each_for_multicast(message)
+            )
 
-            if new_ids:
-                for doc in docs:
-                    if doc.id in new_ids:
-                        data = doc.to_dict() or {}
-                        custom_title = (data.get('title') or '').strip() or None
-                        custom_body = (data.get('body') or '').strip() or None
-                        print(f"\n🆕 ═══ MANUAL ATTENDANCE REMINDER TRIGGER ═══")
-                        send_attendance_reminder(manual=True, custom_title=custom_title, custom_body=custom_body)
+            successful += response.success_count
+            failed += response.failure_count
 
-                known_ids["attendance_reminders"] = current_ids
+            # ------------------------------------------------
+            # Inspect individual failures
+            # ------------------------------------------------
 
-        except Exception as e:
-            print(f"❌ Attendance reminder trigger watch error: {e}")
+            for index, send_response in enumerate(
+                response.responses
+            ):
 
-        time.sleep(10)
+                if send_response.success:
+                    continue
+
+                token = batch[index]
+                error = send_response.exception
+
+                print(
+                    f"❌ Token failed: "
+                    f"{type(error).__name__}: {error}"
+                )
+
+                if is_invalid_token_error(error):
+                    remove_invalid_token(token)
+
+        except Exception as exc:
+            print(
+                "❌ FCM multicast request failed:"
+            )
+            print(
+                f"   {type(exc).__name__}: {exc}"
+            )
+            traceback.print_exc()
+
+            failed += len(batch)
+
+    with state_lock:
+
+        service_stats[
+            "notifications_sent"
+        ] += 1
+
+        service_stats[
+            "successful_deliveries"
+        ] += successful
+
+        service_stats[
+            "failed_deliveries"
+        ] += failed
+
+        service_stats[
+            "last_notification"
+        ] = datetime.now(IST).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+    print("\n" + "-" * 60)
+    print(
+        f"✅ Successful: {successful}"
+    )
+    print(
+        f"❌ Failed:     {failed}"
+    )
+    print("-" * 60)
+
+    return successful > 0
 
 
-# ══════════════════════════════════════════════════════════════
-# 📣 CUSTOM ADMIN BROADCASTS (fully custom notification, any content)
-# ══════════════════════════════════════════════════════════════
+# ============================================================
+# SEND TO ONE USER
+# ============================================================
+
+def get_user_tokens(user_id):
+    tokens = set()
+
+    # fcm_tokens/{user_id}
+    try:
+        document = (
+            db.collection("fcm_tokens")
+            .document(user_id)
+            .get()
+        )
+
+        if document.exists:
+
+            data = document.to_dict() or {}
+
+            token = data.get("token")
+
+            if token:
+                tokens.add(token)
+
+    except Exception as exc:
+        print(
+            f"⚠️ Error reading fcm_tokens/{user_id}: "
+            f"{exc}"
+        )
+
+    # users/{user_id}
+    try:
+        document = (
+            db.collection("users")
+            .document(user_id)
+            .get()
+        )
+
+        if document.exists:
+
+            data = document.to_dict() or {}
+
+            token = data.get("fcmToken")
+
+            if token:
+                tokens.add(token)
+
+    except Exception as exc:
+        print(
+            f"⚠️ Error reading users/{user_id}: "
+            f"{exc}"
+        )
+
+    return list(tokens)
+
+
+def send_to_user(
+    user_id,
+    title,
+    body,
+    url=APP_URL,
+    notification_type="general",
+):
+    """
+    Send notification to one user.
+    """
+
+    print("\n" + "=" * 60)
+    print("📤 USER NOTIFICATION")
+    print("=" * 60)
+    print(f"User: {user_id}")
+    print(f"Title: {title}")
+
+    tokens = get_user_tokens(user_id)
+
+    if not tokens:
+        print(
+            f"⚠️ No FCM token for user {user_id}"
+        )
+        return False
+
+    success = False
+
+    for token in tokens:
+
+        try:
+
+            message = build_web_message(
+                title=title,
+                body=body,
+                token=token,
+                url=url,
+                notification_type=notification_type,
+            )
+
+            messaging.send(message)
+
+            print(
+                f"✅ Notification sent to "
+                f"{user_id}"
+            )
+
+            success = True
+
+        except Exception as exc:
+
+            print(
+                f"❌ Notification failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+            if is_invalid_token_error(exc):
+                remove_invalid_token(token)
+
+    if success:
+
+        with state_lock:
+            service_stats[
+                "notifications_sent"
+            ] += 1
+
+            service_stats[
+                "successful_deliveries"
+            ] += 1
+
+            service_stats[
+                "last_notification"
+            ] = datetime.now(IST).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+    else:
+
+        with state_lock:
+            service_stats[
+                "failed_deliveries"
+            ] += 1
+
+    return success
+
+
+# ============================================================
+# INITIAL LOAD
+# ============================================================
+
+def load_existing_ids(collection_name):
+
+    try:
+
+        documents = list(
+            db.collection(collection_name).stream()
+        )
+
+        ids = {
+            document.id
+            for document in documents
+        }
+
+        with known_ids_lock:
+            known_ids[collection_name] = ids
+
+        print(
+            f"📂 {collection_name}: "
+            f"{len(ids)} existing documents"
+        )
+
+    except Exception as exc:
+
+        print(
+            f"❌ Could not load "
+            f"{collection_name}: {exc}"
+        )
+
+
+# ============================================================
+# UPDATE WATCHER
+# ============================================================
+
+def watch_updates():
+
+    print("👀 Updates watcher started")
+
+    while True:
+
+        try:
+
+            documents = list(
+                db.collection("updates").stream()
+            )
+
+            current_ids = {
+                document.id
+                for document in documents
+            }
+
+            with known_ids_lock:
+                old_ids = set(
+                    known_ids["updates"]
+                )
+
+            new_ids = current_ids - old_ids
+
+            for document in documents:
+
+                if document.id not in new_ids:
+                    continue
+
+                data = document.to_dict() or {}
+
+                title = (
+                    data.get("title")
+                    or "New Update!"
+                )
+
+                body = (
+                    data.get("message")
+                    or data.get("body")
+                    or "Check AcadeMe!"
+                )
+
+                print("\n🆕 NEW UPDATE")
+                print(f"📢 {title}")
+
+                send_to_all(
+                    title=f"📢 {title}",
+                    body=body,
+                    url=APP_URL,
+                    notification_type="update",
+                )
+
+            with known_ids_lock:
+                known_ids["updates"] = current_ids
+
+            with state_lock:
+                service_stats["last_check"] = (
+                    datetime.now(IST).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+        except Exception as exc:
+
+            print(
+                f"❌ Updates watcher error: {exc}"
+            )
+
+        time.sleep(30)
+
+
+# ============================================================
+# RESOURCE WATCHER
+# ============================================================
+
+def watch_resources():
+
+    print("👀 Resources watcher started")
+
+    while True:
+
+        try:
+
+            documents = list(
+                db.collection("resources").stream()
+            )
+
+            current_ids = {
+                document.id
+                for document in documents
+            }
+
+            with known_ids_lock:
+                old_ids = set(
+                    known_ids["resources"]
+                )
+
+            new_ids = current_ids - old_ids
+
+            for document in documents:
+
+                if document.id not in new_ids:
+                    continue
+
+                data = document.to_dict() or {}
+
+                title = (
+                    data.get("title")
+                    or "New Resource"
+                )
+
+                resource_type = (
+                    data.get("type")
+                    or "resource"
+                )
+
+                branches = data.get(
+                    "branches",
+                    []
+                )
+
+                if not isinstance(
+                    branches,
+                    list
+                ):
+                    branches = []
+
+                branch_text = ", ".join(
+                    str(branch)
+                    for branch in branches[:2]
+                )
+
+                if len(branches) > 2:
+                    branch_text += (
+                        f" +{len(branches) - 2} more"
+                    )
+
+                body = title
+
+                if branch_text:
+                    body += (
+                        f" • {branch_text}"
+                    )
+
+                print("\n🆕 NEW RESOURCE")
+                print(f"📚 {title}")
+
+                send_to_all(
+                    title=(
+                        "📚 New "
+                        + str(resource_type)
+                        .replace("-", " ")
+                        .title()
+                        + "!"
+                    ),
+                    body=body,
+                    url=APP_URL,
+                    notification_type="resource",
+                )
+
+            with known_ids_lock:
+                known_ids["resources"] = current_ids
+
+            with state_lock:
+                service_stats["last_check"] = (
+                    datetime.now(IST).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+        except Exception as exc:
+
+            print(
+                f"❌ Resources watcher error: "
+                f"{exc}"
+            )
+
+        time.sleep(30)
+
+
+# ============================================================
+# ADMIN MESSAGE WATCHER
+# ============================================================
+
+def watch_notifications():
+
+    print("👀 Admin message watcher started")
+
+    while True:
+
+        try:
+
+            documents = list(
+                db.collection("notifications").stream()
+            )
+
+            current_ids = {
+                document.id
+                for document in documents
+            }
+
+            with known_ids_lock:
+                old_ids = set(
+                    known_ids["notifications"]
+                )
+
+            new_ids = current_ids - old_ids
+
+            for document in documents:
+
+                if document.id not in new_ids:
+                    continue
+
+                data = document.to_dict() or {}
+
+                user_id = (
+                    data.get("userId")
+                    or ""
+                )
+
+                message = (
+                    data.get("message")
+                    or data.get("body")
+                    or ""
+                )
+
+                notification_type = (
+                    data.get("type")
+                    or ""
+                )
+
+                if (
+                    notification_type
+                    == "admin_message"
+                    and user_id
+                    and message
+                ):
+
+                    print("\n🆕 ADMIN MESSAGE")
+                    print(
+                        f"💬 User: {user_id}"
+                    )
+
+                    send_to_user(
+                        user_id=user_id,
+                        title="💬 Message from Admin",
+                        body=str(message)[:500],
+                        url=APP_URL,
+                        notification_type="admin_message",
+                    )
+
+            with known_ids_lock:
+                known_ids["notifications"] = current_ids
+
+        except Exception as exc:
+
+            print(
+                f"❌ Notifications watcher error: "
+                f"{exc}"
+            )
+
+        time.sleep(30)
+
+
+# ============================================================
+# MANUAL ATTENDANCE REMINDER
+# ============================================================
+
+def send_attendance_reminder(
+    manual=False,
+    custom_title=None,
+    custom_body=None,
+):
+
+    title = (
+        custom_title
+        or random.choice(
+            ATTENDANCE_REMINDER_TITLES
+        )
+    )
+
+    body = (
+        custom_body
+        or random.choice(
+            ATTENDANCE_REMINDER_BODIES
+        )
+    )
+
+    if manual and not custom_body:
+        body = (
+            "🧪 Test notification: "
+            + body
+        )
+
+    print("\n🎒 ATTENDANCE REMINDER")
+
+    send_to_all(
+        title=title,
+        body=body,
+        url=ATTENDANCE_URL,
+        notification_type="attendance_reminder",
+    )
+
+
+# ============================================================
+# MANUAL ATTENDANCE TRIGGER WATCHER
+# ============================================================
+
+def watch_attendance_reminders():
+
+    print(
+        "👀 Attendance trigger watcher started"
+    )
+
+    while True:
+
+        try:
+
+            documents = list(
+                db.collection(
+                    "attendance_reminders"
+                ).stream()
+            )
+
+            current_ids = {
+                document.id
+                for document in documents
+            }
+
+            with known_ids_lock:
+                old_ids = set(
+                    known_ids[
+                        "attendance_reminders"
+                    ]
+                )
+
+            new_ids = current_ids - old_ids
+
+            for document in documents:
+
+                if document.id not in new_ids:
+                    continue
+
+                data = document.to_dict() or {}
+
+                title = (
+                    data.get("title")
+                    or None
+                )
+
+                body = (
+                    data.get("body")
+                    or None
+                )
+
+                print(
+                    "\n🆕 MANUAL ATTENDANCE "
+                    "TRIGGER"
+                )
+
+                send_attendance_reminder(
+                    manual=True,
+                    custom_title=title,
+                    custom_body=body,
+                )
+
+            with known_ids_lock:
+                known_ids[
+                    "attendance_reminders"
+                ] = current_ids
+
+        except Exception as exc:
+
+            print(
+                "❌ Attendance trigger "
+                f"watcher error: {exc}"
+            )
+
+        time.sleep(POLL_INTERVAL)
+
+
+# ============================================================
+# CUSTOM ADMIN BROADCAST WATCHER
+# ============================================================
 
 def watch_admin_broadcasts():
-    """Watches `admin_broadcasts` — written by the Admin Panel's 'Send Custom
-    Notification' composer. Unlike attendance reminders, these carry whatever
-    title/body/url the admin typed, with no default pool fallback."""
+
+    print(
+        "👀 Admin broadcast watcher started"
+    )
+
     while True:
+
         try:
-            docs = list(db.collection('admin_broadcasts').stream())
-            current_ids = set(doc.id for doc in docs)
-            new_ids = current_ids - known_ids["admin_broadcasts"]
 
-            if new_ids:
-                for doc in docs:
-                    if doc.id in new_ids:
-                        data = doc.to_dict() or {}
-                        title = (data.get('title') or 'AcadeMe').strip()
-                        body = (data.get('body') or '').strip()
-                        url = (data.get('url') or '').strip() or 'https://acade-me.vercel.app'
+            documents = list(
+                db.collection(
+                    "admin_broadcasts"
+                ).stream()
+            )
 
-                        if body:
-                            print(f"\n🆕 ═══ CUSTOM ADMIN BROADCAST ═══")
-                            print(f"📣 {title}")
-                            send_to_all(title, body, url=url, notif_type='admin_broadcast')
+            current_ids = {
+                document.id
+                for document in documents
+            }
 
-                known_ids["admin_broadcasts"] = current_ids
+            with known_ids_lock:
+                old_ids = set(
+                    known_ids[
+                        "admin_broadcasts"
+                    ]
+                )
 
-        except Exception as e:
-            print(f"❌ Admin broadcast watch error: {e}")
+            new_ids = current_ids - old_ids
 
-        time.sleep(10)
+            for document in documents:
+
+                if document.id not in new_ids:
+                    continue
+
+                data = document.to_dict() or {}
+
+                title = (
+                    data.get("title")
+                    or "AcadeMe"
+                )
+
+                body = (
+                    data.get("body")
+                    or data.get("message")
+                    or ""
+                )
+
+                url = (
+                    data.get("url")
+                    or APP_URL
+                )
+
+                if not body:
+                    print(
+                        "⚠️ Admin broadcast "
+                        "has no body."
+                    )
+                    continue
+
+                print(
+                    "\n🆕 CUSTOM ADMIN "
+                    "BROADCAST"
+                )
+
+                print(
+                    f"📣 {title}"
+                )
+
+                send_to_all(
+                    title=title,
+                    body=body,
+                    url=url,
+                    notification_type=(
+                        "admin_broadcast"
+                    ),
+                )
+
+            with known_ids_lock:
+                known_ids[
+                    "admin_broadcasts"
+                ] = current_ids
+
+        except Exception as exc:
+
+            print(
+                "❌ Admin broadcast "
+                f"watcher error: {exc}"
+            )
+
+        time.sleep(POLL_INTERVAL)
 
 
-def attendance_reminder_scheduler():
-    """Fires the attendance nudge automatically at 12:00 and 16:30 IST,
-    Monday through Saturday. Sleeps until the next scheduled slot instead
-    of polling every second."""
-    SLOTS = [(12, 0), (16, 30)]
-    already_sent_today = set()  # e.g. {"2026-09-01-12:00"}
+# ============================================================
+# SCHEDULED ATTENDANCE REMINDER
+# ============================================================
+
+def attendance_scheduler():
+
+    print(
+        "⏰ Attendance scheduler started"
+    )
+
+    # Monday = 0
+    # Saturday = 5
+    # Sunday = 6
+
+    scheduled_slots = [
+        (12, 0),
+        (16, 30),
+    ]
+
+    sent_slots = set()
 
     while True:
-        now = datetime.now(IST)
-        weekday = now.weekday()  # Monday=0 ... Sunday=6
 
-        if weekday <= 5:  # Monday(0) .. Saturday(5) — Sunday(6) skipped
-            for hh, mm in SLOTS:
-                slot_key = f"{now.strftime('%Y-%m-%d')}-{hh:02d}:{mm:02d}"
-                slot_time = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-                # Fire if we're within 60s after the slot and haven't sent it yet today
-                if 0 <= (now - slot_time).total_seconds() < 60 and slot_key not in already_sent_today:
-                    send_attendance_reminder(manual=False)
-                    already_sent_today.add(slot_key)
+        try:
 
-        # Trim old keys so the set doesn't grow forever
-        if len(already_sent_today) > 20:
-            already_sent_today = set(list(already_sent_today)[-10:])
+            now = datetime.now(IST)
+
+            if now.weekday() <= 5:
+
+                for hour, minute in scheduled_slots:
+
+                    slot_key = (
+                        f"{now.strftime('%Y-%m-%d')}"
+                        f"-{hour:02d}:{minute:02d}"
+                    )
+
+                    slot_time = now.replace(
+                        hour=hour,
+                        minute=minute,
+                        second=0,
+                        microsecond=0,
+                    )
+
+                    seconds_after = (
+                        now - slot_time
+                    ).total_seconds()
+
+                    # Give the service a 5-minute
+                    # tolerance window.
+                    if (
+                        0 <= seconds_after < 300
+                        and slot_key
+                        not in sent_slots
+                    ):
+
+                        print(
+                            "\n⏰ Scheduled "
+                            "attendance reminder"
+                        )
+
+                        send_attendance_reminder()
+
+                        sent_slots.add(slot_key)
+
+            # Keep memory small
+            if len(sent_slots) > 20:
+
+                sorted_slots = sorted(
+                    sent_slots
+                )
+
+                sent_slots = set(
+                    sorted_slots[-10:]
+                )
+
+        except Exception as exc:
+
+            print(
+                "❌ Attendance scheduler "
+                f"error: {exc}"
+            )
+
+            traceback.print_exc()
 
         time.sleep(20)
 
 
-# ══════════════════════════════════════════════════════════════
-# 👀 WATCHERS
-# ══════════════════════════════════════════════════════════════
-
-def load_existing_ids(collection_name):
-    """Load existing IDs on startup"""
-    try:
-        docs = list(db.collection(collection_name).stream())
-        ids = set(doc.id for doc in docs)
-        known_ids[collection_name] = ids
-        print(f"   📂 {collection_name}: {len(ids)} existing")
-        return docs
-    except Exception as e:
-        print(f"   ❌ Error loading {collection_name}: {e}")
-        return []
-
-
-def watch_updates():
-    """Watch for new admin updates"""
-    while True:
-        try:
-            docs = list(db.collection('updates').stream())
-            current_ids = set(doc.id for doc in docs)
-            new_ids = current_ids - known_ids["updates"]
-
-            if new_ids:
-                for doc in docs:
-                    if doc.id in new_ids:
-                        data = doc.to_dict()
-                        title = data.get('title', 'New Update!')
-                        body = data.get('message', 'Check AcadeMe!')
-
-                        print(f"\n🆕 ═══ NEW UPDATE ═══")
-                        print(f"📢 {title}")
-                        send_to_all(f"📢 {title}", body)
-
-                known_ids["updates"] = current_ids
-
-        except Exception as e:
-            print(f"❌ Updates watch error: {e}")
-
-        time.sleep(30)
-
-
-def watch_resources():
-    """Watch for new resources"""
-    while True:
-        try:
-            docs = list(db.collection('resources').stream())
-            current_ids = set(doc.id for doc in docs)
-            new_ids = current_ids - known_ids["resources"]
-
-            if new_ids:
-                for doc in docs:
-                    if doc.id in new_ids:
-                        data = doc.to_dict()
-                        title = data.get('title', 'New Resource')
-                        res_type = data.get('type', 'resource')
-                        branches = data.get('branches', [])
-                        
-                        branch_text = ', '.join(branches[:2])
-                        if len(branches) > 2:
-                            branch_text += f' +{len(branches)-2} more'
-
-                        print(f"\n🆕 ═══ NEW RESOURCE ═══")
-                        print(f"📚 {title}")
-                        
-                        send_to_all(
-                            f"📚 New {res_type.replace('-', ' ').title()}!",
-                            f"{title}" + (f" • {branch_text}" if branch_text else "")
-                        )
-
-                known_ids["resources"] = current_ids
-
-        except Exception as e:
-            print(f"❌ Resources watch error: {e}")
-
-        time.sleep(30)
-
-
-def watch_notifications():
-    """Watch for admin messages to users"""
-    while True:
-        try:
-            docs = list(db.collection('notifications').stream())
-            current_ids = set(doc.id for doc in docs)
-            new_ids = current_ids - known_ids["notifications"]
-
-            if new_ids:
-                for doc in docs:
-                    if doc.id in new_ids:
-                        data = doc.to_dict()
-                        user_id = data.get('userId', '')
-                        message = data.get('message', '')
-                        msg_type = data.get('type', '')
-
-                        if msg_type == 'admin_message' and user_id:
-                            print(f"\n🆕 ═══ ADMIN MESSAGE ═══")
-                            print(f"💬 To: {data.get('userName', user_id)}")
-                            send_to_user(
-                                user_id,
-                                "💬 Message from Admin",
-                                message[:100]
-                            )
-
-                known_ids["notifications"] = current_ids
-
-        except Exception as e:
-            print(f"❌ Notifications watch error: {e}")
-
-        time.sleep(30)
-
-
-# ══════════════════════════════════════════════════════════════
-# 💓 KEEP ALIVE
-# ══════════════════════════════════════════════════════════════
+# ============================================================
+# KEEP ALIVE
+# ============================================================
 
 def keep_alive():
-    """Self-ping to prevent Render sleep"""
-    render_url = os.environ.get('RENDER_EXTERNAL_URL')
+
+    render_url = os.environ.get(
+        "RENDER_EXTERNAL_URL"
+    )
 
     if not render_url:
-        print("⚠️  RENDER_EXTERNAL_URL not set!")
+
+        print(
+            "ℹ️ RENDER_EXTERNAL_URL not set."
+        )
+
         return
 
-    print(f"💓 Keep-alive: {render_url}")
-    ping_count = 0
+    print(
+        f"💓 Internal keep-alive: "
+        f"{render_url}"
+    )
 
     while True:
-        time.sleep(10 * 60)  # 10 minutes
-        ping_count += 1
+
+        time.sleep(10 * 60)
 
         try:
-            req = urllib.request.Request(
+
+            request = urllib.request.Request(
                 render_url,
-                headers={'User-Agent': 'AcadeMe-KeepAlive'}
+                headers={
+                    "User-Agent":
+                        "AcadeMe-KeepAlive/1.0"
+                },
             )
-            response = urllib.request.urlopen(req, timeout=30)
-            print(f"💓 Ping #{ping_count}: OK")
-        except Exception as e:
-            print(f"💔 Ping #{ping_count} failed: {e}")
+
+            with urllib.request.urlopen(
+                request,
+                timeout=30
+            ) as response:
+
+                print(
+                    "💓 Keep-alive OK "
+                    f"({response.status})"
+                )
+
+        except Exception as exc:
+
+            print(
+                f"⚠️ Keep-alive failed: "
+                f"{exc}"
+            )
 
 
-# ══════════════════════════════════════════════════════════════
-# 🌐 WEB SERVER
-# ══════════════════════════════════════════════════════════════
+# ============================================================
+# HEALTH SERVER
+# ============================================================
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
+class HealthHandler(
+    BaseHTTPRequestHandler
+):
+
+    def send_json(
+        self,
+        status_code,
+        data
+    ):
+
+        payload = json.dumps(
+            data,
+            ensure_ascii=False
+        ).encode("utf-8")
+
+        self.send_response(status_code)
+
+        self.send_header(
+            "Content-Type",
+            "application/json; charset=utf-8"
+        )
+
+        self.send_header(
+            "Content-Length",
+            str(len(payload))
+        )
+
+        self.send_header(
+            "Cache-Control",
+            "no-cache"
+        )
+
         self.end_headers()
 
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>AcadeMe Notifier</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta http-equiv="refresh" content="30">
-            <style>
-                body {{
-                    font-family: -apple-system, system-ui, sans-serif;
-                    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-                    color: white; min-height: 100vh; margin: 0; padding: 20px;
-                }}
-                .container {{ max-width: 600px; margin: 0 auto; }}
-                .card {{
-                    background: rgba(255,255,255,0.08);
-                    border-radius: 16px; padding: 24px; margin-bottom: 20px;
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(255,255,255,0.1);
-                }}
-                .status {{
-                    display: inline-block; padding: 6px 16px;
-                    background: #10B981; border-radius: 20px;
-                    font-weight: bold; animation: pulse 2s infinite;
-                }}
-                @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
-                .stat {{
-                    display: flex; justify-content: space-between;
-                    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
-                }}
-                .stat:last-child {{ border: none; }}
-                .label {{ color: #aaa; }}
-                .value {{ font-weight: bold; color: #60A5FA; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="card">
-                    <span class="status">🟢 RUNNING</span>
-                    <h1>🎓 AcadeMe Notifier</h1>
-                    <p style="color: #aaa;">Free Push Notification Service</p>
-                </div>
-                <div class="card">
-                    <h3 style="margin-top:0;">📊 Stats</h3>
-                    <div class="stat">
-                        <span class="label">Started</span>
-                        <span class="value">{service_stats['started_at']}</span>
-                    </div>
-                    <div class="stat">
-                        <span class="label">Last Check</span>
-                        <span class="value">{service_stats['last_check'] or 'Starting...'}</span>
-                    </div>
-                    <div class="stat">
-                        <span class="label">Notifications Sent</span>
-                        <span class="value">{service_stats['notifications_sent']}</span>
-                    </div>
-                    <div class="stat">
-                        <span class="label">FCM Tokens</span>
-                        <span class="value">{service_stats['total_tokens']}</span>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3 style="margin-top:0;">🔔 Triggers</h3>
-                    <div style="color: #aaa; font-size: 0.9rem;">
-                        <p>📢 New Updates → All users</p>
-                        <p>📚 New Resources → All users</p>
-                        <p>💬 Admin Messages → Specific user</p>
-                        <p>🎒 Attendance Reminders → All users (Mon–Sat, 12:00 & 16:30 IST)</p>
-                        <p>📣 Custom Admin Broadcasts → All users (on demand)</p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        self.wfile.write(html.encode())
+        self.wfile.write(payload)
+
+    def do_GET(self):
+
+        path = self.path.split("?")[0]
+
+        if path in ["/", "/health", "/ping"]:
+
+            with state_lock:
+                stats = dict(service_stats)
+
+            response = {
+                "status": "ok",
+                "service": "AcadeMe Notification Service",
+                "time_ist": datetime.now(
+                    IST
+                ).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                "stats": stats,
+            }
+
+            self.send_json(
+                200,
+                response
+            )
+
+            return
+
+        self.send_json(
+            404,
+            {
+                "status": "not_found"
+            }
+        )
 
     def do_HEAD(self):
+
         self.send_response(200)
+
+        self.send_header(
+            "Content-Type",
+            "text/plain"
+        )
+
         self.end_headers()
 
-    def log_message(self, format, *args):
-        pass
+    def log_message(
+        self,
+        format,
+        *args
+    ):
+        # Keep Render logs clean.
+        return
 
 
-def run_server():
-    port = int(os.environ.get('PORT', 8080))
-    
+def run_health_server():
+
+    print(
+        f"🌐 Health server starting "
+        f"on port {HEALTH_PORT}"
+    )
+
+    server = HTTPServer(
+        ("0.0.0.0", HEALTH_PORT),
+        HealthHandler,
+    )
+
+    print(
+        f"✅ Health server listening "
+        f"on 0.0.0.0:{HEALTH_PORT}"
+    )
+
+    server.serve_forever()
+
+
+# ============================================================
+# STARTUP
+# ============================================================
+
+def main():
+
+    print("\n📂 Loading Firestore state...")
+
+    collections = [
+        "updates",
+        "resources",
+        "notifications",
+        "attendance_reminders",
+        "admin_broadcasts",
+    ]
+
+    for collection_name in collections:
+        load_existing_ids(
+            collection_name
+        )
+
+    print("\n🚀 Starting watchers...")
+
+    watcher_threads = [
+
+        (
+            "Updates",
+            watch_updates
+        ),
+
+        (
+            "Resources",
+            watch_resources
+        ),
+
+        (
+            "AdminMessages",
+            watch_notifications
+        ),
+
+        (
+            "AttendanceTriggers",
+            watch_attendance_reminders
+        ),
+
+        (
+            "AdminBroadcasts",
+            watch_admin_broadcasts
+        ),
+
+        (
+            "AttendanceScheduler",
+            attendance_scheduler
+        ),
+
+        (
+            "KeepAlive",
+            keep_alive
+        ),
+    ]
+
+    for name, target in watcher_threads:
+
+        thread = threading.Thread(
+            target=target,
+            daemon=True,
+            name=name,
+        )
+
+        thread.start()
+
+        print(
+            f"   ✅ {name}"
+        )
+
+    print("\n" + "=" * 60)
+    print(
+        "🔔 ACADeMe NOTIFICATIONS ENABLED"
+    )
+    print("=" * 60)
+
+    print(
+        "📢 Updates"
+    )
+
+    print(
+        "📚 Resources"
+    )
+
+    print(
+        "💬 Admin Messages"
+    )
+
+    print(
+        "🎒 Attendance Reminders"
+        " — Mon-Sat 12:00 & 16:30 IST"
+    )
+
+    print(
+        "📣 Custom Admin Broadcasts"
+    )
+
+    print("=" * 60)
+
+    # This MUST stay in the main process.
+    run_health_server()
+
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
     try:
-        print(f"\n4️⃣ Starting web server on port {port}...")
-        server = HTTPServer(('0.0.0.0', port), Handler)
-        print(f"✅ Server listening on 0.0.0.0:{port}")
-        print("=" * 50)
-        server.serve_forever()
-    except Exception as e:
-        print(f"\n❌ FATAL ERROR starting server:")
-        print(f"   {type(e).__name__}: {e}")
+
+        main()
+
+    except KeyboardInterrupt:
+
+        print(
+            "\n🛑 Service stopped."
+        )
+
+    except Exception as exc:
+
+        print(
+            "\n❌ FATAL SERVICE ERROR"
+        )
+
+        print(
+            f"{type(exc).__name__}: {exc}"
+        )
+
         traceback.print_exc()
-        sys.exit(1)
 
-
-# ══════════════════════════════════════════════════════════════
-# 🚀 MAIN
-# ══════════════════════════════════════════════════════════════
-
-if __name__ == '__main__':
-    try:
-        print("\n📂 Loading existing data...")
-        load_existing_ids("updates")
-        load_existing_ids("resources")
-        load_existing_ids("notifications")
-        load_existing_ids("attendance_reminders")
-        load_existing_ids("admin_broadcasts")
-
-        watchers = [
-            ("Updates", watch_updates),
-            ("Resources", watch_resources),
-            ("Messages", watch_notifications),
-            ("AttendanceReminderTriggers", watch_attendance_reminder_triggers),
-            ("AdminBroadcasts", watch_admin_broadcasts),
-        ]
-
-        for name, func in watchers:
-            t = threading.Thread(target=func, daemon=True, name=f"Watch-{name}")
-            t.start()
-            print(f"👀 Watching: {name}")
-
-        scheduler = threading.Thread(target=attendance_reminder_scheduler, daemon=True, name="AttendanceScheduler")
-        scheduler.start()
-        print("⏰ Attendance reminder scheduler started (Mon–Sat, 12:00 & 16:30 IST)")
-
-        keeper = threading.Thread(target=keep_alive, daemon=True)
-        keeper.start()
-        print("💓 Keep-alive started\n")
-
-        print("🔔 Notifications enabled for:")
-        print("   📢 Updates")
-        print("   📚 Resources")
-        print("   💬 Admin Messages")
-        print("   🎒 Attendance Reminders (Mon–Sat, 12:00 & 16:30 IST)")
-        print("   📣 Custom Admin Broadcasts\n")
-
-        run_server()
-        
-    except Exception as e:
-        print(f"\n❌ FATAL ERROR in main:")
-        print(f"   {type(e).__name__}: {e}")
-        traceback.print_exc()
         sys.exit(1)
