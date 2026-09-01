@@ -1,15 +1,306 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, BookOpen, Layers, BarChart2, Shield, Plus, Trash2, Ban, CheckCircle, MessageCircle, Send, Bell, BellRing, Star, Link as LinkIcon, ExternalLink, Edit2, Search, X, ChevronDown, RefreshCw } from 'lucide-react';
+import { 
+    Users, BookOpen, Layers, BarChart2, Shield, Plus, Trash2, Ban, 
+    CheckCircle, MessageCircle, Send, Bell, BellRing, Star, Link as LinkIcon, 
+    ExternalLink, Edit2, Search, X, ChevronDown, RefreshCw, Clock, LayoutDashboard 
+} from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { clearCoursesCache } from '../context/DataContext';
-import GlassCard from '../components/GlassCard';
-import GlassButton from '../components/GlassButton';
-import Badge from '../components/Badge';
-import DashboardLayout from '../components/DashboardLayout';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+
+// ─── PREMIUM CSS INJECTION ──────────────────────────────────────────────
+const GLOBAL_CSS = `
+    .admin-wrap {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #FFDCE8 0%, #F5E6FF 40%, #E6F0FF 100%);
+        font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+        color: #111827;
+        padding-bottom: 80px;
+    }
+
+    /* Glassmorphism Sticky Nav */
+    .glass-nav-wrapper {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .glass-nav {
+        pointer-events: auto;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 1);
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        border-radius: 999px;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        width: 100%;
+        max-width: 1200px;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs-container {
+        display: flex;
+        gap: 6px;
+        background: rgba(249, 250, 251, 0.8);
+        padding: 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(229, 231, 235, 0.5);
+        overflow-x: auto;
+        scrollbar-width: none;
+        flex: 1;
+    }
+    .nav-tabs-container::-webkit-scrollbar { display: none; }
+    
+    .nav-tab {
+        padding: 8px 18px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-family: inherit;
+        transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+        white-space: nowrap;
+    }
+    .nav-tab.active {
+        background: #FFFFFF;
+        color: #111827;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .nav-tab.inactive {
+        background: transparent;
+        color: #6B7280;
+    }
+    .nav-tab.inactive:hover {
+        background: rgba(255,255,255,0.5);
+        color: #374151;
+    }
+
+    /* Premium Cards */
+    .premium-card {
+        background: #FFFFFF;
+        border-radius: 32px;
+        padding: 32px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+        box-sizing: border-box;
+        width: 100%;
+        transition: transform 0.2s ease;
+        margin-bottom: 1.5rem;
+    }
+    .premium-card.tinted {
+        background: linear-gradient(145deg, #ffffff 0%, #FAFAFA 100%);
+        border: 1px solid #F3F4F6;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 24, 39, 0.4);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    /* Inputs & Forms */
+    .premium-input {
+        background: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 12px 16px;
+        width: 100%;
+        color: #111827;
+        outline: none;
+        transition: all 0.2s;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-weight: 500;
+    }
+    .premium-input:focus {
+        border-color: #8B5CF6;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+        background: #FFFFFF;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    /* List Items */
+    .list-item-wrapper {
+        display: flex;
+        align-items: center;
+        padding: 16px 0;
+        border-bottom: 1px solid #F3F4F6;
+    }
+    .list-item-wrapper:last-child {
+        border-bottom: none;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 900px) {
+        .form-grid { grid-template-columns: 1fr; }
+    }
+    
+    @media (max-width: 768px) {
+        .glass-nav-wrapper { padding: 10px; }
+        .glass-nav { 
+            flex-direction: column; 
+            border-radius: 24px; 
+            padding: 16px; 
+            gap: 16px; 
+            align-items: flex-start;
+        }
+        .nav-tabs-container { width: 100%; box-sizing: border-box; }
+        .hide-on-mobile { display: none !important; }
+        
+        .premium-card { padding: 20px; border-radius: 24px; }
+        .list-item-wrapper { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 0; }
+        .list-item-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+        
+        .stats-grid { grid-template-columns: 1fr 1fr !important; }
+        .main-content { padding: 0 10px !important; }
+    }
+`;
+
+// ─── DESIGN SYSTEM COMPONENTS ──────────────────────────────────────────
+
+const StyledCard = ({ children, style, className }) => (
+    <div className={`premium-card ${className || ''}`} style={style}>{children}</div>
+);
+
+const PillButton = ({ children, onClick, variant = 'secondary', style, disabled, type="button", className="" }) => {
+    const getVariant = () => {
+        if(disabled) return { background: '#F3F4F6', color: '#9CA3AF', cursor: 'not-allowed' };
+        switch(variant) {
+            case 'primary': return { background: '#111827', color: '#FFFFFF', boxShadow: '0 4px 12px rgba(17, 24, 39, 0.15)' };
+            case 'blue': return { background: '#3B82F6', color: '#FFFFFF', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)' };
+            case 'danger': return { background: '#FEE2E2', color: '#EF4444' };
+            case 'success': return { background: '#D1FAE5', color: '#10B981' };
+            case 'warning': return { background: '#FEF3C7', color: '#D97706' };
+            case 'outline': return { background: 'transparent', color: '#374151', border: '1px solid #E5E7EB' };
+            case 'purple': return { background: '#EDE9FE', color: '#7C3AED' };
+            case 'soft-blue': return { background: '#DBEAFE', color: '#3B82F6' };
+            case 'soft-purple': return { background: '#F3E8FF', color: '#9333EA' };
+            default: return { background: '#F3F4F6', color: '#374151' };
+        }
+    };
+    return (
+        <button type={type} onClick={onClick} disabled={disabled} className={className} style={{
+            padding: '8px 16px', borderRadius: '999px', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', 
+            fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            fontSize: '0.85rem', transition: 'all 0.2s', ...getVariant(), ...style
+        }}>
+            {children}
+        </button>
+    );
+};
+
+const ListItem = ({ index, title, subtitle, actions, icon, sideInfo }) => (
+    <div className="list-item-wrapper">
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, width: '100%' }}>
+            {index && <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontWeight: '700', fontSize: '0.9rem', marginRight: '16px', flexShrink: 0 }}>
+                {index}
+            </div>}
+            {icon && <div style={{ marginRight: '16px', flexShrink: 0 }}>{icon}</div>}
+            <div style={{ minWidth: 0, paddingRight: '16px', flex: 1 }}>
+                <h4 style={{ margin: 0, color: '#111827', fontWeight: '700', fontSize: '1.05rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h4>
+                {subtitle && <p style={{ margin: '4px 0 0', color: '#6B7280', fontSize: '0.85rem', fontWeight: '500' }}>{subtitle}</p>}
+            </div>
+            {sideInfo && <div className="hide-on-mobile" style={{ paddingRight: '16px' }}>{sideInfo}</div>}
+        </div>
+        <div className="list-item-actions" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            {actions}
+        </div>
+    </div>
+);
+
+// ─── OVERVIEW TAB ───────────────────────────────────────────────────────────
+const OverviewTab = ({ setActiveTab }) => {
+    const [stats, setStats] = useState({ users:0, faculty:0, reviews:0, resources:0 });
+    const [recentUsers, setRecentUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(()=>{
+        const getStats = async () => {
+            try {
+                const [u,f,r,res] = await Promise.all([
+                    getDocs(collection(db,"users")), getDocs(collection(db,"faculty")),
+                    getDocs(collection(db,"facultyReviews")), getDocs(collection(db,"resources")),
+                ]);
+                setStats({users:u.size,faculty:f.size,reviews:r.size,resources:res.size});
+                const qU = query(collection(db,"users"),orderBy("createdAt","desc"),limit(5));
+                const snap = await getDocs(qU);
+                setRecentUsers(snap.docs.map(d=>({id:d.id,...d.data()})));
+            } catch(e){} finally { setLoading(false); }
+        };
+        getStats();
+    },[]);
+
+    const STATS = [
+        {label:'Total Users',value:stats.users,icon:Users,color:'#3B82F6', bg:'#DBEAFE'},
+        {label:'Total Faculty',value:stats.faculty,icon:Layers,color:'#D97706', bg:'#FEF3C7'},
+        {label:'Resources',value:stats.resources,icon:BookOpen,color:'#7C3AED', bg:'#EDE9FE'},
+        {label:'Reviews',value:stats.reviews,icon:MessageCircle,color:'#10B981', bg:'#D1FAE5'},
+    ];
+
+    if (loading) return <div style={{textAlign:'center', padding:'3rem', color:'#6B7280'}}>Loading Insights...</div>;
+
+    return (
+        <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+            <div className="stats-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'1.5rem'}}>
+                {STATS.map((s,i)=>(
+                    <StyledCard key={i} style={{padding:'24px', marginBottom: 0}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1rem'}}>
+                            <div style={{padding:'12px',borderRadius:'16px',background:s.bg,color:s.color}}><s.icon size={24}/></div>
+                            <span style={{fontSize:'0.75rem', fontWeight:'700', color:'#10B981', background:'#D1FAE5', padding:'4px 10px', borderRadius:'999px'}}>Live</span>
+                        </div>
+                        <h2 style={{fontSize:'2.5rem',fontWeight:'800', margin:'0 0 4px', color:'#111827', letterSpacing:'-1px'}}>{s.value}</h2>
+                        <p style={{margin:0, color:'#6B7280', fontWeight:'600', fontSize:'0.9rem'}}>{s.label}</p>
+                    </StyledCard>
+                ))}
+            </div>
+            
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))',gap:'1.5rem'}}>
+                <StyledCard style={{ marginBottom: 0}}>
+                    <h3 style={{fontWeight:'800',fontSize:'1.3rem', color:'#111827', margin:'0 0 1.5rem'}}>Recent Signups</h3>
+                    <div style={{display:'flex',flexDirection:'column'}}>
+                        {recentUsers.map((u)=>(
+                            <ListItem key={u.id}
+                                icon={<img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random&color=fff&size=42`} alt="" style={{borderRadius:'50%'}}/>}
+                                title={u.name} subtitle={`${u.branch} • ${u.year||'Student'}`}
+                                actions={<span style={{fontSize:'0.75rem', fontWeight:'700', padding:'6px 12px', borderRadius:'999px', background: u.isBlocked?'#FEE2E2':'#D1FAE5', color: u.isBlocked?'#EF4444':'#10B981'}}>{u.isBlocked?'Blocked':'Active'}</span>}
+                            />
+                        ))}
+                    </div>
+                </StyledCard>
+                <StyledCard style={{ marginBottom: 0}}>
+                    <h3 style={{fontWeight:'800',fontSize:'1.3rem', color:'#111827', margin:'0 0 1.5rem'}}>Quick Actions</h3>
+                    <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+                        <PillButton onClick={()=>setActiveTab('courses')} variant="blue" style={{justifyContent:'center', padding:'14px', fontSize:'0.95rem'}}><BookOpen size={18}/> Manage Courses</PillButton>
+                        <PillButton onClick={()=>setActiveTab('user management')} style={{justifyContent:'center', padding:'14px', fontSize:'0.95rem'}}><Users size={18}/> Manage Users</PillButton>
+                        <PillButton onClick={()=>setActiveTab('updates')} variant="purple" style={{justifyContent:'center', padding:'14px', fontSize:'0.95rem'}}><Bell size={18}/> Send Notification</PillButton>
+                        <PillButton onClick={()=>setActiveTab('reviews')} style={{justifyContent:'center', padding:'14px', fontSize:'0.95rem'}}><Star size={18}/> Review Reports</PillButton>
+                    </div>
+                </StyledCard>
+            </div>
+        </div>
+    );
+};
 
 // ─── USER MANAGEMENT ────────────────────────────────────────────────────────
 const UserManagement = () => {
@@ -20,11 +311,11 @@ const UserManagement = () => {
     const [messageText, setMessageText] = useState('');
 
     const fetchUsers = async () => {
+        setLoading(true);
         try {
             const snap = await getDocs(collection(db, "users"));
             setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setLoading(false);
-        } catch (e) { setLoading(false); }
+        } catch (e) {} finally { setLoading(false); }
     };
     useEffect(() => { fetchUsers(); }, []);
 
@@ -50,59 +341,52 @@ const UserManagement = () => {
         setShowMessageModal(false); setMessageText(''); alert("Message sent!");
     };
 
-    if (loading) return <div style={{color:'white',textAlign:'center',padding:'2rem'}}>Loading users...</div>;
     return (
-        <GlassCard>
+        <StyledCard>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
-                <h3 style={{fontWeight:'bold',fontSize:'1.5rem'}}>User Management</h3>
-                <GlassButton onClick={fetchUsers}><Layers size={16}/> Refresh</GlassButton>
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color: '#111827', margin:0}}>User Directory</h3>
+                <PillButton onClick={fetchUsers}><RefreshCw size={16}/> <span className="hide-on-mobile">Refresh</span></PillButton>
             </div>
-            <div style={{overflowX:'auto'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',color:'white'}}>
-                    <thead><tr style={{borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
-                        <th style={{textAlign:'left',padding:'1rem'}}>User</th>
-                        <th style={{textAlign:'left',padding:'1rem'}}>Reg No</th>
-                        <th style={{textAlign:'left',padding:'1rem'}}>Branch</th>
-                        <th style={{textAlign:'left',padding:'1rem'}}>Status</th>
-                        <th style={{textAlign:'right',padding:'1rem'}}>Actions</th>
-                    </tr></thead>
-                    <tbody>{users.map(u => (
-                        <tr key={u.id} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                            <td style={{padding:'1rem'}}>
-                                <div style={{display:'flex',alignItems:'center',gap:'0.8rem'}}>
-                                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random&color=fff&size=32`} alt={u.name} style={{borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)'}}/>
-                                    <div><div style={{fontWeight:'bold'}}>{u.name}</div><div style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{u.email}</div></div>
-                                </div>
-                            </td>
-                            <td style={{padding:'1rem'}}>{u.regNo||<span style={{color:'var(--text-secondary)',fontSize:'0.8rem'}}>N/A</span>}</td>
-                            <td style={{padding:'1rem'}}>{u.branch}</td>
-                            <td style={{padding:'1rem'}}><Badge variant={u.isBlocked?"destructive":"success"}>{u.isBlocked?"Blocked":"Active"}</Badge></td>
-                            <td style={{padding:'1rem',textAlign:'right'}}>
-                                <div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}>
-                                    <GlassButton onClick={()=>{setSelectedUser(u);setShowMessageModal(true);}} style={{background:'rgba(59,130,246,0.2)',color:'#60A5FA',padding:'6px'}}><MessageCircle size={16}/></GlassButton>
-                                    <GlassButton onClick={()=>toggleBlock(u.id,u.isBlocked)} style={{padding:'5px 10px',background:u.isBlocked?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.2)'}}>{u.isBlocked?<CheckCircle size={16} color="#34D399"/>:<Ban size={16} color="#F87171"/>}</GlassButton>
-                                    <GlassButton onClick={()=>deleteUser(u.id)} style={{padding:'5px 10px',background:'rgba(255,255,255,0.1)'}}><Trash2 size={16}/></GlassButton>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}</tbody>
-                </table>
+            
+            <div style={{display:'flex',flexDirection:'column'}}>
+                {loading ? <p style={{textAlign:'center', padding:'2rem', color:'#6B7280'}}>Loading...</p> : 
+                users.map((u, i) => (
+                    <ListItem 
+                        key={u.id} index={i+1} title={u.name} 
+                        icon={<img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random&color=fff&size=42`} alt="" style={{borderRadius:'50%'}}/>}
+                        subtitle={`${u.email} • ${u.branch}`}
+                        sideInfo={<span style={{fontSize:'0.85rem', color:'#6B7280', fontWeight:'600'}}>Reg: {u.regNo||'N/A'}</span>}
+                        actions={
+                            <>
+                                <PillButton onClick={()=>{setSelectedUser(u);setShowMessageModal(true);}} variant="soft-blue"><MessageCircle size={14}/> Msg</PillButton>
+                                <PillButton onClick={()=>toggleBlock(u.id,u.isBlocked)} variant={u.isBlocked ? 'success' : 'warning'}>
+                                    {u.isBlocked ? <CheckCircle size={14}/> : <Ban size={14}/>} {u.isBlocked ? 'Unblock' : 'Block'}
+                                </PillButton>
+                                <PillButton onClick={()=>deleteUser(u.id)} variant="danger"><Trash2 size={14}/></PillButton>
+                            </>
+                        }
+                    />
+                ))}
             </div>
+
             {showMessageModal && selectedUser && (
-                <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}}>
-                    <GlassCard style={{width:'400px',padding:'1.5rem'}}>
-                        <h3 style={{fontWeight:'bold',marginBottom:'1rem'}}>Message {selectedUser.name}</h3>
+                <div className="modal-overlay">
+                    <StyledCard style={{maxWidth:'450px', padding:'32px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem'}}>
+                            <h3 style={{fontWeight:'800', margin:0, color:'#111827'}}>Message {selectedUser.name}</h3>
+                            <button onClick={()=>setShowMessageModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#6B7280'}}><X size={20}/></button>
+                        </div>
                         <form onSubmit={sendMessage}>
-                            <textarea value={messageText} onChange={e=>setMessageText(e.target.value)} placeholder="Type your message..." style={{width:'100%',minHeight:'100px',padding:'10px',background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.1)',color:'white',marginBottom:'1rem',borderRadius:'8px'}} required/>
-                            <div style={{display:'flex',justifyContent:'flex-end',gap:'0.5rem'}}>
-                                <GlassButton type="button" onClick={()=>setShowMessageModal(false)}>Cancel</GlassButton>
-                                <GlassButton type="submit" variant="gradient">Send</GlassButton>
+                            <textarea value={messageText} onChange={e=>setMessageText(e.target.value)} placeholder="Type your message..." className="premium-input" style={{minHeight:'120px', marginBottom:'1.5rem', resize:'none'}} required/>
+                            <div style={{display:'flex',justifyContent:'flex-end',gap:'12px'}}>
+                                <PillButton type="button" onClick={()=>setShowMessageModal(false)} variant="outline">Cancel</PillButton>
+                                <PillButton type="submit" variant="primary">Send Message</PillButton>
                             </div>
                         </form>
-                    </GlassCard>
+                    </StyledCard>
                 </div>
             )}
-        </GlassCard>
+        </StyledCard>
     );
 };
 
@@ -111,12 +395,11 @@ const FacultyManagement = () => {
     const { faculty } = useData();
     const [form, setForm] = useState({ name:'', designation:'', mobile:'', branch:'CSE' });
     const [loading, setLoading] = useState(false);
-    const iStyle = {width:'100%',padding:'10px',borderRadius:'8px',background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.1)',color:'white'};
 
     const handleAdd = async (e) => {
         e.preventDefault(); setLoading(true);
         try { await addDoc(collection(db,"faculty"),form); setForm({name:'',designation:'',mobile:'',branch:'CSE'}); alert("Faculty added!"); }
-        catch(e){ alert("Error"); } setLoading(false);
+        catch(e){} setLoading(false);
     };
     const handleDelete = async (id) => {
         if(!window.confirm("Delete?")) return;
@@ -124,61 +407,67 @@ const FacultyManagement = () => {
     };
 
     return (
-        <GlassCard>
-            <h3 style={{fontWeight:'bold',fontSize:'1.5rem',marginBottom:'1.5rem'}}>Faculty Management</h3>
-            <div style={{marginBottom:'2rem',padding:'1.5rem',background:'rgba(255,255,255,0.05)',borderRadius:'12px'}}>
-                <h4 style={{marginBottom:'1rem',fontWeight:'bold'}}>Add New Faculty</h4>
-                <form onSubmit={handleAdd} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'1rem',alignItems:'end'}}>
-                    <input required placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={iStyle}/>
-                    <input required placeholder="Designation" value={form.designation} onChange={e=>setForm({...form,designation:e.target.value})} style={iStyle}/>
-                    <input required type="tel" placeholder="Mobile" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} style={iStyle}/>
-                    <select value={form.branch} onChange={e=>setForm({...form,branch:e.target.value})} style={{...iStyle,cursor:'pointer'}}>
-                        {['CSE','ECE','EEE','MECH','CIVIL','IT','AIML','AIDS'].map(b=><option key={b} value={b} style={{background:'#333'}}>{b}</option>)}
-                    </select>
-                    <GlassButton type="submit" disabled={loading} variant="gradient" style={{justifyContent:'center',height:'42px'}}>{loading?'Adding...':'Add Faculty'}</GlassButton>
+        <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+            <StyledCard className="tinted">
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin: '0 0 1.5rem 0'}}>Add New Faculty</h3>
+                <form onSubmit={handleAdd} style={{display:'grid', gap:'16px'}}>
+                    <div className="form-grid">
+                        <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="premium-input" placeholder="Faculty Name"/></div>
+                        <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Designation</label><input required value={form.designation} onChange={e=>setForm({...form,designation:e.target.value})} className="premium-input" placeholder="e.g. Assistant Professor"/></div>
+                    </div>
+                    <div className="form-grid">
+                        <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Mobile</label><input required type="tel" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} className="premium-input" placeholder="Contact Number"/></div>
+                        <div>
+                            <label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Branch</label>
+                            <select value={form.branch} onChange={e=>setForm({...form,branch:e.target.value})} className="premium-input">
+                                {['CSE','ECE','EEE','MECH','CIVIL','IT','AIML','AIDS'].map(b=><option key={b} value={b}>{b}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <PillButton type="submit" disabled={loading} variant="primary" style={{justifyContent:'center',height:'48px', marginTop:'8px'}}>{loading?'Adding...':'Add Faculty'}</PillButton>
                 </form>
-            </div>
-            <div style={{overflowX:'auto'}}>
-                <table style={{width:'100%',color:'white'}}>
-                    <thead><tr style={{borderBottom:'1px solid rgba(255,255,255,0.1)'}}><th style={{textAlign:'left',padding:'1rem'}}>Name</th><th style={{textAlign:'left',padding:'1rem'}}>Designation</th><th style={{textAlign:'left',padding:'1rem'}}>Mobile</th><th style={{textAlign:'left',padding:'1rem'}}>Branch</th><th style={{textAlign:'right',padding:'1rem'}}>Actions</th></tr></thead>
-                    <tbody>{faculty.map(f=>(<tr key={f.id} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}><td style={{padding:'1rem'}}>{f.name}</td><td style={{padding:'1rem'}}>{f.designation}</td><td style={{padding:'1rem'}}>{f.mobile}</td><td style={{padding:'1rem'}}><Badge variant="primary">{f.branch}</Badge></td><td style={{padding:'1rem',textAlign:'right'}}><GlassButton onClick={()=>handleDelete(f.id)} style={{padding:'5px 10px',background:'rgba(255,255,255,0.1)'}}><Trash2 size={16}/></GlassButton></td></tr>))}</tbody>
-                </table>
-            </div>
-        </GlassCard>
+            </StyledCard>
+
+            <StyledCard>
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin: '0 0 1.5rem 0'}}>Faculty Roster</h3>
+                <div style={{display:'flex',flexDirection:'column'}}>
+                    {faculty.map((f, i)=>(
+                        <ListItem 
+                            key={f.id} index={i+1} title={f.name} 
+                            subtitle={`${f.designation} • ${f.mobile}`}
+                            sideInfo={<span style={{fontSize:'0.75rem', fontWeight:'700', color:'#3B82F6', background:'#DBEAFE', padding:'4px 10px', borderRadius:'999px'}}>{f.branch}</span>}
+                            actions={<PillButton onClick={()=>handleDelete(f.id)} variant="danger"><Trash2 size={14}/> <span className="hide-on-mobile">Remove</span></PillButton>}
+                        />
+                    ))}
+                </div>
+            </StyledCard>
+        </div>
     );
 };
 
-// ─── COURSES MANAGEMENT (with Mandatory Courses per branch) ──────────────────
+// ─── COURSES MANAGEMENT ──────────────────────────────────────────────────────
 const CoursesManagement = () => {
     const [allCourses, setAllCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-
+    
     // All-courses filters
     const [filterBranch, setFilterBranch] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Add/edit form
+    // Add/Edit Modals
     const [showForm, setShowForm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [formData, setFormData] = useState({ name:'', code:'', branch:'CSE' });
-
-    // New branch
+    
+    // Branch Management
     const [showNewBranch, setShowNewBranch] = useState(false);
     const [newBranchName, setNewBranchName] = useState('');
-
-    // Mandatory courses view: which branch the admin is editing
     const [mandatoryBranch, setMandatoryBranch] = useState('');
-    const [mandatoryView, setMandatoryView] = useState(false);
 
-    // Branches derived dynamically from Firestore
     const branches = useMemo(() => [...new Set(allCourses.map(c => c.branch).filter(Boolean))].sort(), [allCourses]);
-
-    // Mandatory courses for selected branch
-    const mandatoryCourses = useMemo(() =>
-        allCourses.filter(c => c.branch === mandatoryBranch).sort((a,b) => a.name.localeCompare(b.name))
-    , [allCourses, mandatoryBranch]);
+    const mandatoryCourses = useMemo(() => allCourses.filter(c => c.branch === mandatoryBranch).sort((a,b) => a.name.localeCompare(b.name)), [allCourses, mandatoryBranch]);
 
     const fetchCourses = async () => {
         setLoading(true);
@@ -187,13 +476,11 @@ const CoursesManagement = () => {
             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             list.sort((a,b) => (a.branch + a.name).localeCompare(b.branch + b.name));
             setAllCourses(list);
-            // Auto-select first branch for mandatory view
             if (!mandatoryBranch && list.length > 0) {
                 const firstBranch = [...new Set(list.map(c => c.branch).filter(Boolean))].sort()[0];
                 setMandatoryBranch(firstBranch || '');
             }
-        } catch(e) { console.error(e); }
-        finally { setLoading(false); }
+        } catch(e) {} finally { setLoading(false); }
     };
     useEffect(() => { fetchCourses(); }, []);
 
@@ -204,17 +491,11 @@ const CoursesManagement = () => {
         return matchBranch && matchSearch;
     }), [allCourses, filterBranch, searchTerm]);
 
-    const openAdd = (defaultBranch) => {
-        setFormData({ name:'', code:'', branch: defaultBranch || branches[0] || 'CSE' });
-        setIsEditing(false); setEditId(null); setShowForm(true);
-    };
-    const openEdit = (c) => {
-        setFormData({ name: c.name, code: c.code, branch: c.branch });
-        setIsEditing(true); setEditId(c.id); setShowForm(true);
-    };
+    const openAdd = (defaultBranch) => { setFormData({ name:'', code:'', branch: defaultBranch || branches[0] || 'CSE' }); setIsEditing(false); setEditId(null); setShowForm(true); };
+    const openEdit = (c) => { setFormData({ name: c.name, code: c.code, branch: c.branch }); setIsEditing(true); setEditId(c.id); setShowForm(true); };
 
     const handleSave = async () => {
-        if (!formData.name.trim() || !formData.code.trim() || !formData.branch.trim()) { alert("Fill all fields."); return; }
+        if (!formData.name.trim() || !formData.code.trim() || !formData.branch.trim()) return;
         setSaving(true);
         try {
             const p = { name: formData.name.trim(), code: formData.code.trim().toUpperCase(), branch: formData.branch.trim().toUpperCase() };
@@ -225,212 +506,150 @@ const CoursesManagement = () => {
                 const ref = await addDoc(collection(db, "courses"), p);
                 setAllCourses(prev => [...prev, { id: ref.id, ...p }]);
             }
-            // Bust cache so students see updated data
             clearCoursesCache(formData.branch.toUpperCase());
             setShowForm(false);
-        } catch(e) { alert("Save failed."); }
-        finally { setSaving(false); }
+        } catch(e) {} finally { setSaving(false); }
     };
 
     const handleDelete = async (id, name, branch) => {
-        if (!window.confirm(`Delete "${name}"?`)) return;
-        try {
-            await deleteDoc(doc(db, "courses", id));
-            setAllCourses(prev => prev.filter(c => c.id !== id));
-            clearCoursesCache(branch); // bust cache for affected branch
-        } catch(e) { alert("Delete failed."); }
+        if (!window.confirm(`Delete ${name}?`)) return;
+        try { await deleteDoc(doc(db, "courses", id)); setAllCourses(prev => prev.filter(c => c.id !== id)); clearCoursesCache(branch); } catch(e) {}
     };
 
     const handleAddBranch = async () => {
         const name = newBranchName.trim().toUpperCase();
-        if (!name) { alert("Enter branch name."); return; }
-        if (branches.includes(name)) { alert(`"${name}" already exists.`); return; }
+        if (!name || branches.includes(name)) return;
         setSaving(true);
         try {
             const p = { name: `Introduction to ${name}`, code: `${name}101`, branch: name };
             const ref = await addDoc(collection(db, "courses"), p);
             setAllCourses(prev => [...prev, { id: ref.id, ...p }]);
             setNewBranchName(''); setShowNewBranch(false); setMandatoryBranch(name);
-        } catch(e) { alert("Failed."); }
-        finally { setSaving(false); }
+        } catch(e) {} finally { setSaving(false); }
     };
 
-    const iStyle = { width:'100%', padding:'10px 14px', borderRadius:'10px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', color:'white', fontSize:'0.95rem', boxSizing:'border-box' };
-
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-
-            {/* ── MANDATORY COURSES BLOCK ────────────────────────────────── */}
-            <GlassCard style={{ border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.05)' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', flexWrap:'wrap', gap:'1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* Mandatory Courses Block */}
+            <StyledCard className="tinted" style={{ border: '1px solid #E0E7FF', background: '#F8FAFC' }}> 
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', flexWrap:'wrap', gap:'12px' }}>
                     <div>
-                        <h3 style={{ margin:0, fontWeight:'bold', fontSize:'1.3rem', display:'flex', alignItems:'center', gap:'10px' }}>
-                            <BookOpen size={20} color="#818CF8"/> Mandatory Courses per Branch
+                        <h3 style={{ margin:0, fontWeight:'800', fontSize:'1.4rem', color: '#111827', display:'flex', alignItems:'center', gap:'8px' }}>
+                            <BookOpen size={20} color="#6366F1"/> Mandatory Courses per Branch
                         </h3>
-                        <p style={{ margin:'4px 0 0', fontSize:'0.85rem', color:'#aaa' }}>
-                            These are the courses students see on their "My Courses" page. Changes apply to all users of that branch.
-                        </p>
+                        <p style={{ margin:'4px 0 0', fontSize:'0.85rem', color:'#6B7280', fontWeight:'500' }}>Changes apply to all users of that branch on their "My Courses" page.</p>
                     </div>
-                    <GlassButton onClick={() => openAdd(mandatoryBranch)} variant="gradient" style={{ fontSize:'0.85rem' }}>
-                        + Add Course to {mandatoryBranch || '...'}
-                    </GlassButton>
+                    <PillButton onClick={() => openAdd(mandatoryBranch)} variant="primary">+ Add Course to {mandatoryBranch || '...'}</PillButton>
                 </div>
 
                 {/* Branch selector tabs */}
-                {branches.length > 0 && (
-                    <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'1.5rem' }}>
-                        {branches.map(b => (
-                            <button key={b} onClick={() => setMandatoryBranch(b)} style={{
-                                padding:'6px 16px', borderRadius:'20px', border:'1px solid',
-                                borderColor: mandatoryBranch === b ? '#818CF8' : 'rgba(255,255,255,0.15)',
-                                background: mandatoryBranch === b ? 'rgba(99,102,241,0.3)' : 'transparent',
-                                color: mandatoryBranch === b ? '#c7d2fe' : '#aaa',
-                                cursor:'pointer', fontSize:'0.85rem', fontWeight: mandatoryBranch === b ? '600' : '400',
-                                transition:'all 0.2s',
-                            }}>{b} <span style={{ fontSize:'0.75rem', opacity:0.7 }}>({allCourses.filter(c=>c.branch===b).length})</span></button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Mandatory courses list for selected branch */}
-                {loading ? (
-                    <p style={{ color:'#aaa', textAlign:'center', padding:'1rem' }}>Loading...</p>
-                ) : mandatoryBranch ? (
-                    mandatoryCourses.length === 0 ? (
-                        <div style={{ textAlign:'center', padding:'2rem', color:'#aaa' }}>
-                            <BookOpen size={32} style={{ opacity:0.3, marginBottom:'0.5rem' }}/>
-                            <p>No courses yet for <strong style={{color:'white'}}>{mandatoryBranch}</strong>.</p>
-                            <GlassButton onClick={() => openAdd(mandatoryBranch)} style={{ marginTop:'1rem', background:'rgba(99,102,241,0.2)', color:'#c7d2fe' }}>
-                                + Add First Course
-                            </GlassButton>
-                        </div>
-                    ) : (
-                        <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                            {mandatoryCourses.map((c, idx) => (
-                                <div key={c.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'rgba(255,255,255,0.04)', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.06)' }}
-                                    onMouseEnter={e => e.currentTarget.style.background='rgba(99,102,241,0.08)'}
-                                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.04)'}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                                        <span style={{ color:'#555', fontSize:'0.8rem', minWidth:'24px' }}>{idx+1}.</span>
-                                        <div>
-                                            <p style={{ margin:0, fontWeight:'600', fontSize:'0.95rem' }}>{c.name}</p>
-                                            <span style={{ fontSize:'0.78rem', color:'#93C5FD', background:'rgba(59,130,246,0.15)', padding:'2px 8px', borderRadius:'10px' }}>{c.code}</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display:'flex', gap:'8px' }}>
-                                        <button onClick={() => openEdit(c)} style={{ background:'rgba(59,130,246,0.2)', border:'none', color:'#60A5FA', padding:'6px 12px', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px', fontSize:'0.8rem' }}><Edit2 size={13}/> Edit</button>
-                                        <button onClick={() => handleDelete(c.id, c.name, c.branch)} style={{ background:'rgba(239,68,68,0.15)', border:'none', color:'#F87171', padding:'6px 12px', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px', fontSize:'0.8rem' }}><Trash2 size={13}/> Remove</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )
-                ) : (
-                    <p style={{ color:'#aaa', textAlign:'center', padding:'1rem' }}>Select a branch above to manage its mandatory courses.</p>
-                )}
-
-                {/* Cache-bust note */}
-                <div style={{ marginTop:'1rem', padding:'8px 14px', background:'rgba(52,211,153,0.07)', borderRadius:'8px', border:'1px solid rgba(52,211,153,0.15)', fontSize:'0.8rem', color:'#6ee7b7', display:'flex', alignItems:'center', gap:'8px' }}>
-                    <RefreshCw size={13}/> Changes apply immediately to all students in the selected branch on their next page load.
+                <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'2rem' }}>
+                    {branches.map(b => (
+                        <button key={b} onClick={() => setMandatoryBranch(b)} style={{
+                            padding:'8px 16px', borderRadius:'999px', border:'none',
+                            background: mandatoryBranch === b ? '#4F46E5' : '#F1F5F9',
+                            color: mandatoryBranch === b ? '#FFFFFF' : '#64748B',
+                            cursor:'pointer', fontSize:'0.85rem', fontWeight: '600', transition:'all 0.2s',
+                        }}>
+                            {b} <span style={{ opacity: 0.8, fontSize:'0.75rem' }}>({allCourses.filter(c=>c.branch===b).length})</span>
+                        </button>
+                    ))}
                 </div>
-            </GlassCard>
 
-            {/* ── ALL COURSES TABLE ──────────────────────────────────────── */}
-            <GlassCard>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', flexWrap:'wrap', gap:'1rem' }}>
-                    <h3 style={{ margin:0, fontWeight:'bold', fontSize:'1.3rem', display:'flex', alignItems:'center', gap:'10px' }}>
-                        <Layers size={20} color="#60A5FA"/> All Courses
-                        <span style={{ fontSize:'0.8rem', color:'#aaa', fontWeight:'normal' }}>({allCourses.length} total)</span>
+                {/* Mandatory Course List */}
+                <div style={{ display:'flex', flexDirection:'column' }}>
+                    {loading ? <p style={{ color:'#6B7280', textAlign:'center', padding:'2rem' }}>Loading courses...</p> : 
+                     mandatoryCourses.length === 0 ? <p style={{ color:'#6B7280', textAlign:'center', padding:'2rem' }}>No courses found for {mandatoryBranch}.</p> : 
+                     mandatoryCourses.map((c, idx) => (
+                        <ListItem 
+                            key={c.id} index={idx+1} title={c.name} subtitle={c.code}
+                            actions={
+                                <>
+                                    <PillButton onClick={() => openEdit(c)} variant="soft-blue"><Edit2 size={14}/> <span className="hide-on-mobile">Edit</span></PillButton>
+                                    <PillButton onClick={() => handleDelete(c.id, c.name, c.branch)} variant="danger"><Trash2 size={14}/> <span className="hide-on-mobile">Remove</span></PillButton>
+                                </>
+                            }
+                        />
+                    ))}
+                </div>
+            </StyledCard>
+
+            {/* All Courses Block */}
+            <StyledCard>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', flexWrap:'wrap', gap:'12px' }}>
+                    <h3 style={{ margin:0, fontWeight:'800', fontSize:'1.4rem', color: '#111827', display:'flex', alignItems:'center', gap:'8px' }}>
+                        <Layers size={20} color="#3B82F6"/> All Courses <span style={{ fontSize:'0.9rem', color:'#6B7280', fontWeight:'500' }}>({allCourses.length})</span>
                     </h3>
-                    <div style={{ display:'flex', gap:'10px' }}>
-                        <GlassButton onClick={() => setShowNewBranch(v => !v)} style={{ background:'rgba(168,85,247,0.2)', color:'#c084fc' }}>+ New Branch</GlassButton>
-                        <GlassButton onClick={() => openAdd()} variant="gradient">+ Add Course</GlassButton>
+                    <div style={{ display:'flex', gap:'8px' }}>
+                        <PillButton onClick={() => setShowNewBranch(v => !v)} variant="soft-purple">+ New Branch</PillButton>
+                        <PillButton onClick={() => openAdd()} variant="primary">+ Add Course</PillButton>
                     </div>
                 </div>
 
-                {/* New Branch */}
                 {showNewBranch && (
-                    <div style={{ display:'flex', gap:'10px', marginBottom:'1.5rem', padding:'1rem', background:'rgba(168,85,247,0.08)', borderRadius:'12px', border:'1px solid rgba(168,85,247,0.25)' }}>
-                        <input value={newBranchName} onChange={e => setNewBranchName(e.target.value.toUpperCase())} placeholder="e.g. CSE-AI" style={{ ...iStyle, flex:1 }} onKeyDown={e => e.key==='Enter' && handleAddBranch()}/>
-                        <GlassButton onClick={handleAddBranch} disabled={saving} style={{ background:'rgba(168,85,247,0.3)', color:'white', whiteSpace:'nowrap' }}>{saving?'Adding...':'Add Branch'}</GlassButton>
-                        <GlassButton onClick={() => setShowNewBranch(false)} style={{ padding:'8px' }}><X size={16}/></GlassButton>
-                    </div>
-                )}
-
-                {/* Add / Edit Form */}
-                {showForm && (
-                    <div style={{ marginBottom:'1.5rem', padding:'1.5rem', background:'rgba(59,130,246,0.08)', borderRadius:'12px', border:'1px solid rgba(59,130,246,0.2)' }}>
-                        <h4 style={{ margin:'0 0 1rem', color:'#60A5FA' }}>{isEditing ? '✏️ Edit Course' : '➕ Add Course'}</h4>
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'1rem', marginBottom:'1rem' }}>
-                            <div>
-                                <label style={{ display:'block', marginBottom:'5px', color:'#aaa', fontSize:'0.85rem' }}>Course Name *</label>
-                                <input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Data Structures" style={iStyle}/>
-                            </div>
-                            <div>
-                                <label style={{ display:'block', marginBottom:'5px', color:'#aaa', fontSize:'0.85rem' }}>Code *</label>
-                                <input value={formData.code} onChange={e => setFormData(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="e.g. CS301" style={iStyle}/>
-                            </div>
-                            <div>
-                                <label style={{ display:'block', marginBottom:'5px', color:'#aaa', fontSize:'0.85rem' }}>Branch *</label>
-                                <select value={formData.branch} onChange={e => setFormData(p => ({ ...p, branch: e.target.value }))} style={{ ...iStyle, cursor:'pointer' }}>
-                                    {branches.map(b => <option key={b} value={b} style={{ color:'black' }}>{b}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div style={{ display:'flex', gap:'10px' }}>
-                            <GlassButton onClick={handleSave} disabled={saving} variant="gradient">{saving ? 'Saving...' : isEditing ? 'Update' : 'Save Course'}</GlassButton>
-                            <GlassButton onClick={() => setShowForm(false)}>Cancel</GlassButton>
+                    <div style={{ display:'flex', gap:'10px', marginBottom:'2rem', padding:'16px', background:'#F9FAFB', borderRadius:'16px', border:'1px solid #E5E7EB', flexWrap:'wrap' }}>
+                        <input value={newBranchName} onChange={e => setNewBranchName(e.target.value.toUpperCase())} placeholder="New Branch Name (e.g. CSE-AI)" className="premium-input" style={{ flex:1, minWidth:'200px' }} />
+                        <div style={{display:'flex', gap:'8px'}}>
+                            <PillButton onClick={handleAddBranch} disabled={saving} variant="primary">Add Branch</PillButton>
+                            <PillButton onClick={() => setShowNewBranch(false)} variant="outline"><X size={16}/></PillButton>
                         </div>
                     </div>
                 )}
 
                 {/* Filters */}
-                <div style={{ display:'flex', gap:'1rem', marginBottom:'1rem', flexWrap:'wrap', alignItems:'center' }}>
+                <div style={{ display:'flex', gap:'1rem', marginBottom:'1.5rem', flexWrap:'wrap', alignItems:'center' }}>
                     <div style={{ position:'relative', flex:1, minWidth:'200px' }}>
-                        <Search size={16} style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', color:'#aaa' }}/>
-                        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name or code..." style={{ ...iStyle, paddingLeft:'36px' }}/>
+                        <Search size={18} style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', color:'#9CA3AF' }}/>
+                        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name or code..." className="premium-input" style={{ paddingLeft:'40px' }}/>
                     </div>
-                    <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} style={{ ...iStyle, width:'auto', minWidth:'130px', cursor:'pointer' }}>
-                        <option value="ALL" style={{ color:'black' }}>All Branches</option>
-                        {branches.map(b => <option key={b} value={b} style={{ color:'black' }}>{b}</option>)}
+                    <select value={filterBranch} onChange={e => setFilterBranch(e.target.value)} className="premium-input" style={{ width:'auto', minWidth:'140px', cursor:'pointer' }}>
+                        <option value="ALL">All Branches</option>
+                        {branches.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
-                    <span style={{ color:'#aaa', fontSize:'0.85rem', whiteSpace:'nowrap' }}>{filtered.length} shown</span>
                 </div>
 
-                {loading ? (
-                    <p style={{ textAlign:'center', color:'#aaa', padding:'2rem' }}>Loading courses...</p>
-                ) : filtered.length === 0 ? (
-                    <p style={{ textAlign:'center', color:'#aaa', padding:'2rem' }}>No courses found.</p>
-                ) : (
-                    <div style={{ overflowX:'auto' }}>
-                        <table style={{ width:'100%', borderCollapse:'collapse', color:'white', fontSize:'0.9rem' }}>
-                            <thead><tr style={{ borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
-                                <th style={{ textAlign:'left', padding:'10px 12px', color:'#aaa' }}>#</th>
-                                <th style={{ textAlign:'left', padding:'10px 12px', color:'#aaa' }}>Course Name</th>
-                                <th style={{ textAlign:'left', padding:'10px 12px', color:'#aaa' }}>Code</th>
-                                <th style={{ textAlign:'left', padding:'10px 12px', color:'#aaa' }}>Branch</th>
-                                <th style={{ textAlign:'right', padding:'10px 12px', color:'#aaa' }}>Actions</th>
-                            </tr></thead>
-                            <tbody>{filtered.map((c, idx) => (
-                                <tr key={c.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}
-                                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}
-                                    onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                                    <td style={{ padding:'10px 12px', color:'#555' }}>{idx+1}</td>
-                                    <td style={{ padding:'10px 12px', fontWeight:'500' }}>{c.name}</td>
-                                    <td style={{ padding:'10px 12px' }}><span style={{ background:'rgba(59,130,246,0.2)', color:'#93C5FD', padding:'3px 10px', borderRadius:'20px', fontSize:'0.8rem', fontWeight:'600' }}>{c.code}</span></td>
-                                    <td style={{ padding:'10px 12px' }}><span style={{ background:'rgba(52,211,153,0.15)', color:'#34D399', padding:'3px 10px', borderRadius:'20px', fontSize:'0.8rem', fontWeight:'600' }}>{c.branch}</span></td>
-                                    <td style={{ padding:'10px 12px', textAlign:'right' }}>
-                                        <div style={{ display:'flex', gap:'8px', justifyContent:'flex-end' }}>
-                                            <button onClick={() => openEdit(c)} style={{ background:'rgba(59,130,246,0.2)', border:'none', color:'#60A5FA', padding:'6px 10px', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px', fontSize:'0.8rem' }}><Edit2 size={14}/> Edit</button>
-                                            <button onClick={() => handleDelete(c.id, c.name, c.branch)} style={{ background:'rgba(239,68,68,0.15)', border:'none', color:'#F87171', padding:'6px 10px', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px', fontSize:'0.8rem' }}><Trash2 size={14}/> Delete</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}</tbody>
-                        </table>
-                    </div>
-                )}
-            </GlassCard>
+                <div style={{ display:'flex', flexDirection:'column' }}>
+                    {loading ? <p style={{ color:'#6B7280', textAlign:'center', padding:'2rem' }}>Loading...</p> : 
+                     filtered.length === 0 ? <p style={{ color:'#6B7280', textAlign:'center', padding:'2rem' }}>No courses match search.</p> : 
+                     filtered.map((c, idx) => (
+                        <ListItem 
+                            key={c.id} index={idx+1} title={c.name} subtitle={c.code}
+                            sideInfo={<span style={{fontSize:'0.75rem', fontWeight:'700', color:'#10B981', background:'#D1FAE5', padding:'4px 10px', borderRadius:'999px'}}>{c.branch}</span>}
+                            actions={
+                                <>
+                                    <PillButton onClick={() => openEdit(c)} variant="outline"><Edit2 size={14}/></PillButton>
+                                    <PillButton onClick={() => handleDelete(c.id, c.name, c.branch)} variant="danger"><Trash2 size={14}/></PillButton>
+                                </>
+                            }
+                        />
+                    ))}
+                </div>
+            </StyledCard>
+
+            {/* Add / Edit Form Modal */}
+            {showForm && (
+                <div className="modal-overlay">
+                    <StyledCard style={{maxWidth:'500px', padding:'32px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)'}}>
+                        <h3 style={{ margin:'0 0 1.5rem', color:'#111827', fontSize:'1.5rem', fontWeight:'800' }}>{isEditing ? 'Edit Course' : 'Add Course'}</h3>
+                        <div style={{ display:'grid', gap:'16px', marginBottom:'2rem' }}>
+                            <div><label style={{ fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block' }}>Course Name</label><input value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="premium-input"/></div>
+                            <div className="form-grid">
+                                <div><label style={{ fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block' }}>Course Code</label><input value={formData.code} onChange={e => setFormData(p => ({ ...p, code: e.target.value.toUpperCase() }))} className="premium-input"/></div>
+                                <div><label style={{ fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block' }}>Branch</label>
+                                    <select value={formData.branch} onChange={e => setFormData(p => ({ ...p, branch: e.target.value }))} className="premium-input">
+                                        {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display:'flex', gap:'12px', justifyContent:'flex-end' }}>
+                            <PillButton onClick={() => setShowForm(false)} variant="outline">Cancel</PillButton>
+                            <PillButton onClick={handleSave} disabled={saving} variant="primary">{saving ? 'Saving...' : 'Save Course'}</PillButton>
+                        </div>
+                    </StyledCard>
+                </div>
+            )}
         </div>
     );
 };
@@ -440,104 +659,171 @@ const ResourcesManagement = () => {
     const [resources, setResources] = useState([]);
     const [newR, setNewR] = useState({ title:'', type:'concept-map', url:'', branches:[] });
     const [loading, setLoading] = useState(false);
-    const [fetchLoading, setFetchLoading] = useState(true);
     const BRANCHES = ['CSE','IT','AIML','AIDS','ECE','EEE','MECH','CIVIL','BT','BME','BI','CSE-Bio','CSE-AI','CSE-DS'];
+    
     const fetchResources = async () => {
-        setFetchLoading(true);
-        try { const snap = await getDocs(collection(db,"resources")); setResources(snap.docs.map(d=>({id:d.id,...d.data()}))); }
-        catch(e){} setFetchLoading(false);
+        try { const snap = await getDocs(collection(db,"resources")); setResources(snap.docs.map(d=>({id:d.id,...d.data()}))); } catch(e){}
     };
     useEffect(()=>{ fetchResources(); },[]);
+
     const toggleBranch = (b) => setNewR(p=>({...p,branches:p.branches.includes(b)?p.branches.filter(x=>x!==b):[...p.branches,b]}));
+    
     const handleAdd = async (e) => {
         e.preventDefault();
         if(!newR.branches.length){ alert("Select at least one branch."); return; }
         setLoading(true);
         try { await addDoc(collection(db,"resources"),{...newR,createdAt:new Date().toISOString()}); setNewR({title:'',type:'concept-map',url:'',branches:[]}); alert("Added!"); fetchResources(); }
-        catch(e){ alert("Error"); } setLoading(false);
+        catch(e){} setLoading(false);
     };
-    const handleDelete = async (id) => {
-        if(!window.confirm("Delete?")) return;
-        try { await deleteDoc(doc(db,"resources",id)); setResources(p=>p.filter(r=>r.id!==id)); } catch(e){}
-    };
-    const iStyle = {width:'100%',padding:'10px',borderRadius:'8px',background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.1)',color:'white'};
+
     return (
-        <GlassCard>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
-                <h3 style={{fontWeight:'bold',fontSize:'1.5rem'}}>Resources Management</h3>
-                <GlassButton onClick={fetchResources}><Layers size={16}/> Refresh</GlassButton>
-            </div>
-            <div style={{marginBottom:'2rem',padding:'1.5rem',background:'rgba(255,255,255,0.05)',borderRadius:'12px'}}>
-                <h4 style={{marginBottom:'1rem',fontWeight:'bold'}}>Upload Resource</h4>
-                <form onSubmit={handleAdd} style={{display:'grid',gap:'1rem'}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem'}}>
-                        <div><label style={{display:'block',marginBottom:'0.5rem',fontSize:'0.9rem',color:'var(--text-secondary)'}}>Title</label><input required type="text" placeholder="e.g. Data Structures Concept Map" value={newR.title} onChange={e=>setNewR({...newR,title:e.target.value})} style={iStyle}/></div>
-                        <div><label style={{display:'block',marginBottom:'0.5rem',fontSize:'0.9rem',color:'var(--text-secondary)'}}>Type</label><select value={newR.type} onChange={e=>setNewR({...newR,type:e.target.value})} style={{...iStyle,cursor:'pointer'}}><option value="concept-map">Concept Map</option><option value="paper">Question Paper</option><option value="syllabus">Syllabus</option><option value="lab-manual">Lab Manual</option><option value="imp-question">Imp Questions</option><option value="mcq">MCQs</option></select></div>
-                    </div>
-                    <div><label style={{display:'block',marginBottom:'0.5rem',fontSize:'0.9rem',color:'var(--text-secondary)'}}>Resource URL</label><input required type="url" placeholder="https://drive.google.com/..." value={newR.url} onChange={e=>setNewR({...newR,url:e.target.value})} style={iStyle}/></div>
-                    <div><label style={{display:'block',marginBottom:'0.5rem',fontSize:'0.9rem',color:'var(--text-secondary)'}}>Target Branches</label>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem'}}>
-                            {BRANCHES.map(b=><button key={b} type="button" onClick={()=>toggleBranch(b)} style={{padding:'5px 12px',borderRadius:'20px',border:'1px solid',borderColor:newR.branches.includes(b)?'var(--primary)':'rgba(255,255,255,0.2)',background:newR.branches.includes(b)?'rgba(59,130,246,0.3)':'transparent',color:'white',cursor:'pointer'}}>{b}</button>)}
+        <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+            <StyledCard className="tinted">
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin: '0 0 1.5rem 0'}}>Upload Resource</h3>
+                <form onSubmit={handleAdd} style={{display:'grid',gap:'16px'}}>
+                    <div className="form-grid">
+                        <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Title</label><input required placeholder="e.g. Data Structures Concept Map" value={newR.title} onChange={e=>setNewR({...newR,title:e.target.value})} className="premium-input"/></div>
+                        <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Type</label>
+                            <select value={newR.type} onChange={e=>setNewR({...newR,type:e.target.value})} className="premium-input">
+                                <option value="concept-map">Concept Map</option><option value="paper">Question Paper</option><option value="syllabus">Syllabus</option>
+                                <option value="lab-manual">Lab Manual</option><option value="imp-question">Imp Questions</option><option value="mcq">MCQs</option>
+                            </select>
                         </div>
                     </div>
-                    <GlassButton type="submit" disabled={loading} variant="gradient" style={{justifyContent:'center'}}>{loading?'Uploading...':'Upload Resource'}</GlassButton>
+                    <div><label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'6px', display:'block'}}>Resource URL</label><input required type="url" placeholder="https://drive.google.com/..." value={newR.url} onChange={e=>setNewR({...newR,url:e.target.value})} className="premium-input"/></div>
+                    <div>
+                        <label style={{fontSize:'0.85rem', fontWeight:'600', color:'#6B7280', marginBottom:'10px', display:'block'}}>Target Branches</label>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+                            {BRANCHES.map(b=>(
+                                <button key={b} type="button" onClick={()=>toggleBranch(b)} style={{
+                                    padding:'6px 14px', borderRadius:'999px', cursor:'pointer', fontSize:'0.85rem', fontWeight:'600', transition:'all 0.2s',
+                                    background: newR.branches.includes(b) ? '#111827' : '#F9FAFB', 
+                                    color: newR.branches.includes(b) ? '#FFF' : '#4B5563', 
+                                    border: newR.branches.includes(b) ? '1px solid #111827' : '1px solid #E5E7EB'
+                                }}>{b}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <PillButton type="submit" disabled={loading} variant="primary" style={{justifyContent:'center', marginTop:'1rem', height:'48px'}}>{loading?'Uploading...':'Upload Resource'}</PillButton>
                 </form>
-            </div>
-            <div style={{overflowX:'auto'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',color:'white'}}>
-                    <thead><tr style={{borderBottom:'1px solid rgba(255,255,255,0.1)'}}><th style={{textAlign:'left',padding:'1rem'}}>Title</th><th style={{textAlign:'left',padding:'1rem'}}>Type</th><th style={{textAlign:'left',padding:'1rem'}}>Branches</th><th style={{textAlign:'right',padding:'1rem'}}>Actions</th></tr></thead>
-                    <tbody>{fetchLoading?<tr><td colSpan="4" style={{textAlign:'center',padding:'1rem'}}>Loading...</td></tr>:resources.map(r=>(<tr key={r.id} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}><td style={{padding:'1rem'}}><h4 style={{fontWeight:'600'}}>{r.title}</h4><a href={r.url} target="_blank" rel="noreferrer" style={{fontSize:'0.8rem',color:'var(--primary)'}}>View Link</a></td><td style={{padding:'1rem'}}><Badge variant="neutral">{r.type}</Badge></td><td style={{padding:'1rem'}}><div style={{display:'flex',gap:'0.3rem',flexWrap:'wrap'}}>{(r.branches||[]).map(b=><span key={b} style={{fontSize:'0.75rem',padding:'2px 6px',background:'rgba(255,255,255,0.1)',borderRadius:'4px'}}>{b}</span>)}</div></td><td style={{padding:'1rem',textAlign:'right'}}><GlassButton onClick={()=>handleDelete(r.id)} style={{padding:'5px 10px',background:'rgba(255,255,255,0.1)'}}><Trash2 size={16}/></GlassButton></td></tr>))}</tbody>
-                </table>
-            </div>
-        </GlassCard>
+            </StyledCard>
+
+            <StyledCard>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
+                    <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin:0}}>Available Resources</h3>
+                    <PillButton onClick={fetchResources}><RefreshCw size={16}/> <span className="hide-on-mobile">Refresh</span></PillButton>
+                </div>
+                <div style={{display:'flex',flexDirection:'column'}}>
+                    {resources.map((r, i)=>(
+                        <ListItem 
+                            key={r.id} index={i+1} title={r.title} 
+                            subtitle={`${r.type.toUpperCase()} • Branches: ${(r.branches||[]).join(', ')}`}
+                            actions={
+                                <>
+                                    <a href={r.url} target="_blank" rel="noreferrer" style={{ textDecoration:'none' }}><PillButton variant="soft-blue"><ExternalLink size={14}/> <span className="hide-on-mobile">View</span></PillButton></a>
+                                    <PillButton onClick={async ()=>{ if(window.confirm("Delete?")){ await deleteDoc(doc(db,"resources",r.id)); fetchResources(); } }} variant="danger"><Trash2 size={14}/></PillButton>
+                                </>
+                            }
+                        />
+                    ))}
+                </div>
+            </StyledCard>
+        </div>
     );
 };
 
-// ─── UPDATES MANAGEMENT ──────────────────────────────────────────────────────
-// ─── ATTENDANCE REMINDER TEST TRIGGER ────────────────────────────────────────
-// Writes a doc into `attendance_reminders`. notify.py watches this collection
-// and immediately fires the funny "Did you go to class today?" push to
-// everyone the moment a new doc appears — separate from the Mon–Sat
-// 12:00 / 16:30 IST automatic schedule, purely for admin testing.
+// ─── UPDATES / NOTIFICATIONS MANAGEMENT ──────────────────────────────────────
+const DEFAULT_ATTENDANCE_TITLES = ["👀 Did you go to class today?", "🎒 Bunk check-in!", "🚨 Attendance alert (the fun kind)", "📚 Class detective here", "🕵️ Someone's asking about your attendance..."];
+const DEFAULT_ATTENDANCE_BODIES = ["No judgment, just curious 👀 Tap to update your attendance in AcadeMe.", "Be honest... did you actually attend or is this a 'mental health day'? Update your attendance either way 😄", "Your attendance % is waiting for the truth. Tap to update it now!", "Professor took attendance. Did YOU take note of it? Update here 📝", "Your attendance tracker is feeling neglected. Give it some love — update now!"];
+
 const AttendanceReminderTest = () => {
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
     const [sending, setSending] = useState(false);
     const [lastSent, setLastSent] = useState(null);
 
-    const sendTestReminder = async () => {
+    const [previewTitle] = useState(() => DEFAULT_ATTENDANCE_TITLES[Math.floor(Math.random() * DEFAULT_ATTENDANCE_TITLES.length)]);
+    const [previewBody] = useState(() => DEFAULT_ATTENDANCE_BODIES[Math.floor(Math.random() * DEFAULT_ATTENDANCE_BODIES.length)]);
+
+    const useThisDefault = () => {
+        setTitle(previewTitle);
+        setBody(previewBody);
+    };
+
+    const sendReminder = async () => {
         setSending(true);
         try {
-            await addDoc(collection(db, 'attendance_reminders'), {
-                triggeredAt: new Date().toISOString(),
-                manual: true,
-            });
+            await addDoc(collection(db, 'attendance_reminders'), { triggeredAt: new Date().toISOString(), manual: true, title: title.trim(), body: body.trim() });
             setLastSent(new Date());
-        } catch (e) {
-            console.error('Failed to trigger attendance reminder:', e);
-            alert('Failed to send. Check console for details.');
-        }
+            alert("Attendance Reminder triggered!");
+        } catch (e) { alert('Failed to send.'); }
         setSending(false);
     };
 
     return (
-        <GlassCard className="mb-6">
-            <h3 style={{ marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BellRing size={22} /> Attendance Reminder
+        <StyledCard>
+            <h3 style={{ marginBottom: '0.5rem', fontWeight: '800', fontSize: '1.4rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BellRing size={20} color="#F59E0B" /> Attendance Reminder
             </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
-                Automatic reminders go out Mon–Sat at 12:00 PM and 4:30 PM IST ("Did you go to class today? 👀").
-                Use the button below to send one immediately to all users — handy for testing.
+            <p style={{ color: '#6B7280', marginBottom: '1.5rem', fontSize: '0.9rem', lineHeight:'1.5', fontWeight:'500' }}>
+                Automatic reminders go out Mon–Sat at 12:00 PM and 4:30 PM IST. Leave fields blank to send a random funny default, or type a custom override.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <GlassButton onClick={sendTestReminder} variant="gradient" disabled={sending}>
-                    <Send size={16} /> {sending ? 'Sending...' : 'Send Test Attendance Reminder'}
-                </GlassButton>
-                {lastSent && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckCircle size={14} color="#34D399" /> Sent at {lastSent.toLocaleTimeString()}
-                    </span>
-                )}
+            <div style={{ display: 'grid', gap: '16px', marginBottom: '1.5rem' }}>
+                <input placeholder={`Title (optional — random default: "${previewTitle}")`} value={title} onChange={e => setTitle(e.target.value)} className="premium-input" />
+                <textarea placeholder={`Message (optional — random default: "${previewBody}")`} value={body} onChange={e => setBody(e.target.value)} className="premium-input" style={{ minHeight: '80px', resize: 'vertical' }} />
             </div>
-        </GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <PillButton onClick={sendReminder} variant="warning" disabled={sending}><Send size={16} /> {sending ? 'Sending...' : 'Send Attendance Reminder'}</PillButton>
+                <PillButton onClick={useThisDefault} variant="outline">Use shown default text</PillButton>
+                {lastSent && <span style={{ fontSize: '0.85rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight:'600' }}><CheckCircle size={14} /> Sent at {lastSent.toLocaleTimeString()}</span>}
+            </div>
+        </StyledCard>
+    );
+};
+
+const CustomNotificationSender = () => {
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
+    const [link, setLink] = useState('');
+    const [sending, setSending] = useState(false);
+    const [lastSent, setLastSent] = useState(null);
+
+    const canSend = title.trim() && body.trim() && !sending;
+
+    const sendCustom = async (e) => {
+        e.preventDefault();
+        if (!title.trim() || !body.trim()) return;
+        setSending(true);
+        try {
+            await addDoc(collection(db, 'admin_broadcasts'), { title: title.trim(), body: body.trim(), url: link.trim() || 'https://acade-me.vercel.app', sentAt: new Date().toISOString() });
+            setLastSent(new Date());
+            setTitle(''); setBody(''); setLink('');
+            alert("Notification Broadcasted!");
+        } catch (err) { alert('Failed to send.'); }
+        setSending(false);
+    };
+
+    return (
+        <StyledCard>
+            <h3 style={{ marginBottom: '0.5rem', fontWeight: '800', fontSize: '1.4rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bell size={20} color="#3B82F6" /> Custom Notification
+            </h3>
+            <p style={{ color: '#6B7280', marginBottom: '1.5rem', fontSize: '0.9rem', lineHeight:'1.5', fontWeight:'500' }}>
+                Send a fully free-form push notification right now, to every user with notifications enabled.
+            </p>
+            <form onSubmit={sendCustom} style={{ display: 'grid', gap: '16px' }}>
+                <input placeholder="Title (required)" value={title} onChange={e => setTitle(e.target.value)} className="premium-input" required />
+                <textarea placeholder="Message (required)" value={body} onChange={e => setBody(e.target.value)} className="premium-input" style={{ minHeight: '80px', resize: 'vertical' }} required />
+                <div style={{ position: 'relative' }}>
+                    <LinkIcon size={16} style={{ position: 'absolute', left: '14px', top: '14px', color: '#9CA3AF' }} />
+                    <input type="url" placeholder="Link to open on tap (optional — defaults to the app home)" value={link} onChange={e => setLink(e.target.value)} className="premium-input" style={{ paddingLeft: '40px' }} />
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+                    <PillButton type="submit" variant="blue" disabled={!canSend} style={{ justifySelf: 'start', padding:'10px 20px' }}><Send size={16} /> {sending ? 'Sending...' : 'Send Custom Notification'}</PillButton>
+                    {lastSent && <span style={{ fontSize: '0.85rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight:'600' }}><CheckCircle size={14} /> Sent at {lastSent.toLocaleTimeString()}</span>}
+                </div>
+            </form>
+        </StyledCard>
     );
 };
 
@@ -548,40 +834,42 @@ const UpdatesManagement = () => {
         try { const snap = await getDocs(collection(db,"updates")); const list = snap.docs.map(d=>({id:d.id,...d.data()})); list.sort((a,b)=>new Date(b.date)-new Date(a.date)); setUpdates(list); } catch(e){}
     };
     useEffect(()=>{ fetchUpdates(); },[]);
+
     const post = async (e) => {
         e.preventDefault();
         try { await addDoc(collection(db,"updates"),{...form,date:new Date().toISOString()}); setForm({title:'',message:'',link:''}); fetchUpdates(); alert("Posted!"); } catch(e){}
     };
     const del = async (id) => { if(!window.confirm("Delete?")) return; await deleteDoc(doc(db,"updates",id)); fetchUpdates(); };
-    const iStyle = {padding:'10px',background:'rgba(0,0,0,0.2)',border:'1px solid rgba(255,255,255,0.1)',color:'white',borderRadius:'8px'};
+    
     return (
-        <GlassCard>
-            <h3 style={{marginBottom:'1rem',fontWeight:'bold',fontSize:'1.5rem'}}>System Updates</h3>
-            <form onSubmit={post} style={{display:'grid',gap:'1rem',marginBottom:'2rem'}}>
-                <input placeholder="Title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} style={iStyle} required/>
-                <textarea placeholder="Message" value={form.message} onChange={e=>setForm({...form,message:e.target.value})} style={{...iStyle,minHeight:'80px'}}/>
-                <div style={{position:'relative'}}>
-                    <LinkIcon size={16} style={{position:'absolute',left:'10px',top:'12px',color:'#aaa'}}/>
-                    <input type="url" placeholder="Resource Link (Optional)" value={form.link} onChange={e=>setForm({...form,link:e.target.value})} style={{width:'100%',...iStyle,paddingLeft:'35px',outline:'none'}}/>
+        <StyledCard>
+            <h3 style={{ marginBottom: '1.5rem', fontWeight: '800', fontSize: '1.4rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={20} color="#8B5CF6"/> System Updates Feed
+            </h3>
+            <form onSubmit={post} style={{ display: 'grid', gap: '16px', marginBottom: '2rem', paddingBottom:'2rem', borderBottom:'1px solid #F3F4F6' }}>
+                <input placeholder="Update Title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="premium-input" required/>
+                <textarea placeholder="Update Message" value={form.message} onChange={e=>setForm({...form,message:e.target.value})} className="premium-input" style={{minHeight:'100px', resize:'vertical'}}/>
+                <div style={{ position: 'relative' }}>
+                    <LinkIcon size={16} style={{ position: 'absolute', left: '14px', top: '14px', color: '#9CA3AF' }} />
+                    <input type="url" placeholder="Resource Link (Optional)" value={form.link} onChange={e=>setForm({...form,link:e.target.value})} className="premium-input" style={{ paddingLeft: '40px' }}/>
                 </div>
-                <GlassButton type="submit" variant="gradient">Post Update</GlassButton>
+                <PillButton type="submit" variant="primary" style={{ justifySelf: 'start', padding:'10px 20px' }}><Plus size={16} /> Post Update</PillButton>
             </form>
-            <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+
+            <div style={{display:'flex', flexDirection:'column', gap:'16px'}}>
                 {updates.map(u=>(
-                    <div key={u.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'15px',background:'rgba(255,255,255,0.05)',borderRadius:'8px'}}>
-                        <div>
-                            <div style={{display:'flex',alignItems:'center',gap:'1rem',marginBottom:'0.5rem'}}>
-                                <h4 style={{fontWeight:'bold'}}>{u.title}</h4>
-                                <span style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{new Date(u.date).toLocaleDateString()}</span>
-                            </div>
-                            <p style={{fontSize:'0.9rem',color:'rgba(255,255,255,0.8)'}}>{u.message}</p>
-                            {u.link&&<a href={u.link} target="_blank" rel="noreferrer" style={{fontSize:'0.85rem',color:'var(--primary)',marginTop:'5px',display:'flex',alignItems:'center',gap:'5px'}}><ExternalLink size={14}/> View Resource</a>}
+                    <div key={u.id} style={{padding:'20px', background:'#F9FAFB', borderRadius:'20px', border:'1px solid #E5E7EB'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px'}}>
+                            <h4 style={{fontWeight:'700', color:'#111827', margin:0, fontSize:'1.1rem'}}>{u.title}</h4>
+                            <PillButton onClick={()=>del(u.id)} variant="outline" style={{padding:'4px 8px', color:'#EF4444', border:'none'}}><Trash2 size={16}/></PillButton>
                         </div>
-                        <GlassButton onClick={()=>del(u.id)} style={{padding:'8px',background:'rgba(255,255,255,0.1)'}}><Trash2 size={16}/></GlassButton>
+                        <span style={{fontSize:'0.75rem', color:'#6B7280', display:'flex', alignItems:'center', gap:'6px', marginBottom:'12px', fontWeight:'600'}}><Clock size={12}/> {new Date(u.date).toLocaleDateString()}</span>
+                        <p style={{fontSize:'0.95rem', color:'#4B5563', margin:'0 0 12px', lineHeight:'1.5'}}>{u.message}</p>
+                        {u.link && <a href={u.link} target="_blank" rel="noreferrer" style={{fontSize:'0.85rem', color:'#3B82F6', display:'inline-flex', alignItems:'center', gap:'6px', textDecoration:'none', fontWeight:'600', background:'#DBEAFE', padding:'6px 12px', borderRadius:'999px'}}><ExternalLink size={14}/> View Resource</a>}
                     </div>
                 ))}
             </div>
-        </GlassCard>
+        </StyledCard>
     );
 };
 
@@ -589,39 +877,53 @@ const UpdatesManagement = () => {
 const ReviewsManagement = () => {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(false);
+    
     const fetchReviews = async () => {
         setLoading(true);
         try { const q = query(collection(db,"facultyReviews"),orderBy("createdAt","desc")); const snap = await getDocs(q); setReviews(snap.docs.map(d=>({id:d.id,...d.data()}))); } catch(e){} setLoading(false);
     };
     useEffect(()=>{ fetchReviews(); },[]);
+    
     const del = async (id) => {
         if(!window.confirm("Delete?")) return;
         try { await deleteDoc(doc(db,"facultyReviews",id)); setReviews(p=>p.filter(r=>r.id!==id)); } catch(e){}
     };
+    
     return (
-        <GlassCard>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
-                <h3 style={{fontWeight:'bold',fontSize:'1.5rem'}}>Student Reviews</h3>
-                <GlassButton onClick={fetchReviews}><Layers size={16}/> Refresh</GlassButton>
+        <StyledCard>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'2rem'}}>
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin:0}}>Student Reviews</h3>
+                <PillButton onClick={fetchReviews}><RefreshCw size={16}/> <span className="hide-on-mobile">Refresh</span></PillButton>
             </div>
-            <div style={{display:'grid',gap:'1rem'}}>
-                {loading?<p style={{color:'var(--text-secondary)'}}>Loading...</p>:reviews.length===0?<p style={{color:'var(--text-secondary)'}}>No reviews.</p>:reviews.map(r=>(
-                    <div key={r.id} style={{background:'rgba(255,255,255,0.05)',padding:'1rem',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.1)'}}>
-                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.8rem'}}>
-                            <div><h4 style={{fontWeight:'bold'}}>{r.facultyName}</h4><span style={{fontSize:'0.8rem',color:'#60A5FA',background:'rgba(59,130,246,0.1)',padding:'2px 6px',borderRadius:'4px'}}>{r.courseCode}</span></div>
-                            <div style={{textAlign:'right'}}><div style={{display:'flex',alignItems:'center',gap:'4px',color:'#FBBF24',fontWeight:'bold'}}><Star size={16} fill="#FBBF24"/> {r.rating}</div><span style={{fontSize:'0.75rem',color:'#aaa'}}>{new Date(r.createdAt).toLocaleDateString()}</span></div>
+            
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'1.5rem'}}>
+                {loading ? <p style={{color:'#6B7280'}}>Loading...</p> : 
+                 reviews.length===0 ? <p style={{color:'#6B7280'}}>No reviews yet.</p> : 
+                 reviews.map(r=>(
+                    <div key={r.id} style={{background:'#F9FAFB', padding:'24px', borderRadius:'24px', border:'1px solid #E5E7EB', display:'flex', flexDirection:'column'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px'}}>
+                            <div>
+                                <h4 style={{fontWeight:'800', color:'#111827', margin:'0 0 6px', fontSize:'1.1rem'}}>{r.facultyName}</h4>
+                                <span style={{fontSize:'0.75rem', color:'#3B82F6', background:'#DBEAFE', padding:'4px 10px', borderRadius:'999px', fontWeight:'700'}}>{r.courseCode}</span>
+                            </div>
+                            <div style={{display:'flex', alignItems:'center', gap:'6px', background:'#FEF3C7', color:'#D97706', padding:'6px 12px', borderRadius:'999px', fontWeight:'800', fontSize:'0.9rem'}}>
+                                <Star size={16} fill="#F59E0B" color="#F59E0B"/> {r.rating}
+                            </div>
                         </div>
-                        <div style={{background:'rgba(236,72,153,0.1)',padding:'8px',borderRadius:'8px',marginBottom:'10px',borderLeft:'3px solid #EC4899'}}>
-                            <p style={{fontSize:'0.8rem',color:'#EC4899',fontWeight:'bold',marginBottom:'2px'}}>Posted By:</p>
-                            <span style={{color:'white'}}>{r.reviewerName||"Unknown"}</span>
-                            <span style={{color:'#aaa',fontSize:'0.8rem',marginLeft:'10px'}}>({r.reviewerEmail})</span>
+                        
+                        <p style={{fontSize:'0.95rem', color:'#374151', fontStyle:'italic', margin:'0 0 20px', flex:1, lineHeight:'1.5'}}>"{r.feedback}"</p>
+                        
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:'16px', borderTop:'1px solid #E5E7EB'}}>
+                            <div style={{display:'flex', flexDirection:'column', minWidth:0, paddingRight:'10px'}}>
+                                <span style={{fontSize:'0.85rem', color:'#111827', fontWeight:'700', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{r.reviewerName || "Anonymous"}</span>
+                                <span style={{fontSize:'0.75rem', color:'#6B7280', fontWeight:'500', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{r.reviewerEmail}</span>
+                            </div>
+                            <PillButton onClick={()=>del(r.id)} variant="danger" style={{padding:'8px', flexShrink:0}}><Trash2 size={16}/></PillButton>
                         </div>
-                        <p style={{fontSize:'0.9rem',color:'#ddd',fontStyle:'italic',marginBottom:'10px'}}>"{r.feedback}"</p>
-                        <div style={{display:'flex',justifyContent:'flex-end'}}><GlassButton onClick={()=>del(r.id)} style={{background:'rgba(239,68,68,0.2)',color:'#EF4444'}}><Trash2 size={16}/> Delete</GlassButton></div>
                     </div>
                 ))}
             </div>
-        </GlassCard>
+        </StyledCard>
     );
 };
 
@@ -629,32 +931,39 @@ const ReviewsManagement = () => {
 const MessagesTab = () => {
     const [msgs, setMsgs] = useState([]);
     const [loading, setLoading] = useState(true);
+    
     const fetchMsgs = async () => {
         setLoading(true);
         try { const q = query(collection(db,"notifications"),orderBy("createdAt","desc")); const snap = await getDocs(q); setMsgs(snap.docs.map(d=>({id:d.id,...d.data()}))); } catch(e){} setLoading(false);
     };
     useEffect(()=>{ fetchMsgs(); },[]);
+    
     return (
-        <GlassCard>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
-                <h3 style={{fontSize:'1.2rem',fontWeight:'bold'}}>User Conversations</h3>
-                <GlassButton onClick={fetchMsgs}>Refresh</GlassButton>
+        <StyledCard style={{ maxWidth: '850px', margin: '0 auto' }}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'2rem'}}>
+                <h3 style={{fontWeight:'800',fontSize:'1.5rem', color:'#111827', margin:0}}>User Conversations</h3>
+                <PillButton onClick={fetchMsgs}><RefreshCw size={16}/> <span className="hide-on-mobile">Refresh</span></PillButton>
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-                {loading?<p style={{color:'var(--text-secondary)',textAlign:'center'}}>Loading...</p>:msgs.map(m=>(
-                    <div key={m.id} style={{padding:'15px',background:'rgba(255,255,255,0.05)',borderRadius:'12px'}}>
-                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.5rem'}}>
-                            <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
-                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(m.userName||'User')}&background=random&color=fff&size=32`} alt="" style={{borderRadius:'50%'}}/>
-                                <div><h4 style={{fontWeight:'bold'}}>To: {m.userName||'Unknown'}</h4><span style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{new Date(m.createdAt).toLocaleString()}</span></div>
+            
+            <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+                {loading ? <p style={{color:'#6B7280',textAlign:'center'}}>Loading...</p> : 
+                 msgs.map(m=>(
+                    <div key={m.id} style={{padding:'24px', background:'#F9FAFB', borderRadius:'24px', border:'1px solid #E5E7EB'}}>
+                        <div style={{display:'flex',justifyContent:'space-between', alignItems:'center', marginBottom:'16px', flexWrap:'wrap', gap:'10px'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
+                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(m.userName||'User')}&background=random&color=fff&size=48`} alt="" style={{borderRadius:'50%'}}/>
+                                <div>
+                                    <h4 style={{fontWeight:'800', color:'#111827', margin:'0 0 4px', fontSize:'1.05rem'}}>To: {m.userName||'Unknown'}</h4>
+                                    <span style={{fontSize:'0.8rem', color:'#6B7280', fontWeight:'500'}}>{new Date(m.createdAt).toLocaleString()}</span>
+                                </div>
                             </div>
-                            <Badge variant="primary">Admin Message</Badge>
+                            <span style={{fontSize:'0.75rem', fontWeight:'700', color:'#3B82F6', background:'#DBEAFE', padding:'6px 12px', borderRadius:'999px'}}>Admin Message</span>
                         </div>
-                        <p style={{background:'rgba(59,130,246,0.1)',padding:'10px',borderRadius:'8px',borderLeft:'3px solid #3B82F6'}}>{m.message}</p>
+                        <p style={{background:'#FFFFFF', padding:'20px', borderRadius:'16px', border:'1px solid #E5E7EB', margin:0, color:'#374151', fontSize:'1rem', lineHeight:'1.5'}}>{m.message}</p>
                     </div>
                 ))}
             </div>
-        </GlassCard>
+        </StyledCard>
     );
 };
 
@@ -663,109 +972,70 @@ const AdminPanel = () => {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
-    const [stats, setStats] = useState({ users:0, faculty:0, reviews:0, resources:0 });
-    const [recentUsers, setRecentUsers] = useState([]);
 
     useEffect(()=>{ if(!authLoading&&(!user||user.role!=='admin')) navigate('/dashboard'); },[user,authLoading,navigate]);
 
-    useEffect(()=>{
-        const getStats = async () => {
-            try {
-                const [u,f,r,res] = await Promise.all([
-                    getDocs(collection(db,"users")), getDocs(collection(db,"faculty")),
-                    getDocs(collection(db,"facultyReviews")), getDocs(collection(db,"resources")),
-                ]);
-                setStats({users:u.size,faculty:f.size,reviews:r.size,resources:res.size});
-                const qU = query(collection(db,"users"),orderBy("createdAt","desc"),limit(5));
-                const snap = await getDocs(qU);
-                setRecentUsers(snap.docs.map(d=>({id:d.id,...d.data()})));
-            } catch(e){ console.error(e); }
-        };
-        if(user?.role==='admin') getStats();
-    },[user]);
-
-    const STATS = [
-        {label:'Total Users',value:stats.users,icon:Users,color:'#3B82F6'},
-        {label:'Total Faculty',value:stats.faculty,icon:Layers,color:'#F59E0B'},
-        {label:'Resources',value:stats.resources,icon:BookOpen,color:'#8B5CF6'},
-        {label:'Reviews',value:stats.reviews,icon:MessageCircle,color:'#10B981'},
-    ];
-
     const TABS = [
-        {id:'overview',label:'Overview'},{id:'user management',label:'Users'},
-        {id:'faculty',label:'Faculty'},{id:'courses',label:'Courses'},
-        {id:'resources',label:'Resources'},{id:'reviews',label:'Reviews'},
-        {id:'messages',label:'Messages'},{id:'updates',label:'Updates'},
+        {id:'overview',label:'Overview'}, {id:'user management',label:'Users'}, 
+        {id:'faculty',label:'Faculty'}, {id:'courses',label:'Courses'}, 
+        {id:'resources',label:'Resources'}, {id:'updates',label:'Updates'},
+        {id:'reviews',label:'Reviews'}, {id:'messages',label:'Messages'}
     ];
 
-    if(authLoading) return <div style={{color:'white',textAlign:'center',marginTop:'50px'}}>Checking permissions...</div>;
+    if(authLoading) return <div style={{textAlign:'center',padding:'50px', color: '#6B7280'}}>Checking permissions...</div>;
     if(!user||user.role!=='admin') return null;
 
     return (
-        <DashboardLayout>
-            <GlassCard className="mb-6">
-                <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
-                    <div style={{padding:'10px',borderRadius:'12px',background:'rgba(239,68,68,0.2)',color:'#F87171'}}><Shield size={24}/></div>
-                    <div><h1 style={{fontSize:'1.8rem',fontWeight:'bold'}}>Admin Panel</h1><p style={{color:'var(--text-secondary)'}}>System Management Dashboard</p></div>
-                </div>
-                <div style={{display:'flex',gap:'0.5rem',marginTop:'1.5rem',borderBottom:'1px solid rgba(255,255,255,0.1)',overflowX:'auto',paddingBottom:'1px'}}>
-                    {TABS.map(t=>(
-                        <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{padding:'10px 15px',background:'none',border:'none',color:activeTab===t.id?'var(--primary)':'var(--text-secondary)',borderBottom:activeTab===t.id?'2px solid var(--primary)':'2px solid transparent',cursor:'pointer',fontWeight:'500',whiteSpace:'nowrap',transition:'color 0.2s'}}>
-                            {t.label}
-                        </button>
-                    ))}
-                </div>
-            </GlassCard>
+        <div className="admin-wrap">
+            <style>{GLOBAL_CSS}</style>
 
-            {activeTab==='overview'&&(
-                <>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))',gap:'1.5rem',marginBottom:'2rem'}}>
-                        {STATS.map((s,i)=>(
-                            <GlassCard key={i}>
-                                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1rem'}}>
-                                    <div style={{padding:'10px',borderRadius:'12px',background:`${s.color}33`,color:s.color}}><s.icon size={24}/></div>
-                                    <Badge variant="success">Live</Badge>
-                                </div>
-                                <h2 style={{fontSize:'2.5rem',fontWeight:'bold'}}>{s.value}</h2>
-                                <p style={{color:'var(--text-secondary)'}}>{s.label}</p>
-                            </GlassCard>
+            {/* ─── FLOATING TOP NAV BAR ─── */}
+            <div className="glass-nav-wrapper">
+                <div className="glass-nav">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>
+                            <Shield size={22} />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0, color: '#111827', letterSpacing: '-0.02em' }}>Admin Control</h1>
+                            <p style={{ fontSize: '0.8rem', color: '#6B7280', margin: 0, fontWeight: '600' }}>AcadeMe Workspace</p>
+                        </div>
+                    </div>
+
+                    <div className="nav-tabs-container">
+                        {TABS.map(t=>(
+                            <button key={t.id} onClick={()=>setActiveTab(t.id)} className={`nav-tab ${activeTab === t.id ? 'active' : 'inactive'}`}>
+                                {t.label}
+                            </button>
                         ))}
                     </div>
-                    <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:'1.5rem'}}>
-                        <GlassCard>
-                            <h3 style={{marginBottom:'1.5rem',fontWeight:'bold'}}>Recent Signups</h3>
-                            <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-                                {recentUsers.map(u=>(
-                                    <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px',background:'rgba(255,255,255,0.03)',borderRadius:'8px'}}>
-                                        <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
-                                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random&color=fff&size=40`} alt={u.name} style={{width:'40px',height:'40px',borderRadius:'50%'}}/>
-                                            <div><p style={{fontWeight:'500'}}>{u.name}</p><p style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{u.branch} • {u.year||'Student'}</p></div>
-                                        </div>
-                                        <Badge variant={u.isBlocked?"destructive":"success"}>{u.isBlocked?"Blocked":"Active"}</Badge>
-                                    </div>
-                                ))}
-                            </div>
-                        </GlassCard>
-                        <GlassCard>
-                            <h3 style={{marginBottom:'1.5rem',fontWeight:'bold'}}>Quick Actions</h3>
-                            <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-                                <GlassButton onClick={()=>setActiveTab('courses')} variant="gradient" style={{justifyContent:'center'}}><BookOpen size={16}/> Manage Courses</GlassButton>
-                                <GlassButton onClick={()=>setActiveTab('user management')} style={{justifyContent:'center',background:'rgba(255,255,255,0.1)'}}><Users size={16}/> Manage Users</GlassButton>
-                                <GlassButton onClick={()=>setActiveTab('reviews')} style={{justifyContent:'center',background:'rgba(255,255,255,0.1)'}}>Review Reports</GlassButton>
-                            </div>
-                        </GlassCard>
-                    </div>
-                </>
-            )}
 
-            {activeTab==='user management'&&<UserManagement/>}
-            {activeTab==='faculty'&&<FacultyManagement/>}
-            {activeTab==='courses'&&<CoursesManagement/>}
-            {activeTab==='resources'&&<ResourcesManagement/>}
-            {activeTab==='updates'&&(<><AttendanceReminderTest/><UpdatesManagement/></>)}
-            {activeTab==='reviews'&&<ReviewsManagement/>}
-            {activeTab==='messages'&&<MessagesTab/>}
-        </DashboardLayout>
+                    <PillButton onClick={() => navigate('/dashboard')} variant="primary" style={{ padding: '10px 20px', flexShrink: 0 }}>
+                        <span className="hide-on-mobile">Dashboard</span> <LayoutDashboard size={18} />
+                    </PillButton>
+                </div>
+            </div>
+
+            {/* ─── MAIN CONTENT AREA ─── */}
+            <div className="main-content" style={{ padding: '0 20px', maxWidth: '1200px', margin: '20px auto 0' }}>
+                {activeTab === 'overview' && <OverviewTab setActiveTab={setActiveTab} />}
+                {activeTab === 'user management' && <UserManagement/>}
+                {activeTab === 'faculty' && <FacultyManagement/>}
+                {activeTab === 'courses' && <CoursesManagement/>}
+                {activeTab === 'resources' && <ResourcesManagement/>}
+                {activeTab === 'updates' && (
+                    <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:'1.5rem'}}>
+                        <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+                            <AttendanceReminderTest/>
+                            <CustomNotificationSender/>
+                        </div>
+                        <UpdatesManagement/>
+                    </div>
+                )}
+                {activeTab === 'reviews' && <ReviewsManagement/>}
+                {activeTab === 'messages' && <MessagesTab/>}
+            </div>
+        </div>
     );
 };
 

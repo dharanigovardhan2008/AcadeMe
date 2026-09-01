@@ -68,6 +68,7 @@ known_ids = {
     "resources": set(),
     "notifications": set(),
     "attendance_reminders": set(),
+    "admin_broadcasts": set(),
 }
 
 service_stats = {
@@ -261,13 +262,15 @@ ATTENDANCE_REMINDER_BODIES = [
 ]
 
 
-def send_attendance_reminder(manual=False):
-    """Send the funny attendance nudge to everyone."""
-    title = random.choice(ATTENDANCE_REMINDER_TITLES)
-    body = random.choice(ATTENDANCE_REMINDER_BODIES)
-    if manual:
+def send_attendance_reminder(manual=False, custom_title=None, custom_body=None):
+    """Send the attendance nudge to everyone. If custom_title/custom_body are
+    provided (admin edited the message in the Admin Panel before sending),
+    those are used verbatim instead of picking randomly from the default pool."""
+    title = custom_title or random.choice(ATTENDANCE_REMINDER_TITLES)
+    body = custom_body or random.choice(ATTENDANCE_REMINDER_BODIES)
+    if manual and not custom_body:
         body = "(Test ping from Admin Panel) " + body
-    print(f"\n🆕 ═══ ATTENDANCE REMINDER {'(MANUAL TEST)' if manual else ''} ═══")
+    print(f"\n🆕 ═══ ATTENDANCE REMINDER {'(MANUAL' + (' CUSTOM' if custom_title or custom_body else '') + ')' if manual else ''} ═══")
     send_to_all(
         title,
         body,
@@ -278,8 +281,11 @@ def send_attendance_reminder(manual=False):
 
 def watch_attendance_reminder_triggers():
     """Watches a Firestore collection the Admin Panel writes to when the
-    admin clicks 'Send Test Attendance Reminder'. Each new doc triggers one
-    immediate broadcast, independent of the daily schedule below."""
+    admin clicks 'Send Attendance Reminder'. Each new doc triggers one
+    immediate broadcast, independent of the daily schedule below.
+    Doc fields (all optional): title, body — if the admin edited the message
+    before sending, these are used verbatim; otherwise a random default is
+    picked."""
     while True:
         try:
             docs = list(db.collection('attendance_reminders').stream())
@@ -289,13 +295,51 @@ def watch_attendance_reminder_triggers():
             if new_ids:
                 for doc in docs:
                     if doc.id in new_ids:
+                        data = doc.to_dict() or {}
+                        custom_title = (data.get('title') or '').strip() or None
+                        custom_body = (data.get('body') or '').strip() or None
                         print(f"\n🆕 ═══ MANUAL ATTENDANCE REMINDER TRIGGER ═══")
-                        send_attendance_reminder(manual=True)
+                        send_attendance_reminder(manual=True, custom_title=custom_title, custom_body=custom_body)
 
                 known_ids["attendance_reminders"] = current_ids
 
         except Exception as e:
             print(f"❌ Attendance reminder trigger watch error: {e}")
+
+        time.sleep(10)
+
+
+# ══════════════════════════════════════════════════════════════
+# 📣 CUSTOM ADMIN BROADCASTS (fully custom notification, any content)
+# ══════════════════════════════════════════════════════════════
+
+def watch_admin_broadcasts():
+    """Watches `admin_broadcasts` — written by the Admin Panel's 'Send Custom
+    Notification' composer. Unlike attendance reminders, these carry whatever
+    title/body/url the admin typed, with no default pool fallback."""
+    while True:
+        try:
+            docs = list(db.collection('admin_broadcasts').stream())
+            current_ids = set(doc.id for doc in docs)
+            new_ids = current_ids - known_ids["admin_broadcasts"]
+
+            if new_ids:
+                for doc in docs:
+                    if doc.id in new_ids:
+                        data = doc.to_dict() or {}
+                        title = (data.get('title') or 'AcadeMe').strip()
+                        body = (data.get('body') or '').strip()
+                        url = (data.get('url') or '').strip() or 'https://acade-me.vercel.app'
+
+                        if body:
+                            print(f"\n🆕 ═══ CUSTOM ADMIN BROADCAST ═══")
+                            print(f"📣 {title}")
+                            send_to_all(title, body, url=url, notif_type='admin_broadcast')
+
+                known_ids["admin_broadcasts"] = current_ids
+
+        except Exception as e:
+            print(f"❌ Admin broadcast watch error: {e}")
 
         time.sleep(10)
 
@@ -548,6 +592,7 @@ class Handler(BaseHTTPRequestHandler):
                         <p>📚 New Resources → All users</p>
                         <p>💬 Admin Messages → Specific user</p>
                         <p>🎒 Attendance Reminders → All users (Mon–Sat, 12:00 & 16:30 IST)</p>
+                        <p>📣 Custom Admin Broadcasts → All users (on demand)</p>
                     </div>
                 </div>
             </div>
@@ -591,12 +636,14 @@ if __name__ == '__main__':
         load_existing_ids("resources")
         load_existing_ids("notifications")
         load_existing_ids("attendance_reminders")
+        load_existing_ids("admin_broadcasts")
 
         watchers = [
             ("Updates", watch_updates),
             ("Resources", watch_resources),
             ("Messages", watch_notifications),
             ("AttendanceReminderTriggers", watch_attendance_reminder_triggers),
+            ("AdminBroadcasts", watch_admin_broadcasts),
         ]
 
         for name, func in watchers:
@@ -616,7 +663,8 @@ if __name__ == '__main__':
         print("   📢 Updates")
         print("   📚 Resources")
         print("   💬 Admin Messages")
-        print("   🎒 Attendance Reminders (Mon–Sat, 12:00 & 16:30 IST)\n")
+        print("   🎒 Attendance Reminders (Mon–Sat, 12:00 & 16:30 IST)")
+        print("   📣 Custom Admin Broadcasts\n")
 
         run_server()
         
